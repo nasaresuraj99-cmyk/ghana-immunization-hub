@@ -8,6 +8,7 @@ import { DefaultersSection } from "@/components/sections/DefaultersSection";
 import { DashboardSection } from "@/components/sections/DashboardSection";
 import { ReportingSection } from "@/components/sections/ReportingSection";
 import { SettingsSection } from "@/components/sections/SettingsSection";
+import { VaccineAdministrationModal } from "@/components/modals/VaccineAdministrationModal";
 import { useChildren } from "@/hooks/useChildren";
 import { useToast } from "@/hooks/use-toast";
 import { Child } from "@/types/child";
@@ -26,7 +27,9 @@ export default function Index() {
   const [currentSection, setCurrentSection] = useState<Section>('home');
   const [editingChild, setEditingChild] = useState<Child | null>(null);
   
-  const { children, stats, addChild, updateChild, deleteChild } = useChildren();
+  const [vaccineModalChild, setVaccineModalChild] = useState<Child | null>(null);
+  
+  const { children, stats, addChild, updateChild, deleteChild, updateVaccine } = useChildren();
   const { toast } = useToast();
 
   const handleLogin = (email: string, password: string) => {
@@ -99,10 +102,20 @@ export default function Index() {
   };
 
   const handleViewVaccines = (child: Child) => {
+    setVaccineModalChild(child);
+  };
+
+  const handleAdministerVaccine = (childId: string, vaccineName: string, givenDate: string, batchNumber: string) => {
+    updateVaccine(childId, vaccineName, givenDate, batchNumber);
     toast({
-      title: child.name,
-      description: `${child.vaccines.filter(v => v.status === 'completed').length}/${child.vaccines.length} vaccines completed`,
+      title: "Vaccine Administered",
+      description: `${vaccineName} has been recorded successfully.`,
     });
+    // Update the modal child reference to reflect changes
+    const updatedChild = children.find(c => c.id === childId);
+    if (updatedChild) {
+      setVaccineModalChild({ ...updatedChild });
+    }
   };
 
   if (!isAuthenticated) {
@@ -208,6 +221,14 @@ export default function Index() {
       <footer className="text-center py-6 text-sm text-muted-foreground border-t bg-card mt-12">
         © {new Date().getFullYear()} Ghana Health Service - Immunization Tracker
       </footer>
+
+      {/* Vaccine Administration Modal */}
+      <VaccineAdministrationModal
+        child={vaccineModalChild}
+        isOpen={!!vaccineModalChild}
+        onClose={() => setVaccineModalChild(null)}
+        onAdminister={handleAdministerVaccine}
+      />
     </div>
   );
 }

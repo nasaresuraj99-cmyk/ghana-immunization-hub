@@ -15,6 +15,8 @@ export interface VaccineRecord {
   name: string;
   dueDate: string;
   givenDate?: string;
+  batchNumber?: string;
+  administeredBy?: string;
   status: 'pending' | 'completed' | 'overdue';
 }
 
