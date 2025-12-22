@@ -112,7 +112,7 @@ export function useChildren() {
     setChildren(prev => prev.filter(child => child.id !== childId));
   }, []);
 
-  const updateVaccine = useCallback((childId: string, vaccineName: string, givenDate: string) => {
+  const updateVaccine = useCallback((childId: string, vaccineName: string, givenDate: string, batchNumber?: string) => {
     setChildren(prev => prev.map(child => {
       if (child.id !== childId) return child;
       
@@ -120,7 +120,13 @@ export function useChildren() {
         ...child,
         vaccines: child.vaccines.map(vaccine => 
           vaccine.name === vaccineName
-            ? { ...vaccine, status: 'completed' as const, givenDate }
+            ? { 
+                ...vaccine, 
+                status: 'completed' as const, 
+                givenDate,
+                batchNumber: batchNumber || undefined,
+                administeredBy: 'Current User'
+              }
             : vaccine
         ),
       };
