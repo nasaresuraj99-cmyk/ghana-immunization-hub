@@ -1,6 +1,6 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { format } from "date-fns";
-import { CalendarIcon, Syringe, X, Check } from "lucide-react";
+import { CalendarIcon, Syringe, Check, ChevronDown, ChevronRight } from "lucide-react";
 import {
   Dialog,
   DialogContent,
@@ -27,6 +27,35 @@ interface VaccineAdministrationModalProps {
   onAdminister: (childId: string, vaccineName: string, givenDate: string, batchNumber: string) => void;
 }
 
+// Age category definitions
+const AGE_CATEGORIES = [
+  { key: 'birth', label: 'Birth', keywords: ['at Birth'] },
+  { key: '6weeks', label: '6 Weeks', keywords: ['at 6 weeks'] },
+  { key: '10weeks', label: '10 Weeks', keywords: ['at 10 weeks'] },
+  { key: '14weeks', label: '14 Weeks', keywords: ['at 14 weeks'] },
+  { key: '6months', label: '6 Months', keywords: ['at 6 months'] },
+  { key: '7months', label: '7 Months', keywords: ['at 7 months'] },
+  { key: '9months', label: '9 Months', keywords: ['at 9 months'] },
+  { key: '12months', label: '12 Months', keywords: ['at 12 months'] },
+  { key: '18months', label: '18 Months', keywords: ['at 18 months'] },
+  { key: '24months', label: '24 Months', keywords: ['at 24 months'] },
+  { key: '30months', label: '30 Months', keywords: ['at 30 months'] },
+  { key: '36months', label: '36 Months', keywords: ['at 36 months'] },
+  { key: '42months', label: '42 Months', keywords: ['at 42 months'] },
+  { key: '48months', label: '48 Months', keywords: ['at 48 months'] },
+  { key: '54months', label: '54 Months', keywords: ['at 54 months'] },
+  { key: '60months', label: '60 Months', keywords: ['at 60 months'] },
+];
+
+function getAgeCategory(vaccineName: string): string {
+  for (const cat of AGE_CATEGORIES) {
+    if (cat.keywords.some(kw => vaccineName.includes(kw))) {
+      return cat.key;
+    }
+  }
+  return 'other';
+}
+
 export function VaccineAdministrationModal({
   child,
   isOpen,
@@ -37,6 +66,41 @@ export function VaccineAdministrationModal({
   const [givenDate, setGivenDate] = useState<Date | undefined>(new Date());
   const [batchNumber, setBatchNumber] = useState("");
   const [isCalendarOpen, setIsCalendarOpen] = useState(false);
+  const [expandedCategories, setExpandedCategories] = useState<Set<string>>(new Set(['birth', '6weeks']));
+  const [filterCategory, setFilterCategory] = useState<string>('all');
+
+  const pendingVaccines = child?.vaccines.filter(v => v.status !== 'completed') || [];
+  const completedVaccines = child?.vaccines.filter(v => v.status === 'completed') || [];
+
+  // Group vaccines by age category
+  const groupedPendingVaccines = useMemo(() => {
+    const groups: Record<string, VaccineRecord[]> = {};
+    
+    pendingVaccines.forEach(vaccine => {
+      const category = getAgeCategory(vaccine.name);
+      if (!groups[category]) groups[category] = [];
+      groups[category].push(vaccine);
+    });
+
+    return groups;
+  }, [pendingVaccines]);
+
+  const groupedCompletedVaccines = useMemo(() => {
+    const groups: Record<string, VaccineRecord[]> = {};
+    
+    completedVaccines.forEach(vaccine => {
+      const category = getAgeCategory(vaccine.name);
+      if (!groups[category]) groups[category] = [];
+      groups[category].push(vaccine);
+    });
+
+    return groups;
+  }, [completedVaccines]);
+
+  // Get categories that have pending vaccines
+  const availableCategories = useMemo(() => {
+    return AGE_CATEGORIES.filter(cat => groupedPendingVaccines[cat.key]?.length > 0);
+  }, [groupedPendingVaccines]);
 
   const handleAdminister = () => {
     if (!child || !selectedVaccine || !givenDate) return;
@@ -58,7 +122,20 @@ export function VaccineAdministrationModal({
     setSelectedVaccine(null);
     setGivenDate(new Date());
     setBatchNumber("");
+    setFilterCategory('all');
     onClose();
+  };
+
+  const toggleCategory = (categoryKey: string) => {
+    setExpandedCategories(prev => {
+      const next = new Set(prev);
+      if (next.has(categoryKey)) {
+        next.delete(categoryKey);
+      } else {
+        next.add(categoryKey);
+      }
+      return next;
+    });
   };
 
   const getStatusBadge = (status: VaccineRecord['status']) => {
@@ -72,8 +149,9 @@ export function VaccineAdministrationModal({
     }
   };
 
-  const pendingVaccines = child?.vaccines.filter(v => v.status !== 'completed') || [];
-  const completedVaccines = child?.vaccines.filter(v => v.status === 'completed') || [];
+  const filteredCategories = filterCategory === 'all' 
+    ? availableCategories 
+    : availableCategories.filter(c => c.key === filterCategory);
 
   return (
     <Dialog open={isOpen} onOpenChange={(open) => !open && handleClose()}>
@@ -109,7 +187,30 @@ export function VaccineAdministrationModal({
               </div>
             </div>
 
-            {/* Vaccine Selection */}
+            {/* Age Category Filter */}
+            {availableCategories.length > 0 && (
+              <div className="flex flex-wrap gap-2">
+                <Button
+                  variant={filterCategory === 'all' ? 'default' : 'outline'}
+                  size="sm"
+                  onClick={() => setFilterCategory('all')}
+                >
+                  All ({pendingVaccines.length})
+                </Button>
+                {availableCategories.map(cat => (
+                  <Button
+                    key={cat.key}
+                    variant={filterCategory === cat.key ? 'default' : 'outline'}
+                    size="sm"
+                    onClick={() => setFilterCategory(cat.key)}
+                  >
+                    {cat.label} ({groupedPendingVaccines[cat.key]?.length || 0})
+                  </Button>
+                ))}
+              </div>
+            )}
+
+            {/* Vaccine Selection by Category */}
             <div>
               <Label className="text-sm font-semibold mb-3 block">
                 Select Vaccine to Administer
@@ -121,33 +222,65 @@ export function VaccineAdministrationModal({
                   <p>All vaccines have been administered!</p>
                 </div>
               ) : (
-                <div className="grid gap-2 max-h-48 overflow-y-auto">
-                  {pendingVaccines.map((vaccine) => (
-                    <button
-                      key={vaccine.name}
-                      onClick={() => setSelectedVaccine(vaccine)}
-                      className={cn(
-                        "flex items-center justify-between p-3 rounded-lg border transition-all text-left",
-                        selectedVaccine?.name === vaccine.name
-                          ? "border-primary bg-primary/5 ring-2 ring-primary"
-                          : "border-border hover:border-primary/50 hover:bg-muted/50"
-                      )}
-                    >
-                      <div className="flex items-center gap-3">
-                        <Syringe className={cn(
-                          "w-4 h-4",
-                          selectedVaccine?.name === vaccine.name ? "text-primary" : "text-muted-foreground"
-                        )} />
-                        <div>
-                          <p className="font-medium text-sm">{vaccine.name}</p>
-                          <p className="text-xs text-muted-foreground">
-                            Due: {new Date(vaccine.dueDate).toLocaleDateString()}
-                          </p>
-                        </div>
+                <div className="space-y-3 max-h-64 overflow-y-auto pr-2">
+                  {filteredCategories.map(category => {
+                    const vaccines = groupedPendingVaccines[category.key] || [];
+                    if (vaccines.length === 0) return null;
+                    
+                    const isExpanded = expandedCategories.has(category.key);
+                    
+                    return (
+                      <div key={category.key} className="border rounded-lg overflow-hidden">
+                        <button
+                          onClick={() => toggleCategory(category.key)}
+                          className="w-full flex items-center justify-between p-3 bg-muted/50 hover:bg-muted transition-colors"
+                        >
+                          <div className="flex items-center gap-2">
+                            {isExpanded ? (
+                              <ChevronDown className="w-4 h-4 text-primary" />
+                            ) : (
+                              <ChevronRight className="w-4 h-4 text-muted-foreground" />
+                            )}
+                            <span className="font-medium">{category.label}</span>
+                            <Badge variant="secondary" className="ml-2">
+                              {vaccines.length} pending
+                            </Badge>
+                          </div>
+                        </button>
+                        
+                        {isExpanded && (
+                          <div className="p-2 space-y-2">
+                            {vaccines.map((vaccine) => (
+                              <button
+                                key={vaccine.name}
+                                onClick={() => setSelectedVaccine(vaccine)}
+                                className={cn(
+                                  "w-full flex items-center justify-between p-3 rounded-lg border transition-all text-left",
+                                  selectedVaccine?.name === vaccine.name
+                                    ? "border-primary bg-primary/5 ring-2 ring-primary"
+                                    : "border-border hover:border-primary/50 hover:bg-muted/50"
+                                )}
+                              >
+                                <div className="flex items-center gap-3">
+                                  <Syringe className={cn(
+                                    "w-4 h-4",
+                                    selectedVaccine?.name === vaccine.name ? "text-primary" : "text-muted-foreground"
+                                  )} />
+                                  <div>
+                                    <p className="font-medium text-sm">{vaccine.name}</p>
+                                    <p className="text-xs text-muted-foreground">
+                                      Due: {new Date(vaccine.dueDate).toLocaleDateString()}
+                                    </p>
+                                  </div>
+                                </div>
+                                {getStatusBadge(vaccine.status)}
+                              </button>
+                            ))}
+                          </div>
+                        )}
                       </div>
-                      {getStatusBadge(vaccine.status)}
-                    </button>
-                  ))}
+                    );
+                  })}
                 </div>
               )}
             </div>
@@ -223,32 +356,44 @@ export function VaccineAdministrationModal({
               </div>
             )}
 
-            {/* Completed Vaccines */}
+            {/* Completed Vaccines by Category */}
             {completedVaccines.length > 0 && (
               <div className="border-t pt-4">
                 <Label className="text-sm font-semibold mb-3 block text-muted-foreground">
                   Completed Vaccines ({completedVaccines.length})
                 </Label>
-                <div className="grid gap-2 max-h-32 overflow-y-auto">
-                  {completedVaccines.map((vaccine) => (
-                    <div
-                      key={vaccine.name}
-                      className="flex items-center justify-between p-2 rounded-lg bg-ghs-green/10 text-sm"
-                    >
-                      <div className="flex items-center gap-2">
-                        <Check className="w-4 h-4 text-ghs-green" />
-                        <span>{vaccine.name}</span>
+                <div className="space-y-2 max-h-40 overflow-y-auto">
+                  {AGE_CATEGORIES.map(category => {
+                    const vaccines = groupedCompletedVaccines[category.key] || [];
+                    if (vaccines.length === 0) return null;
+                    
+                    return (
+                      <div key={category.key}>
+                        <p className="text-xs font-medium text-muted-foreground mb-1">{category.label}</p>
+                        <div className="grid gap-1">
+                          {vaccines.map((vaccine) => (
+                            <div
+                              key={vaccine.name}
+                              className="flex items-center justify-between p-2 rounded-lg bg-ghs-green/10 text-sm"
+                            >
+                              <div className="flex items-center gap-2">
+                                <Check className="w-4 h-4 text-ghs-green" />
+                                <span className="text-xs">{vaccine.name}</span>
+                              </div>
+                              <div className="flex items-center gap-3 text-xs text-muted-foreground">
+                                {vaccine.batchNumber && (
+                                  <span>Batch: {vaccine.batchNumber}</span>
+                                )}
+                                <span>
+                                  {vaccine.givenDate && new Date(vaccine.givenDate).toLocaleDateString()}
+                                </span>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
                       </div>
-                      <div className="flex items-center gap-3 text-xs text-muted-foreground">
-                        {vaccine.batchNumber && (
-                          <span>Batch: {vaccine.batchNumber}</span>
-                        )}
-                        <span>
-                          {vaccine.givenDate && new Date(vaccine.givenDate).toLocaleDateString()}
-                        </span>
-                      </div>
-                    </div>
-                  ))}
+                    );
+                  })}
                 </div>
               </div>
             )}

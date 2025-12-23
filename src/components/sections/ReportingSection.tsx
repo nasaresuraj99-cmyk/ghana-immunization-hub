@@ -1,10 +1,11 @@
 import { useState, useMemo } from "react";
-import { FileText, Download, Printer, TrendingUp, PieChart } from "lucide-react";
+import { FileText, Download, Printer, TrendingUp, PieChart, Users, Syringe, AlertTriangle, Calendar } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Label } from "@/components/ui/label";
+import { Badge } from "@/components/ui/badge";
 import { StatCard } from "@/components/ui/stat-card";
-import { Child, DashboardStats } from "@/types/child";
+import { Child, DashboardStats, Defaulter } from "@/types/child";
 import { cn } from "@/lib/utils";
 
 interface ReportingSectionProps {
@@ -14,10 +15,17 @@ interface ReportingSectionProps {
 
 type ReportTab = 'summary' | 'detailed' | 'vaccine' | 'defaulters';
 
+// Vaccine categories for grouping
+const VACCINE_TYPES = [
+  'BCG', 'OPV', 'Hepatitis B', 'Penta', 'PCV', 'Rotavirus', 
+  'IPV', 'Malaria', 'Measles Rubella', 'Men A', 'LLIN', 'Vitamin A'
+];
+
 export function ReportingSection({ stats, children }: ReportingSectionProps) {
   const [activeTab, setActiveTab] = useState<ReportTab>('summary');
   const [period, setPeriod] = useState('month');
 
+  // Age distribution calculation
   const ageDistribution = useMemo(() => {
     const groups = {
       '0-6 months': 0,
@@ -45,12 +53,132 @@ export function ReportingSection({ stats, children }: ReportingSectionProps) {
     return groups;
   }, [children]);
 
-  const tabs: { id: ReportTab; label: string }[] = [
-    { id: 'summary', label: 'Summary' },
-    { id: 'detailed', label: 'Detailed' },
-    { id: 'vaccine', label: 'Vaccine' },
-    { id: 'defaulters', label: 'Defaulters Report' },
+  // Detailed vaccination records
+  const detailedRecords = useMemo(() => {
+    const records: Array<{
+      date: string;
+      childName: string;
+      regNo: string;
+      vaccine: string;
+      batchNumber: string;
+      status: string;
+    }> = [];
+
+    children.forEach(child => {
+      child.vaccines.forEach(vaccine => {
+        if (vaccine.status === 'completed' && vaccine.givenDate) {
+          records.push({
+            date: vaccine.givenDate,
+            childName: child.name,
+            regNo: child.regNo,
+            vaccine: vaccine.name,
+            batchNumber: vaccine.batchNumber || 'N/A',
+            status: 'Completed'
+          });
+        }
+      });
+    });
+
+    // Sort by date descending
+    return records.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+  }, [children]);
+
+  // Vaccine coverage statistics
+  const vaccineCoverage = useMemo(() => {
+    const coverage: Record<string, { given: number; pending: number; overdue: number }> = {};
+
+    VACCINE_TYPES.forEach(type => {
+      coverage[type] = { given: 0, pending: 0, overdue: 0 };
+    });
+
+    children.forEach(child => {
+      child.vaccines.forEach(vaccine => {
+        const matchedType = VACCINE_TYPES.find(type => vaccine.name.includes(type));
+        if (matchedType) {
+          if (vaccine.status === 'completed') {
+            coverage[matchedType].given++;
+          } else if (vaccine.status === 'overdue') {
+            coverage[matchedType].overdue++;
+          } else {
+            coverage[matchedType].pending++;
+          }
+        }
+      });
+    });
+
+    return coverage;
+  }, [children]);
+
+  // Defaulters list
+  const defaultersList = useMemo((): Defaulter[] => {
+    const defaulters: Defaulter[] = [];
+    const today = new Date();
+
+    children.forEach(child => {
+      const overdueVaccines = child.vaccines.filter(v => v.status === 'overdue');
+      if (overdueVaccines.length > 0) {
+        const earliestOverdue = overdueVaccines.reduce((earliest, v) => 
+          new Date(v.dueDate) < new Date(earliest.dueDate) ? v : earliest
+        );
+        const dueDate = new Date(earliestOverdue.dueDate);
+        const daysOverdue = Math.floor((today.getTime() - dueDate.getTime()) / (1000 * 60 * 60 * 24));
+        
+        defaulters.push({
+          child,
+          missedVaccines: overdueVaccines.map(v => v.name),
+          dueDate: earliestOverdue.dueDate,
+          daysOverdue,
+        });
+      }
+    });
+
+    return defaulters.sort((a, b) => b.daysOverdue - a.daysOverdue);
+  }, [children]);
+
+  // Get period-filtered data
+  const getFilteredData = useMemo(() => {
+    const now = new Date();
+    let startDate: Date;
+
+    switch (period) {
+      case 'today':
+        startDate = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+        break;
+      case 'week':
+        startDate = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+        break;
+      case 'month':
+        startDate = new Date(now.getFullYear(), now.getMonth(), 1);
+        break;
+      case 'quarter':
+        startDate = new Date(now.getFullYear(), Math.floor(now.getMonth() / 3) * 3, 1);
+        break;
+      case 'year':
+        startDate = new Date(now.getFullYear(), 0, 1);
+        break;
+      default:
+        startDate = new Date(now.getFullYear(), now.getMonth(), 1);
+    }
+
+    const filteredRecords = detailedRecords.filter(r => new Date(r.date) >= startDate);
+    
+    return {
+      totalVaccinations: filteredRecords.length,
+      records: filteredRecords
+    };
+  }, [period, detailedRecords]);
+
+  const tabs: { id: ReportTab; label: string; icon: React.ReactNode }[] = [
+    { id: 'summary', label: 'Summary', icon: <TrendingUp className="w-4 h-4" /> },
+    { id: 'detailed', label: 'Detailed', icon: <FileText className="w-4 h-4" /> },
+    { id: 'vaccine', label: 'Vaccine', icon: <Syringe className="w-4 h-4" /> },
+    { id: 'defaulters', label: 'Defaulters Report', icon: <AlertTriangle className="w-4 h-4" /> },
   ];
+
+  const handleExport = (format: 'pdf' | 'excel') => {
+    // Placeholder for export functionality
+    console.log(`Exporting ${activeTab} report as ${format}`);
+  };
 
   return (
     <div className="animate-fade-in">
@@ -65,17 +193,19 @@ export function ReportingSection({ stats, children }: ReportingSectionProps) {
               key={tab.id}
               onClick={() => setActiveTab(tab.id)}
               className={cn(
-                "px-6 py-3 text-sm font-medium border-b-2 transition-colors whitespace-nowrap",
+                "flex items-center gap-2 px-6 py-3 text-sm font-medium border-b-2 transition-colors whitespace-nowrap",
                 activeTab === tab.id
                   ? "border-primary text-primary"
                   : "border-transparent text-muted-foreground hover:text-foreground"
               )}
             >
+              {tab.icon}
               {tab.label}
             </button>
           ))}
         </div>
 
+        {/* Summary Tab */}
         {activeTab === 'summary' && (
           <div className="space-y-6">
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
@@ -99,7 +229,7 @@ export function ReportingSection({ stats, children }: ReportingSectionProps) {
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
               <StatCard
                 title="Total Vaccinations"
-                value={stats.totalChildren * 5}
+                value={getFilteredData.totalVaccinations}
                 variant="default"
               />
               <StatCard
@@ -123,10 +253,25 @@ export function ReportingSection({ stats, children }: ReportingSectionProps) {
               <div className="bg-muted/30 rounded-lg p-6">
                 <div className="flex items-center gap-2 mb-4">
                   <TrendingUp className="w-5 h-5 text-primary" />
-                  <h3 className="font-semibold">Vaccination Trend</h3>
+                  <h3 className="font-semibold">Vaccination Summary</h3>
                 </div>
-                <div className="h-48 flex items-center justify-center text-muted-foreground">
-                  <p className="text-sm">Chart visualization would go here</p>
+                <div className="space-y-3">
+                  <div className="flex justify-between p-3 bg-background rounded-lg">
+                    <span>Total Children Registered</span>
+                    <span className="font-bold">{stats.totalChildren}</span>
+                  </div>
+                  <div className="flex justify-between p-3 bg-background rounded-lg">
+                    <span>Fully Immunized</span>
+                    <span className="font-bold text-ghs-green">{stats.fullyImmunized}</span>
+                  </div>
+                  <div className="flex justify-between p-3 bg-background rounded-lg">
+                    <span>Vaccinated Today</span>
+                    <span className="font-bold text-primary">{stats.vaccinatedToday}</span>
+                  </div>
+                  <div className="flex justify-between p-3 bg-background rounded-lg">
+                    <span>Due This Week</span>
+                    <span className="font-bold text-amber-600">{stats.dueSoon}</span>
+                  </div>
                 </div>
               </div>
 
@@ -157,15 +302,15 @@ export function ReportingSection({ stats, children }: ReportingSectionProps) {
             </div>
 
             <div className="flex flex-wrap gap-3">
-              <Button>
+              <Button onClick={() => handleExport('pdf')}>
                 <FileText className="w-4 h-4 mr-2" />
                 Export PDF
               </Button>
-              <Button variant="secondary">
+              <Button variant="secondary" onClick={() => handleExport('excel')}>
                 <Download className="w-4 h-4 mr-2" />
                 Export Excel
               </Button>
-              <Button variant="outline">
+              <Button variant="outline" onClick={() => window.print()}>
                 <Printer className="w-4 h-4 mr-2" />
                 Print Report
               </Button>
@@ -173,24 +318,247 @@ export function ReportingSection({ stats, children }: ReportingSectionProps) {
           </div>
         )}
 
+        {/* Detailed Tab */}
         {activeTab === 'detailed' && (
-          <div className="text-center py-12 text-muted-foreground">
-            <FileText className="w-12 h-12 mx-auto mb-4 opacity-50" />
-            <p>Detailed reports will show individual vaccination records</p>
+          <div className="space-y-6">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <Users className="w-5 h-5 text-primary" />
+                <h3 className="font-semibold">Individual Vaccination Records</h3>
+              </div>
+              <Badge variant="secondary">{detailedRecords.length} records</Badge>
+            </div>
+
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="bg-primary text-primary-foreground">
+                    <th className="p-3 text-left font-semibold">Date</th>
+                    <th className="p-3 text-left font-semibold">Reg No</th>
+                    <th className="p-3 text-left font-semibold">Child Name</th>
+                    <th className="p-3 text-left font-semibold">Vaccine</th>
+                    <th className="p-3 text-left font-semibold">Batch No.</th>
+                    <th className="p-3 text-left font-semibold">Status</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {detailedRecords.length === 0 ? (
+                    <tr>
+                      <td colSpan={6} className="p-8 text-center text-muted-foreground">
+                        No vaccination records found
+                      </td>
+                    </tr>
+                  ) : (
+                    detailedRecords.slice(0, 50).map((record, idx) => (
+                      <tr key={idx} className="border-b border-border hover:bg-muted/50">
+                        <td className="p-3">{new Date(record.date).toLocaleDateString()}</td>
+                        <td className="p-3 font-mono text-xs">{record.regNo}</td>
+                        <td className="p-3 font-medium">{record.childName}</td>
+                        <td className="p-3">{record.vaccine}</td>
+                        <td className="p-3 font-mono text-xs">{record.batchNumber}</td>
+                        <td className="p-3">
+                          <Badge variant="default" className="bg-ghs-green">
+                            {record.status}
+                          </Badge>
+                        </td>
+                      </tr>
+                    ))
+                  )}
+                </tbody>
+              </table>
+            </div>
+
+            {detailedRecords.length > 50 && (
+              <p className="text-sm text-muted-foreground text-center">
+                Showing 50 of {detailedRecords.length} records
+              </p>
+            )}
+
+            <div className="flex flex-wrap gap-3">
+              <Button onClick={() => handleExport('pdf')}>
+                <FileText className="w-4 h-4 mr-2" />
+                Export PDF
+              </Button>
+              <Button variant="secondary" onClick={() => handleExport('excel')}>
+                <Download className="w-4 h-4 mr-2" />
+                Export Excel
+              </Button>
+            </div>
           </div>
         )}
 
+        {/* Vaccine Coverage Tab */}
         {activeTab === 'vaccine' && (
-          <div className="text-center py-12 text-muted-foreground">
-            <FileText className="w-12 h-12 mx-auto mb-4 opacity-50" />
-            <p>Vaccine-specific reports will show coverage by vaccine type</p>
+          <div className="space-y-6">
+            <div className="flex items-center gap-2">
+              <Syringe className="w-5 h-5 text-primary" />
+              <h3 className="font-semibold">Vaccine Coverage by Type</h3>
+            </div>
+
+            <div className="grid gap-4">
+              {VACCINE_TYPES.map(type => {
+                const data = vaccineCoverage[type];
+                const total = data.given + data.pending + data.overdue;
+                const coveragePercent = total > 0 ? Math.round((data.given / total) * 100) : 0;
+
+                return (
+                  <div key={type} className="bg-muted/30 rounded-lg p-4">
+                    <div className="flex items-center justify-between mb-3">
+                      <h4 className="font-medium">{type}</h4>
+                      <span className="text-sm font-bold text-primary">{coveragePercent}% coverage</span>
+                    </div>
+                    
+                    <div className="h-3 bg-muted rounded-full overflow-hidden mb-3">
+                      <div 
+                        className="h-full bg-ghs-green transition-all duration-500"
+                        style={{ width: `${coveragePercent}%` }}
+                      />
+                    </div>
+                    
+                    <div className="flex gap-4 text-xs">
+                      <span className="flex items-center gap-1">
+                        <span className="w-2 h-2 rounded-full bg-ghs-green" />
+                        Given: {data.given}
+                      </span>
+                      <span className="flex items-center gap-1">
+                        <span className="w-2 h-2 rounded-full bg-amber-500" />
+                        Pending: {data.pending}
+                      </span>
+                      <span className="flex items-center gap-1">
+                        <span className="w-2 h-2 rounded-full bg-destructive" />
+                        Overdue: {data.overdue}
+                      </span>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+
+            <div className="flex flex-wrap gap-3">
+              <Button onClick={() => handleExport('pdf')}>
+                <FileText className="w-4 h-4 mr-2" />
+                Export PDF
+              </Button>
+              <Button variant="secondary" onClick={() => handleExport('excel')}>
+                <Download className="w-4 h-4 mr-2" />
+                Export Excel
+              </Button>
+            </div>
           </div>
         )}
 
+        {/* Defaulters Report Tab */}
         {activeTab === 'defaulters' && (
-          <div className="text-center py-12 text-muted-foreground">
-            <FileText className="w-12 h-12 mx-auto mb-4 opacity-50" />
-            <p>Defaulters report will show detailed defaulter analysis</p>
+          <div className="space-y-6">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <AlertTriangle className="w-5 h-5 text-destructive" />
+                <h3 className="font-semibold">Defaulters Analysis Report</h3>
+              </div>
+              <Badge variant="destructive">{defaultersList.length} defaulters</Badge>
+            </div>
+
+            {/* Defaulters Summary Cards */}
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+              <div className="bg-destructive/10 rounded-lg p-4 border border-destructive/20">
+                <p className="text-sm text-muted-foreground">Critical (&gt;30 days)</p>
+                <p className="text-2xl font-bold text-destructive">
+                  {defaultersList.filter(d => d.daysOverdue > 30).length}
+                </p>
+              </div>
+              <div className="bg-amber-500/10 rounded-lg p-4 border border-amber-500/20">
+                <p className="text-sm text-muted-foreground">Moderate (14-30 days)</p>
+                <p className="text-2xl font-bold text-amber-600">
+                  {defaultersList.filter(d => d.daysOverdue >= 14 && d.daysOverdue <= 30).length}
+                </p>
+              </div>
+              <div className="bg-blue-500/10 rounded-lg p-4 border border-blue-500/20">
+                <p className="text-sm text-muted-foreground">Recent (&lt;14 days)</p>
+                <p className="text-2xl font-bold text-blue-600">
+                  {defaultersList.filter(d => d.daysOverdue < 14).length}
+                </p>
+              </div>
+            </div>
+
+            {/* Defaulters by Vaccine Type */}
+            <div className="bg-muted/30 rounded-lg p-4">
+              <h4 className="font-medium mb-3">Defaulters by Vaccine Type</h4>
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                {VACCINE_TYPES.map(type => {
+                  const count = defaultersList.filter(d => d.missedVaccines.some(v => v.includes(type))).length;
+                  if (count === 0) return null;
+                  return (
+                    <div key={type} className="flex justify-between p-2 bg-background rounded">
+                      <span className="text-sm">{type}</span>
+                      <Badge variant="destructive" className="text-xs">{count}</Badge>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+
+            {/* Defaulters Table */}
+            <div className="overflow-x-auto max-h-96">
+              <table className="w-full text-sm">
+                <thead className="sticky top-0">
+                  <tr className="bg-primary text-primary-foreground">
+                    <th className="p-3 text-left font-semibold">#</th>
+                    <th className="p-3 text-left font-semibold">Child Name</th>
+                    <th className="p-3 text-left font-semibold">Mother</th>
+                    <th className="p-3 text-left font-semibold">Contact</th>
+                    <th className="p-3 text-left font-semibold">Missed Vaccine</th>
+                    <th className="p-3 text-left font-semibold">Due Date</th>
+                    <th className="p-3 text-left font-semibold">Days Overdue</th>
+                    <th className="p-3 text-left font-semibold">Community</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {defaultersList.length === 0 ? (
+                    <tr>
+                      <td colSpan={8} className="p-8 text-center text-muted-foreground">
+                        <AlertTriangle className="w-12 h-12 mx-auto mb-2 opacity-30" />
+                        No defaulters found. Great job!
+                      </td>
+                    </tr>
+                  ) : (
+                    defaultersList.slice(0, 100).map((defaulter, idx) => (
+                      <tr key={`${defaulter.child.id}-${idx}`} className="border-b border-border hover:bg-muted/50">
+                        <td className="p-3">{idx + 1}</td>
+                        <td className="p-3 font-medium">{defaulter.child.name}</td>
+                        <td className="p-3">{defaulter.child.motherName}</td>
+                        <td className="p-3">{defaulter.child.telephoneAddress || 'N/A'}</td>
+                        <td className="p-3 text-xs">{defaulter.missedVaccines.slice(0, 2).join(', ')}{defaulter.missedVaccines.length > 2 ? ` +${defaulter.missedVaccines.length - 2}` : ''}</td>
+                        <td className="p-3">{new Date(defaulter.dueDate).toLocaleDateString()}</td>
+                        <td className="p-3">
+                          <Badge 
+                            variant={defaulter.daysOverdue > 30 ? 'destructive' : defaulter.daysOverdue > 14 ? 'default' : 'secondary'}
+                            className={defaulter.daysOverdue > 14 && defaulter.daysOverdue <= 30 ? 'bg-amber-500' : ''}
+                          >
+                            {defaulter.daysOverdue} days
+                          </Badge>
+                        </td>
+                        <td className="p-3">{defaulter.child.community || 'N/A'}</td>
+                      </tr>
+                    ))
+                  )}
+                </tbody>
+              </table>
+            </div>
+
+            <div className="flex flex-wrap gap-3">
+              <Button onClick={() => handleExport('pdf')}>
+                <FileText className="w-4 h-4 mr-2" />
+                Export PDF
+              </Button>
+              <Button variant="secondary" onClick={() => handleExport('excel')}>
+                <Download className="w-4 h-4 mr-2" />
+                Export Excel
+              </Button>
+              <Button variant="outline" onClick={() => window.print()}>
+                <Printer className="w-4 h-4 mr-2" />
+                Print Report
+              </Button>
+            </div>
           </div>
         )}
       </div>
