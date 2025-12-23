@@ -1,5 +1,5 @@
 import { useState, useMemo } from "react";
-import { FileText, Download, Printer, TrendingUp, PieChart, Users, Syringe, AlertTriangle, Calendar } from "lucide-react";
+import { FileText, Download, Printer, TrendingUp, PieChart, Users, Syringe, AlertTriangle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Label } from "@/components/ui/label";
@@ -7,7 +7,13 @@ import { Badge } from "@/components/ui/badge";
 import { StatCard } from "@/components/ui/stat-card";
 import { Child, DashboardStats, Defaulter } from "@/types/child";
 import { cn } from "@/lib/utils";
-
+import { toast } from "sonner";
+import {
+  exportSummaryReport,
+  exportDetailedReport,
+  exportVaccineCoverageReport,
+  exportDefaultersReport,
+} from "@/lib/pdfExport";
 interface ReportingSectionProps {
   stats: DashboardStats;
   children: Child[];
@@ -175,9 +181,35 @@ export function ReportingSection({ stats, children }: ReportingSectionProps) {
     { id: 'defaulters', label: 'Defaulters Report', icon: <AlertTriangle className="w-4 h-4" /> },
   ];
 
-  const handleExport = (format: 'pdf' | 'excel') => {
-    // Placeholder for export functionality
-    console.log(`Exporting ${activeTab} report as ${format}`);
+  const handleExportPDF = () => {
+    try {
+      const options = { facilityName: "Health Facility", reportDate: new Date().toLocaleDateString() };
+      
+      switch (activeTab) {
+        case "summary":
+          exportSummaryReport(stats, ageDistribution, period, options);
+          break;
+        case "detailed":
+          exportDetailedReport(detailedRecords, options);
+          break;
+        case "vaccine":
+          exportVaccineCoverageReport(vaccineCoverage, options);
+          break;
+        case "defaulters":
+          exportDefaultersReport(defaultersList, options);
+          break;
+      }
+      
+      toast.success("PDF exported successfully!");
+    } catch (error) {
+      console.error("Export error:", error);
+      toast.error("Failed to export PDF");
+    }
+  };
+
+  const handleExportExcel = () => {
+    // Excel export placeholder - would need xlsx library
+    toast.info("Excel export coming soon");
   };
 
   return (
@@ -302,11 +334,11 @@ export function ReportingSection({ stats, children }: ReportingSectionProps) {
             </div>
 
             <div className="flex flex-wrap gap-3">
-              <Button onClick={() => handleExport('pdf')}>
+              <Button onClick={handleExportPDF}>
                 <FileText className="w-4 h-4 mr-2" />
                 Export PDF
               </Button>
-              <Button variant="secondary" onClick={() => handleExport('excel')}>
+              <Button variant="secondary" onClick={handleExportExcel}>
                 <Download className="w-4 h-4 mr-2" />
                 Export Excel
               </Button>
@@ -375,11 +407,11 @@ export function ReportingSection({ stats, children }: ReportingSectionProps) {
             )}
 
             <div className="flex flex-wrap gap-3">
-              <Button onClick={() => handleExport('pdf')}>
+              <Button onClick={handleExportPDF}>
                 <FileText className="w-4 h-4 mr-2" />
                 Export PDF
               </Button>
-              <Button variant="secondary" onClick={() => handleExport('excel')}>
+              <Button variant="secondary" onClick={handleExportExcel}>
                 <Download className="w-4 h-4 mr-2" />
                 Export Excel
               </Button>
@@ -435,11 +467,11 @@ export function ReportingSection({ stats, children }: ReportingSectionProps) {
             </div>
 
             <div className="flex flex-wrap gap-3">
-              <Button onClick={() => handleExport('pdf')}>
+              <Button onClick={handleExportPDF}>
                 <FileText className="w-4 h-4 mr-2" />
                 Export PDF
               </Button>
-              <Button variant="secondary" onClick={() => handleExport('excel')}>
+              <Button variant="secondary" onClick={handleExportExcel}>
                 <Download className="w-4 h-4 mr-2" />
                 Export Excel
               </Button>
@@ -546,11 +578,11 @@ export function ReportingSection({ stats, children }: ReportingSectionProps) {
             </div>
 
             <div className="flex flex-wrap gap-3">
-              <Button onClick={() => handleExport('pdf')}>
+              <Button onClick={handleExportPDF}>
                 <FileText className="w-4 h-4 mr-2" />
                 Export PDF
               </Button>
-              <Button variant="secondary" onClick={() => handleExport('excel')}>
+              <Button variant="secondary" onClick={handleExportExcel}>
                 <Download className="w-4 h-4 mr-2" />
                 Export Excel
               </Button>
