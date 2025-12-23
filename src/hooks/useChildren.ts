@@ -1,30 +1,69 @@
 import { useState, useCallback, useMemo } from "react";
 import { Child, VaccineRecord, DashboardStats } from "@/types/child";
 
-// Ghana EPI Schedule
+// Ghana EPI Schedule - Complete Immunization List
 const getVaccineSchedule = (dateOfBirth: string): VaccineRecord[] => {
   const dob = new Date(dateOfBirth);
   const today = new Date();
   
+  // Helper: weeks for months (approximate)
+  const weeksPerMonth = 4.33;
+  
   const vaccines = [
-    { name: "BCG", weeksAfterBirth: 0 },
-    { name: "OPV 0", weeksAfterBirth: 0 },
-    { name: "OPV 1", weeksAfterBirth: 6 },
-    { name: "Penta 1", weeksAfterBirth: 6 },
-    { name: "Pneumo 1", weeksAfterBirth: 6 },
-    { name: "Rota 1", weeksAfterBirth: 6 },
-    { name: "OPV 2", weeksAfterBirth: 10 },
-    { name: "Penta 2", weeksAfterBirth: 10 },
-    { name: "Pneumo 2", weeksAfterBirth: 10 },
-    { name: "Rota 2", weeksAfterBirth: 10 },
-    { name: "OPV 3", weeksAfterBirth: 14 },
-    { name: "Penta 3", weeksAfterBirth: 14 },
-    { name: "Pneumo 3", weeksAfterBirth: 14 },
-    { name: "IPV", weeksAfterBirth: 14 },
-    { name: "Measles Rubella 1", weeksAfterBirth: 36 }, // 9 months
-    { name: "Yellow Fever", weeksAfterBirth: 36 },
-    { name: "Meningitis A", weeksAfterBirth: 36 },
-    { name: "Measles Rubella 2", weeksAfterBirth: 72 }, // 18 months
+    // Birth vaccines
+    { name: "BCG at Birth", weeksAfterBirth: 0 },
+    { name: "OPV0 at Birth", weeksAfterBirth: 0 },
+    { name: "Hepatitis B at Birth", weeksAfterBirth: 0 },
+    
+    // 6 weeks vaccines
+    { name: "OPV1 at 6 weeks", weeksAfterBirth: 6 },
+    { name: "Penta1 at 6 weeks", weeksAfterBirth: 6 },
+    { name: "PCV1 at 6 weeks", weeksAfterBirth: 6 },
+    { name: "Rotavirus1 at 6 weeks", weeksAfterBirth: 6 },
+    
+    // 10 weeks vaccines
+    { name: "OPV2 at 10 weeks", weeksAfterBirth: 10 },
+    { name: "Penta2 at 10 weeks", weeksAfterBirth: 10 },
+    { name: "PCV2 at 10 weeks", weeksAfterBirth: 10 },
+    { name: "Rotavirus2 at 10 weeks", weeksAfterBirth: 10 },
+    
+    // 14 weeks vaccines
+    { name: "OPV3 at 14 weeks", weeksAfterBirth: 14 },
+    { name: "Penta3 at 14 weeks", weeksAfterBirth: 14 },
+    { name: "PCV3 at 14 weeks", weeksAfterBirth: 14 },
+    { name: "Rotavirus3 at 14 weeks", weeksAfterBirth: 14 },
+    { name: "IPV1 at 14 weeks", weeksAfterBirth: 14 },
+    
+    // 6 months vaccines
+    { name: "Malaria1 at 6 months", weeksAfterBirth: Math.round(6 * weeksPerMonth) },
+    { name: "Vitamin A at 6 months", weeksAfterBirth: Math.round(6 * weeksPerMonth) },
+    
+    // 7 months vaccines
+    { name: "Malaria2 at 7 months", weeksAfterBirth: Math.round(7 * weeksPerMonth) },
+    { name: "IPV2 at 7 months", weeksAfterBirth: Math.round(7 * weeksPerMonth) },
+    
+    // 9 months vaccines
+    { name: "Malaria3 at 9 months", weeksAfterBirth: Math.round(9 * weeksPerMonth) },
+    { name: "Measles Rubella1 at 9 months", weeksAfterBirth: Math.round(9 * weeksPerMonth) },
+    
+    // 12 months
+    { name: "Vitamin A at 12 months", weeksAfterBirth: Math.round(12 * weeksPerMonth) },
+    
+    // 18 months vaccines
+    { name: "Malaria4 at 18 months", weeksAfterBirth: Math.round(18 * weeksPerMonth) },
+    { name: "Measles Rubella2 at 18 months", weeksAfterBirth: Math.round(18 * weeksPerMonth) },
+    { name: "Men A at 18 months", weeksAfterBirth: Math.round(18 * weeksPerMonth) },
+    { name: "LLIN at 18 months", weeksAfterBirth: Math.round(18 * weeksPerMonth) },
+    { name: "Vitamin A at 18 months", weeksAfterBirth: Math.round(18 * weeksPerMonth) },
+    
+    // Vitamin A supplements (every 6 months from 24 months)
+    { name: "Vitamin A at 24 months", weeksAfterBirth: Math.round(24 * weeksPerMonth) },
+    { name: "Vitamin A at 30 months", weeksAfterBirth: Math.round(30 * weeksPerMonth) },
+    { name: "Vitamin A at 36 months", weeksAfterBirth: Math.round(36 * weeksPerMonth) },
+    { name: "Vitamin A at 42 months", weeksAfterBirth: Math.round(42 * weeksPerMonth) },
+    { name: "Vitamin A at 48 months", weeksAfterBirth: Math.round(48 * weeksPerMonth) },
+    { name: "Vitamin A at 54 months", weeksAfterBirth: Math.round(54 * weeksPerMonth) },
+    { name: "Vitamin A at 60 months", weeksAfterBirth: Math.round(60 * weeksPerMonth) },
   ];
 
   return vaccines.map(vaccine => {
