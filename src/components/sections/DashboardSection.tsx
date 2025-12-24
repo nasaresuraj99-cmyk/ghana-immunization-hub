@@ -9,28 +9,36 @@ interface DashboardSectionProps {
 }
 
 export function DashboardSection({ stats, children }: DashboardSectionProps) {
+  // Group vaccines by child and visit date (same date = same visit/session)
   const recentActivity = useMemo(() => {
-    const activities: Array<{
+    const visitMap = new Map<string, {
       date: string;
       childName: string;
-      vaccine: string;
-      status: 'completed' | 'pending';
-    }> = [];
+      childId: string;
+      vaccines: string[];
+    }>();
 
     children.forEach(child => {
       child.vaccines
         .filter(v => v.givenDate)
         .forEach(v => {
-          activities.push({
-            date: v.givenDate!,
-            childName: child.name,
-            vaccine: v.name,
-            status: 'completed',
-          });
+          // Create unique key for child + date combination (visit session)
+          const visitKey = `${child.id}-${v.givenDate}`;
+          
+          if (visitMap.has(visitKey)) {
+            visitMap.get(visitKey)!.vaccines.push(v.name);
+          } else {
+            visitMap.set(visitKey, {
+              date: v.givenDate!,
+              childName: child.name,
+              childId: child.id,
+              vaccines: [v.name],
+            });
+          }
         });
     });
 
-    return activities
+    return Array.from(visitMap.values())
       .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
       .slice(0, 10);
   }, [children]);
@@ -167,7 +175,7 @@ export function DashboardSection({ stats, children }: DashboardSectionProps) {
                 <tr className="bg-primary text-primary-foreground">
                   <th className="px-4 py-3 text-left text-xs font-semibold">Date</th>
                   <th className="px-4 py-3 text-left text-xs font-semibold">Child</th>
-                  <th className="px-4 py-3 text-left text-xs font-semibold">Vaccine</th>
+                  <th className="px-4 py-3 text-left text-xs font-semibold">Vaccines Administered</th>
                   <th className="px-4 py-3 text-left text-xs font-semibold">Status</th>
                 </tr>
               </thead>
@@ -179,17 +187,28 @@ export function DashboardSection({ stats, children }: DashboardSectionProps) {
                     </td>
                   </tr>
                 ) : (
-                  recentActivity.map((activity, index) => (
-                    <tr key={index} className="hover:bg-muted/50">
+                  recentActivity.map((visit) => (
+                    <tr key={`${visit.childId}-${visit.date}`} className="hover:bg-muted/50">
                       <td className="px-4 py-3 text-sm">
-                        {new Date(activity.date).toLocaleDateString()}
+                        {new Date(visit.date).toLocaleDateString()}
                       </td>
-                      <td className="px-4 py-3 text-sm">{activity.childName}</td>
-                      <td className="px-4 py-3 text-sm">{activity.vaccine}</td>
+                      <td className="px-4 py-3 text-sm font-medium">{visit.childName}</td>
+                      <td className="px-4 py-3 text-sm">
+                        <div className="flex flex-wrap gap-1">
+                          {visit.vaccines.map((vaccine, idx) => (
+                            <span 
+                              key={idx}
+                              className="inline-flex items-center px-2 py-0.5 rounded-full text-xs bg-primary/10 text-primary"
+                            >
+                              {vaccine}
+                            </span>
+                          ))}
+                        </div>
+                      </td>
                       <td className="px-4 py-3">
                         <span className="inline-flex items-center gap-1 text-xs text-success">
                           <CheckCircle className="w-3 h-3" />
-                          Completed
+                          {visit.vaccines.length} given
                         </span>
                       </td>
                     </tr>
