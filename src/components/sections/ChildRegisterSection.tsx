@@ -1,11 +1,11 @@
 import { useState, useMemo } from "react";
-import { Search, Download, FileText, Edit, Trash2, Syringe, Eye } from "lucide-react";
+import { Search, Download, FileText, Edit, Trash2, Syringe, CreditCard } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Child } from "@/types/child";
-import { cn } from "@/lib/utils";
-
+import { exportImmunizationCard } from "@/lib/pdfExport";
+import { toast } from "sonner";
 interface ChildRegisterSectionProps {
   children: Child[];
   onEdit: (child: Child) => void;
@@ -156,6 +156,20 @@ export function ChildRegisterSection({ children, onEdit, onDelete, onViewVaccine
                             title="View Vaccines"
                           >
                             <Syringe className="w-4 h-4" />
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-8 w-8 text-primary hover:text-primary"
+                            onClick={async () => {
+                              toast.loading("Generating immunization card...");
+                              await exportImmunizationCard(child);
+                              toast.dismiss();
+                              toast.success("Immunization card downloaded!");
+                            }}
+                            title="Print Immunization Card"
+                          >
+                            <CreditCard className="w-4 h-4" />
                           </Button>
                           <Button
                             variant="ghost"
