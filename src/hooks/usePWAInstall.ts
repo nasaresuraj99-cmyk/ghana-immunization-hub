@@ -10,8 +10,15 @@ export const usePWAInstall = () => {
   const [isInstallable, setIsInstallable] = useState(false);
   const [isInstalled, setIsInstalled] = useState(false);
   const [showBanner, setShowBanner] = useState(false);
+  const [isIOS, setIsIOS] = useState(false);
+  const [showIOSModal, setShowIOSModal] = useState(false);
 
   useEffect(() => {
+    // Detect iOS
+    const isIOSDevice = /iPad|iPhone|iPod/.test(navigator.userAgent) && !(window as any).MSStream;
+    const isSafari = /Safari/.test(navigator.userAgent) && !/Chrome/.test(navigator.userAgent);
+    setIsIOS(isIOSDevice);
+
     // Check if already installed
     const isStandalone = window.matchMedia('(display-mode: standalone)').matches;
     const isInWebAppiOS = (window.navigator as any).standalone === true;
@@ -30,6 +37,13 @@ export const usePWAInstall = () => {
       if (daysDiff < 7) {
         return;
       }
+    }
+
+    // For iOS Safari, show our custom banner
+    if (isIOSDevice && isSafari) {
+      setIsInstallable(true);
+      setShowBanner(true);
+      return;
     }
 
     const handleBeforeInstallPrompt = (e: Event) => {
@@ -56,6 +70,12 @@ export const usePWAInstall = () => {
   }, []);
 
   const installApp = async () => {
+    // For iOS, show the modal with instructions
+    if (isIOS) {
+      setShowIOSModal(true);
+      return true;
+    }
+
     if (!deferredPrompt) return false;
 
     try {
@@ -82,11 +102,18 @@ export const usePWAInstall = () => {
     localStorage.setItem('pwa-banner-dismissed', new Date().toISOString());
   };
 
+  const closeIOSModal = () => {
+    setShowIOSModal(false);
+  };
+
   return {
     isInstallable,
     isInstalled,
     showBanner,
+    isIOS,
+    showIOSModal,
     installApp,
     dismissBanner,
+    closeIOSModal,
   };
 };
