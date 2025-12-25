@@ -14,6 +14,12 @@ import {
   exportVaccineCoverageReport,
   exportDefaultersReport,
 } from "@/lib/pdfExport";
+import {
+  exportSummaryExcel,
+  exportDetailedExcel,
+  exportVaccineCoverageExcel,
+  exportDefaultersExcel,
+} from "@/lib/excelExport";
 interface ReportingSectionProps {
   stats: DashboardStats;
   children: Child[];
@@ -208,8 +214,27 @@ export function ReportingSection({ stats, children }: ReportingSectionProps) {
   };
 
   const handleExportExcel = () => {
-    // Excel export placeholder - would need xlsx library
-    toast.info("Excel export coming soon");
+    try {
+      switch (activeTab) {
+        case "summary":
+          exportSummaryExcel(stats, ageDistribution, period);
+          break;
+        case "detailed":
+          exportDetailedExcel(detailedRecords);
+          break;
+        case "vaccine":
+          exportVaccineCoverageExcel(vaccineCoverage);
+          break;
+        case "defaulters":
+          exportDefaultersExcel(defaultersList);
+          break;
+      }
+      
+      toast.success("Excel (CSV) exported successfully!");
+    } catch (error) {
+      console.error("Export error:", error);
+      toast.error("Failed to export Excel");
+    }
   };
 
   return (
