@@ -17,8 +17,8 @@ interface UserManagementPanelProps {
   currentUserId: string;
   currentUserRole: AppRole;
   facilityCode?: string;
-  onUpdateRole: (userId: string, role: AppRole) => Promise<boolean>;
-  onRemoveUser: (userId: string) => Promise<boolean>;
+  onUpdateRole: (userId: string, role: AppRole) => Promise<void>;
+  onRemoveUser: (userId: string) => Promise<void>;
   onRefresh: () => void;
   isLoading?: boolean;
 }
@@ -63,14 +63,20 @@ export function UserManagementPanel({
 
   const handleRoleChange = async (userId: string, newRole: AppRole) => {
     setUpdatingUser(userId);
-    await onUpdateRole(userId, newRole);
-    setUpdatingUser(null);
+    try {
+      await onUpdateRole(userId, newRole);
+    } finally {
+      setUpdatingUser(null);
+    }
   };
 
   const handleRemoveUser = async () => {
     if (!confirmRemove) return;
-    await onRemoveUser(confirmRemove.user_id);
-    setConfirmRemove(null);
+    try {
+      await onRemoveUser(confirmRemove.id);
+    } finally {
+      setConfirmRemove(null);
+    }
   };
 
   return (
@@ -123,19 +129,19 @@ export function UserManagementPanel({
                   key={user.id}
                   className={cn(
                     'flex items-center justify-between p-3 rounded-lg border bg-card transition-colors',
-                    user.user_id === currentUserId && 'border-primary/30 bg-primary/5'
+                    user.id === currentUserId && 'border-primary/30 bg-primary/5'
                   )}
                 >
                   <div className="flex items-center gap-3 min-w-0">
                     <div className="w-10 h-10 rounded-full bg-muted flex items-center justify-center text-sm font-medium">
-                      {user.display_name.slice(0, 2).toUpperCase()}
+                      {user.name.slice(0, 2).toUpperCase()}
                     </div>
                     <div className="min-w-0">
                       <div className="flex items-center gap-2">
                         <span className="font-medium truncate">
-                          {user.display_name}
+                          {user.name}
                         </span>
-                        {user.user_id === currentUserId && (
+                        {user.id === currentUserId && (
                           <Badge variant="outline" className="text-xs">You</Badge>
                         )}
                       </div>
@@ -146,11 +152,11 @@ export function UserManagementPanel({
                   </div>
 
                   <div className="flex items-center gap-2">
-                    {canManageUsers && user.user_id !== currentUserId ? (
+                    {canManageUsers && user.id !== currentUserId ? (
                       <Select
                         value={user.role}
-                        onValueChange={(value) => handleRoleChange(user.user_id, value as AppRole)}
-                        disabled={updatingUser === user.user_id}
+                        onValueChange={(value) => handleRoleChange(user.id, value as AppRole)}
+                        disabled={updatingUser === user.id}
                       >
                         <SelectTrigger className="w-[130px] h-8 text-xs">
                           <SelectValue />
@@ -183,7 +189,7 @@ export function UserManagementPanel({
                       </Badge>
                     )}
 
-                    {canManageUsers && user.user_id !== currentUserId && (
+                    {canManageUsers && user.id !== currentUserId && (
                       <DropdownMenu>
                         <DropdownMenuTrigger asChild>
                           <Button variant="ghost" size="icon" className="h-8 w-8">
@@ -255,7 +261,7 @@ export function UserManagementPanel({
           <DialogHeader>
             <DialogTitle>Remove User</DialogTitle>
             <DialogDescription>
-              Are you sure you want to remove {confirmRemove?.display_name} from this facility?
+              Are you sure you want to remove {confirmRemove?.name} from this facility?
               They will lose access to all facility data.
             </DialogDescription>
           </DialogHeader>

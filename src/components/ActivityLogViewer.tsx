@@ -136,22 +136,25 @@ export function ActivityLogViewer({ logs, isLoading, onRefresh, className }: Act
                           <div className="flex items-center gap-2">
                             {getActionBadge(log.action)}
                             <Badge variant="outline" className="text-xs">
-                              {log.entity_type}
+                              {log.entityType}
                             </Badge>
                           </div>
                           <span className="text-xs text-muted-foreground flex items-center gap-1">
                             <Calendar className="w-3 h-3" />
-                            {formatTime(log.created_at)}
+                            {formatTime(log.createdAt)}
                           </span>
                         </div>
                         {log.description && (
                           <p className="text-sm mt-1">{log.description}</p>
                         )}
-                        {log.new_data && (
+                        {log.entityName && (
                           <p className="text-xs text-muted-foreground mt-1 truncate">
-                            {typeof log.new_data === 'object' && 'name' in log.new_data 
-                              ? `Record: ${(log.new_data as any).name}`
-                              : 'Data modified'}
+                            Record: {log.entityName}
+                          </p>
+                        )}
+                        {log.userName && (
+                          <p className="text-xs text-muted-foreground mt-1">
+                            By: {log.userName}
                           </p>
                         )}
                       </div>

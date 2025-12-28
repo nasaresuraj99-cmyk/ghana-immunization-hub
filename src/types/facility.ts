@@ -5,60 +5,63 @@ export interface Facility {
   name: string;
   code: string;
   address?: string;
-  created_at: string;
-  updated_at: string;
+  createdAt: string;
+  updatedAt: string;
+  createdBy?: string;
 }
 
 export interface UserRole {
   id: string;
-  user_id: string;
-  facility_id: string;
+  userId: string;
+  facilityId: string;
   role: AppRole;
-  created_at: string;
+  createdAt: string;
 }
 
 export interface Profile {
   id: string;
-  user_id: string;
-  display_name?: string;
+  userId: string;
+  displayName?: string;
   email?: string;
-  facility_id?: string;
-  created_at: string;
-  updated_at: string;
+  facilityId?: string;
+  createdAt: string;
+  updatedAt: string;
 }
 
 export interface FacilityUser {
   id: string;
-  user_id: string;
-  display_name: string;
+  name: string;
   email: string;
   role: AppRole;
-  created_at: string;
+  facilityId: string;
+  createdAt: string;
 }
 
 export interface ActivityLog {
   id: string;
-  facility_id: string;
-  user_id: string;
+  facilityId: string;
+  userId: string;
+  userName?: string;
   action: 'create' | 'update' | 'soft_delete' | 'restore' | 'permanent_delete';
-  entity_type: 'child' | 'vaccine' | 'user';
-  entity_id?: string;
-  old_data?: Record<string, any>;
-  new_data?: Record<string, any>;
+  entityType: 'child' | 'vaccine' | 'user';
+  entityId?: string;
+  entityName?: string;
+  oldData?: Record<string, any>;
+  newData?: Record<string, any>;
   description?: string;
-  created_at: string;
+  createdAt: string;
 }
 
 export interface SyncHistoryRecord {
   id: string;
-  user_id: string;
-  facility_id?: string;
+  userId: string;
+  facilityId?: string;
   status: 'success' | 'failed' | 'partial';
-  synced_count: number;
-  failed_count: number;
-  error_message?: string;
-  started_at: string;
-  completed_at?: string;
+  syncedCount: number;
+  failedCount: number;
+  errorMessage?: string;
+  startedAt: string;
+  completedAt?: string;
 }
 
 export const ROLE_PERMISSIONS = {
@@ -71,6 +74,7 @@ export const ROLE_PERMISSIONS = {
     canManageUsers: true,
     canViewArchive: true,
     canRestoreArchived: true,
+    canViewActivityLog: true,
   },
   staff: {
     canView: true,
@@ -81,6 +85,7 @@ export const ROLE_PERMISSIONS = {
     canManageUsers: false,
     canViewArchive: true,
     canRestoreArchived: false,
+    canViewActivityLog: true,
   },
   read_only: {
     canView: true,
@@ -91,5 +96,6 @@ export const ROLE_PERMISSIONS = {
     canManageUsers: false,
     canViewArchive: false,
     canRestoreArchived: false,
+    canViewActivityLog: false,
   },
 } as const;

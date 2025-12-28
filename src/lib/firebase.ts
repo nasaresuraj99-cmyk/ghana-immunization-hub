@@ -5,11 +5,17 @@ import {
   collection,
   doc,
   getDocs,
+  getDoc,
   setDoc,
   deleteDoc,
+  updateDoc,
   query,
   where,
-  enableIndexedDbPersistence
+  orderBy,
+  limit,
+  enableIndexedDbPersistence,
+  serverTimestamp,
+  Timestamp
 } from "firebase/firestore";
 import {
   getAuth,
@@ -109,11 +115,17 @@ export {
   auth,
   collection, 
   doc, 
-  getDocs, 
+  getDocs,
+  getDoc,
   setDoc, 
   deleteDoc,
+  updateDoc,
   query,
-  where
+  where,
+  orderBy,
+  limit,
+  serverTimestamp,
+  Timestamp
 };
 
 export type { User };

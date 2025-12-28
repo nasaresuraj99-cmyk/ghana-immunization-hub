@@ -14,11 +14,13 @@ interface SyncHistoryLogProps {
   isLoading?: boolean;
   onRefresh?: () => void;
   className?: string;
+  userId?: string;
+  facilityId?: string;
 }
 
-export function SyncHistoryLog({ history: externalHistory, isLoading: externalLoading, onRefresh, className }: SyncHistoryLogProps) {
+export function SyncHistoryLog({ history: externalHistory, isLoading: externalLoading, onRefresh, className, userId, facilityId }: SyncHistoryLogProps) {
   const [isOpen, setIsOpen] = useState(false);
-  const { history: internalHistory, isLoading: internalLoading, refreshHistory } = useSyncHistory();
+  const { history: internalHistory, isLoading: internalLoading, refreshHistory } = useSyncHistory(userId, facilityId);
   
   const history = externalHistory ?? internalHistory;
   const isLoading = externalLoading ?? internalLoading;
@@ -138,27 +140,27 @@ export function SyncHistoryLog({ history: externalHistory, isLoading: externalLo
                         <div className="flex items-center justify-between gap-2 mb-1">
                           {getStatusBadge(record.status)}
                           <span className="text-xs text-muted-foreground">
-                            {formatTime(record.started_at)}
+                            {formatTime(record.startedAt)}
                           </span>
                         </div>
                         <div className="text-sm">
-                          {record.synced_count > 0 && (
+                          {record.syncedCount > 0 && (
                             <span className="text-success">
-                              {record.synced_count} synced
+                              {record.syncedCount} synced
                             </span>
                           )}
-                          {record.synced_count > 0 && record.failed_count > 0 && (
+                          {record.syncedCount > 0 && record.failedCount > 0 && (
                             <span className="text-muted-foreground"> · </span>
                           )}
-                          {record.failed_count > 0 && (
+                          {record.failedCount > 0 && (
                             <span className="text-destructive">
-                              {record.failed_count} failed
+                              {record.failedCount} failed
                             </span>
                           )}
                         </div>
-                        {record.error_message && (
+                        {record.errorMessage && (
                           <p className="text-xs text-muted-foreground mt-1 truncate">
-                            {record.error_message}
+                            {record.errorMessage}
                           </p>
                         )}
                       </div>

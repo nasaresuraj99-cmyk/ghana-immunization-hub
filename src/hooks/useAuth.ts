@@ -6,37 +6,128 @@ import {
   resetPassword,
   onAuthChange,
   auth,
+  db,
+  doc,
+  getDoc,
+  setDoc,
+  collection,
+  query,
+  where,
+  getDocs,
   User
 } from "@/lib/firebase";
+import { AppRole } from "@/types/facility";
 
 export interface AuthUser {
   uid: string;
   email: string;
   name: string;
   facility: string;
+  facilityId: string;
+  role: AppRole;
   emailVerified: boolean;
 }
 
-const FACILITY_KEY = 'user_facility';
+interface UserProfile {
+  uid: string;
+  email: string;
+  displayName: string;
+  facilityId: string | null;
+  facilityName: string | null;
+  role: AppRole;
+  createdAt: string;
+  updatedAt: string;
+}
+
+const ONBOARDING_KEY = 'facility_onboarding_required';
 
 export function useAuth() {
   const [user, setUser] = useState<AuthUser | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [needsOnboarding, setNeedsOnboarding] = useState(false);
 
-  useEffect(() => {
-    const unsubscribe = onAuthChange((firebaseUser: User | null) => {
-      if (firebaseUser) {
-        const facility = localStorage.getItem(`${FACILITY_KEY}_${firebaseUser.uid}`) || "Health Facility";
-        setUser({
+  const loadUserProfile = async (firebaseUser: User): Promise<AuthUser | null> => {
+    try {
+      const profileRef = doc(db, 'userProfiles', firebaseUser.uid);
+      const profileSnap = await getDoc(profileRef);
+      
+      if (profileSnap.exists()) {
+        const profile = profileSnap.data() as UserProfile;
+        
+        if (!profile.facilityId) {
+          // User exists but has no facility - needs onboarding
+          setNeedsOnboarding(true);
+          return {
+            uid: firebaseUser.uid,
+            email: firebaseUser.email || "",
+            name: profile.displayName || firebaseUser.displayName || "Health Worker",
+            facility: "",
+            facilityId: "",
+            role: "staff",
+            emailVerified: firebaseUser.emailVerified,
+          };
+        }
+        
+        setNeedsOnboarding(false);
+        return {
           uid: firebaseUser.uid,
           email: firebaseUser.email || "",
-          name: firebaseUser.displayName || "Health Worker",
-          facility,
+          name: profile.displayName || firebaseUser.displayName || "Health Worker",
+          facility: profile.facilityName || "Health Facility",
+          facilityId: profile.facilityId,
+          role: profile.role || "staff",
           emailVerified: firebaseUser.emailVerified,
-        });
+        };
+      } else {
+        // No profile exists - create one and mark for onboarding
+        const newProfile: UserProfile = {
+          uid: firebaseUser.uid,
+          email: firebaseUser.email || "",
+          displayName: firebaseUser.displayName || "Health Worker",
+          facilityId: null,
+          facilityName: null,
+          role: "staff",
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString(),
+        };
+        
+        await setDoc(profileRef, newProfile);
+        setNeedsOnboarding(true);
+        
+        return {
+          uid: firebaseUser.uid,
+          email: firebaseUser.email || "",
+          name: newProfile.displayName,
+          facility: "",
+          facilityId: "",
+          role: "staff",
+          emailVerified: firebaseUser.emailVerified,
+        };
+      }
+    } catch (error) {
+      console.error('Error loading user profile:', error);
+      // Fallback to basic user info
+      return {
+        uid: firebaseUser.uid,
+        email: firebaseUser.email || "",
+        name: firebaseUser.displayName || "Health Worker",
+        facility: "",
+        facilityId: "",
+        role: "staff",
+        emailVerified: firebaseUser.emailVerified,
+      };
+    }
+  };
+
+  useEffect(() => {
+    const unsubscribe = onAuthChange(async (firebaseUser: User | null) => {
+      if (firebaseUser) {
+        const authUser = await loadUserProfile(firebaseUser);
+        setUser(authUser);
       } else {
         setUser(null);
+        setNeedsOnboarding(false);
       }
       setLoading(false);
     });
@@ -48,14 +139,8 @@ export function useAuth() {
     const currentUser = auth.currentUser;
     if (currentUser) {
       await currentUser.reload();
-      const facility = localStorage.getItem(`${FACILITY_KEY}_${currentUser.uid}`) || "Health Facility";
-      setUser({
-        uid: currentUser.uid,
-        email: currentUser.email || "",
-        name: currentUser.displayName || "Health Worker",
-        facility,
-        emailVerified: currentUser.emailVerified,
-      });
+      const authUser = await loadUserProfile(currentUser);
+      setUser(authUser);
     }
   }, []);
 
@@ -78,8 +163,23 @@ export function useAuth() {
       setError(null);
       setLoading(true);
       const result = await signupWithEmail(email, password, name);
+      
       if (result.user) {
-        localStorage.setItem(`${FACILITY_KEY}_${result.user.uid}`, facility);
+        // Create user profile (without facility - will be set during onboarding)
+        const profileRef = doc(db, 'userProfiles', result.user.uid);
+        await setDoc(profileRef, {
+          uid: result.user.uid,
+          email: email,
+          displayName: name,
+          facilityId: null,
+          facilityName: null,
+          role: "staff" as AppRole,
+          pendingFacilityName: facility, // Store for onboarding
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString(),
+        });
+        
+        setNeedsOnboarding(true);
       }
     } catch (err: any) {
       const message = getAuthErrorMessage(err.code);
@@ -94,6 +194,7 @@ export function useAuth() {
     try {
       setError(null);
       await firebaseLogout();
+      setNeedsOnboarding(false);
     } catch (err: any) {
       setError("Failed to logout");
       throw err;
@@ -111,12 +212,47 @@ export function useAuth() {
     }
   }, []);
 
-  const updateFacility = useCallback((facility: string) => {
-    if (user) {
-      localStorage.setItem(`${FACILITY_KEY}_${user.uid}`, facility);
-      setUser(prev => prev ? { ...prev, facility } : null);
+  const updateFacility = useCallback(async (facilityId: string, facilityName: string, role?: AppRole) => {
+    if (!user) return;
+    
+    try {
+      const profileRef = doc(db, 'userProfiles', user.uid);
+      await setDoc(profileRef, {
+        facilityId,
+        facilityName,
+        role: role || user.role,
+        updatedAt: new Date().toISOString(),
+      }, { merge: true });
+      
+      setUser(prev => prev ? { 
+        ...prev, 
+        facilityId, 
+        facility: facilityName,
+        role: role || prev.role
+      } : null);
+      setNeedsOnboarding(false);
+    } catch (error) {
+      console.error('Error updating facility:', error);
+      throw error;
     }
   }, [user]);
+
+  const updateRole = useCallback(async (userId: string, newRole: AppRole) => {
+    try {
+      const profileRef = doc(db, 'userProfiles', userId);
+      await setDoc(profileRef, {
+        role: newRole,
+        updatedAt: new Date().toISOString(),
+      }, { merge: true });
+    } catch (error) {
+      console.error('Error updating role:', error);
+      throw error;
+    }
+  }, []);
+
+  const completeOnboarding = useCallback(() => {
+    setNeedsOnboarding(false);
+  }, []);
 
   return {
     user,
@@ -127,8 +263,11 @@ export function useAuth() {
     logout,
     forgotPassword,
     updateFacility,
+    updateRole,
     refreshUser,
     isAuthenticated: !!user,
+    needsOnboarding,
+    completeOnboarding,
   };
 }
 
