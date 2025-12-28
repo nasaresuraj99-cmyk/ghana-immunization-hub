@@ -101,20 +101,61 @@ export function exportVaccineCoverageExcel(
 }
 
 export function exportDefaultersExcel(defaulters: Defaulter[]) {
-  const headers = ["#", "Child Name", "Mother", "Contact", "Community", "Missed Vaccines", "Due Date", "Days Overdue"];
-  const rows = defaulters.map((d, idx) => [
-    (idx + 1).toString(),
-    d.child.name,
-    d.child.motherName,
-    d.child.telephoneAddress || "N/A",
-    d.child.community || "N/A",
-    d.missedVaccines.join("; "),
-    new Date(d.dueDate).toLocaleDateString(),
-    d.daysOverdue.toString(),
-  ]);
+  // Comprehensive headers with full child details for tracing
+  const headers = [
+    "#", 
+    "Reg No.", 
+    "Child Name", 
+    "Date of Birth",
+    "Age (months)",
+    "Sex",
+    "Mother's Name", 
+    "Contact Number", 
+    "Community/Address", 
+    "Total Missed Vaccines",
+    "All Missed Vaccines (with due dates)", 
+    "Earliest Due Date", 
+    "Days Overdue",
+    "Priority Level"
+  ];
+  
+  const rows = defaulters.map((d, idx) => {
+    const birthDate = new Date(d.child.dateOfBirth);
+    const today = new Date();
+    const ageMonths = (today.getFullYear() - birthDate.getFullYear()) * 12 + (today.getMonth() - birthDate.getMonth());
+    
+    // Get detailed missed vaccines with their due dates
+    const missedWithDates = d.missedVaccines.map(vaccineName => {
+      const vaccineRecord = d.child.vaccines.find(v => v.name === vaccineName);
+      const dueDate = vaccineRecord ? new Date(vaccineRecord.dueDate).toLocaleDateString() : "N/A";
+      return `${vaccineName} (Due: ${dueDate})`;
+    }).join("; ");
+    
+    // Priority level based on days overdue
+    let priority = "Low";
+    if (d.daysOverdue > 30) priority = "Critical";
+    else if (d.daysOverdue >= 14) priority = "Moderate";
+    
+    return [
+      (idx + 1).toString(),
+      d.child.regNo,
+      d.child.name,
+      new Date(d.child.dateOfBirth).toLocaleDateString(),
+      ageMonths.toString(),
+      d.child.sex,
+      d.child.motherName,
+      d.child.telephoneAddress || "N/A",
+      d.child.community || "N/A",
+      d.missedVaccines.length.toString(),
+      missedWithDates,
+      new Date(d.dueDate).toLocaleDateString(),
+      d.daysOverdue.toString(),
+      priority,
+    ];
+  });
 
   const csv = arrayToCSV(headers, rows);
-  downloadCSV(`GHS_Defaulters_Report_${new Date().toISOString().split("T")[0]}.csv`, csv);
+  downloadCSV(`GHS_Defaulters_Tracing_Report_${new Date().toISOString().split("T")[0]}.csv`, csv);
 }
 
 export function exportChildrenRegisterExcel(children: Child[]) {

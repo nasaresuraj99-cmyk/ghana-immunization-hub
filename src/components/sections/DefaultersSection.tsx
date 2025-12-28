@@ -1,10 +1,13 @@
 import { useState, useMemo } from "react";
-import { RefreshCw, Download, FileText, Phone, AlertTriangle, CheckCircle, Info } from "lucide-react";
+import { RefreshCw, Download, FileText, Phone, AlertTriangle, CheckCircle, Info, Eye, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Defaulter, Child } from "@/types/child";
+import { exportDefaultersExcel } from "@/lib/excelExport";
+import { exportDefaultersReport } from "@/lib/pdfExport";
 
 interface DefaultersSectionProps {
   children: Child[];
@@ -15,6 +18,7 @@ export function DefaultersSection({ children, onRefresh }: DefaultersSectionProp
   const [periodFilter, setPeriodFilter] = useState("7");
   const [vaccineFilter, setVaccineFilter] = useState("all");
   const [communityFilter, setCommunityFilter] = useState("all");
+  const [selectedDefaulter, setSelectedDefaulter] = useState<Defaulter | null>(null);
 
   const defaulters = useMemo(() => {
     const today = new Date();
@@ -71,6 +75,14 @@ export function DefaultersSection({ children, onRefresh }: DefaultersSectionProp
     }
   };
 
+  const handleExportExcel = () => {
+    exportDefaultersExcel(defaulters);
+  };
+
+  const handleExportPDF = () => {
+    exportDefaultersReport(defaulters);
+  };
+
   return (
     <div className="animate-fade-in">
       <div className="bg-card rounded-lg p-6 shadow-elevation-1">
@@ -85,11 +97,11 @@ export function DefaultersSection({ children, onRefresh }: DefaultersSectionProp
               <RefreshCw className="w-4 h-4 mr-2" />
               Refresh
             </Button>
-            <Button size="sm">
+            <Button size="sm" onClick={handleExportExcel}>
               <Download className="w-4 h-4 mr-2" />
               Excel
             </Button>
-            <Button size="sm">
+            <Button size="sm" onClick={handleExportPDF}>
               <FileText className="w-4 h-4 mr-2" />
               PDF
             </Button>
@@ -124,6 +136,10 @@ export function DefaultersSection({ children, onRefresh }: DefaultersSectionProp
                 <SelectItem value="OPV">OPV</SelectItem>
                 <SelectItem value="Penta">Penta</SelectItem>
                 <SelectItem value="Measles">Measles Rubella</SelectItem>
+                <SelectItem value="PCV">PCV</SelectItem>
+                <SelectItem value="Rotavirus">Rotavirus</SelectItem>
+                <SelectItem value="IPV">IPV</SelectItem>
+                <SelectItem value="Malaria">Malaria</SelectItem>
               </SelectContent>
             </Select>
           </div>
@@ -147,7 +163,7 @@ export function DefaultersSection({ children, onRefresh }: DefaultersSectionProp
         <div className="bg-warning/10 border border-warning/30 rounded-lg p-4 mb-6 flex items-start gap-3">
           <Info className="w-5 h-5 text-warning shrink-0 mt-0.5" />
           <p className="text-sm text-foreground">
-            <strong>Note:</strong> Defaulters are automatically removed from this list when their immunization schedule is updated.
+            <strong>Note:</strong> Click on a child's row to view all missed vaccines. Export includes full child details for tracing.
           </p>
         </div>
 
@@ -170,12 +186,16 @@ export function DefaultersSection({ children, onRefresh }: DefaultersSectionProp
                   <th className="px-2 py-2 text-left font-semibold hidden md:table-cell w-20">Due</th>
                   <th className="px-2 py-2 text-left font-semibold w-16">Overdue</th>
                   <th className="px-2 py-2 text-left font-semibold hidden lg:table-cell">Area</th>
-                  <th className="px-2 py-2 text-left font-semibold w-14">Act</th>
+                  <th className="px-2 py-2 text-left font-semibold w-20">Actions</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-border">
                 {defaulters.map((defaulter, index) => (
-                  <tr key={defaulter.child.id} className="hover:bg-muted/50 transition-colors">
+                  <tr 
+                    key={defaulter.child.id} 
+                    className="hover:bg-muted/50 transition-colors cursor-pointer"
+                    onClick={() => setSelectedDefaulter(defaulter)}
+                  >
                     <td className="px-2 py-1.5 text-muted-foreground">{index + 1}</td>
                     <td className="px-2 py-1.5 font-medium truncate max-w-[100px]" title={defaulter.child.name}>
                       {defaulter.child.name}
@@ -214,20 +234,35 @@ export function DefaultersSection({ children, onRefresh }: DefaultersSectionProp
                       {defaulter.child.community || "—"}
                     </td>
                     <td className="px-2 py-1.5">
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        className="h-6 w-6 p-0"
-                        onClick={() => {
-                          const phone = defaulter.child.telephoneAddress;
-                          if (phone.match(/^\d{10,}$/)) {
-                            window.open(`tel:${phone}`, '_blank');
-                          }
-                        }}
-                        title="Call"
-                      >
-                        <Phone className="w-3 h-3" />
-                      </Button>
+                      <div className="flex gap-1">
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          className="h-6 w-6 p-0"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setSelectedDefaulter(defaulter);
+                          }}
+                          title="View Details"
+                        >
+                          <Eye className="w-3 h-3" />
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          className="h-6 w-6 p-0"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            const phone = defaulter.child.telephoneAddress;
+                            if (phone.match(/^\d{10,}$/)) {
+                              window.open(`tel:${phone}`, '_blank');
+                            }
+                          }}
+                          title="Call"
+                        >
+                          <Phone className="w-3 h-3" />
+                        </Button>
+                      </div>
                     </td>
                   </tr>
                 ))}
@@ -240,6 +275,109 @@ export function DefaultersSection({ children, onRefresh }: DefaultersSectionProp
           Showing {defaulters.length} defaulter(s)
         </div>
       </div>
+
+      {/* Defaulter Details Modal */}
+      <Dialog open={!!selectedDefaulter} onOpenChange={(open) => !open && setSelectedDefaulter(null)}>
+        <DialogContent className="max-w-lg">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-destructive">
+              <AlertTriangle className="w-5 h-5" />
+              Defaulter Details
+            </DialogTitle>
+          </DialogHeader>
+
+          {selectedDefaulter && (
+            <div className="space-y-4">
+              {/* Child Info */}
+              <div className="bg-muted/50 rounded-lg p-4 space-y-3">
+                <div className="grid grid-cols-2 gap-3 text-sm">
+                  <div>
+                    <span className="text-muted-foreground">Name:</span>
+                    <p className="font-semibold">{selectedDefaulter.child.name}</p>
+                  </div>
+                  <div>
+                    <span className="text-muted-foreground">Reg No:</span>
+                    <p className="font-medium">{selectedDefaulter.child.regNo}</p>
+                  </div>
+                  <div>
+                    <span className="text-muted-foreground">Age:</span>
+                    <p className="font-medium">{calculateAge(selectedDefaulter.child.dateOfBirth)}</p>
+                  </div>
+                  <div>
+                    <span className="text-muted-foreground">Sex:</span>
+                    <p className="font-medium">{selectedDefaulter.child.sex}</p>
+                  </div>
+                  <div>
+                    <span className="text-muted-foreground">Mother:</span>
+                    <p className="font-medium">{selectedDefaulter.child.motherName}</p>
+                  </div>
+                  <div>
+                    <span className="text-muted-foreground">Phone:</span>
+                    <p className="font-medium">{selectedDefaulter.child.telephoneAddress}</p>
+                  </div>
+                  <div className="col-span-2">
+                    <span className="text-muted-foreground">Community:</span>
+                    <p className="font-medium">{selectedDefaulter.child.community || "N/A"}</p>
+                  </div>
+                </div>
+              </div>
+
+              {/* All Missed Vaccines */}
+              <div>
+                <h4 className="font-semibold text-sm mb-2 text-destructive">
+                  All Missed Vaccines ({selectedDefaulter.missedVaccines.length})
+                </h4>
+                <div className="max-h-48 overflow-y-auto space-y-2">
+                  {selectedDefaulter.missedVaccines.map((vaccine, idx) => {
+                    const vaccineRecord = selectedDefaulter.child.vaccines.find(v => v.name === vaccine);
+                    const dueDate = vaccineRecord ? new Date(vaccineRecord.dueDate) : new Date();
+                    const daysOver = Math.ceil((new Date().getTime() - dueDate.getTime()) / (1000 * 60 * 60 * 24));
+                    
+                    return (
+                      <div 
+                        key={idx} 
+                        className="flex items-center justify-between p-2 bg-destructive/10 rounded-lg border border-destructive/20"
+                      >
+                        <div>
+                          <p className="font-medium text-sm">{vaccine}</p>
+                          <p className="text-xs text-muted-foreground">
+                            Due: {dueDate.toLocaleDateString()}
+                          </p>
+                        </div>
+                        <Badge variant="destructive" className="text-xs">
+                          {daysOver}d overdue
+                        </Badge>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+
+              {/* Actions */}
+              <div className="flex gap-2 pt-2">
+                <Button
+                  className="flex-1"
+                  onClick={() => {
+                    const phone = selectedDefaulter.child.telephoneAddress;
+                    if (phone.match(/^\d{10,}$/)) {
+                      window.open(`tel:${phone}`, '_blank');
+                    }
+                  }}
+                >
+                  <Phone className="w-4 h-4 mr-2" />
+                  Call Parent
+                </Button>
+                <Button
+                  variant="outline"
+                  onClick={() => setSelectedDefaulter(null)}
+                >
+                  Close
+                </Button>
+              </div>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

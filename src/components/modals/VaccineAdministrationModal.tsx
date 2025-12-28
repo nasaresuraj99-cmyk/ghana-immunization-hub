@@ -1,6 +1,6 @@
 import { useState, useMemo } from "react";
 import { format } from "date-fns";
-import { CalendarIcon, Syringe, Check, ChevronDown, ChevronRight } from "lucide-react";
+import { CalendarIcon, Syringe, Check, ChevronDown, ChevronRight, CheckSquare, Square } from "lucide-react";
 import {
   Dialog,
   DialogContent,
@@ -62,7 +62,7 @@ export function VaccineAdministrationModal({
   onClose,
   onAdminister,
 }: VaccineAdministrationModalProps) {
-  const [selectedVaccine, setSelectedVaccine] = useState<VaccineRecord | null>(null);
+  const [selectedVaccines, setSelectedVaccines] = useState<Set<string>>(new Set());
   const [givenDate, setGivenDate] = useState<Date | undefined>(new Date());
   const [batchNumber, setBatchNumber] = useState("");
   const [isCalendarOpen, setIsCalendarOpen] = useState(false);
@@ -102,24 +102,55 @@ export function VaccineAdministrationModal({
     return AGE_CATEGORIES.filter(cat => groupedPendingVaccines[cat.key]?.length > 0);
   }, [groupedPendingVaccines]);
 
-  const handleAdminister = () => {
-    if (!child || !selectedVaccine || !givenDate) return;
+  const toggleVaccineSelection = (vaccineName: string) => {
+    setSelectedVaccines(prev => {
+      const next = new Set(prev);
+      if (next.has(vaccineName)) {
+        next.delete(vaccineName);
+      } else {
+        next.add(vaccineName);
+      }
+      return next;
+    });
+  };
+
+  const selectAllInCategory = (categoryKey: string) => {
+    const vaccines = groupedPendingVaccines[categoryKey] || [];
+    const allSelected = vaccines.every(v => selectedVaccines.has(v.name));
     
-    onAdminister(
-      child.id,
-      selectedVaccine.name,
-      format(givenDate, "yyyy-MM-dd"),
-      batchNumber.trim()
-    );
+    setSelectedVaccines(prev => {
+      const next = new Set(prev);
+      vaccines.forEach(v => {
+        if (allSelected) {
+          next.delete(v.name);
+        } else {
+          next.add(v.name);
+        }
+      });
+      return next;
+    });
+  };
+
+  const handleAdminister = () => {
+    if (!child || selectedVaccines.size === 0 || !givenDate) return;
+    
+    selectedVaccines.forEach(vaccineName => {
+      onAdminister(
+        child.id,
+        vaccineName,
+        format(givenDate, "yyyy-MM-dd"),
+        batchNumber.trim()
+      );
+    });
     
     // Reset form
-    setSelectedVaccine(null);
+    setSelectedVaccines(new Set());
     setGivenDate(new Date());
     setBatchNumber("");
   };
 
   const handleClose = () => {
-    setSelectedVaccine(null);
+    setSelectedVaccines(new Set());
     setGivenDate(new Date());
     setBatchNumber("");
     setFilterCategory('all');
@@ -210,10 +241,27 @@ export function VaccineAdministrationModal({
               </div>
             )}
 
-            {/* Vaccine Selection by Category */}
+            {/* Selected Count */}
+            {selectedVaccines.size > 0 && (
+              <div className="bg-primary/10 border border-primary/30 rounded-lg p-3 flex items-center justify-between">
+                <span className="font-medium text-primary">
+                  {selectedVaccines.size} vaccine(s) selected
+                </span>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => setSelectedVaccines(new Set())}
+                  className="text-primary hover:text-primary"
+                >
+                  Clear all
+                </Button>
+              </div>
+            )}
+
+            {/* Vaccine Selection by Category - Multi-select */}
             <div>
               <Label className="text-sm font-semibold mb-3 block">
-                Select Vaccine to Administer
+                Select Vaccine(s) to Administer
               </Label>
               
               {pendingVaccines.length === 0 ? (
@@ -228,14 +276,16 @@ export function VaccineAdministrationModal({
                     if (vaccines.length === 0) return null;
                     
                     const isExpanded = expandedCategories.has(category.key);
+                    const allSelected = vaccines.every(v => selectedVaccines.has(v.name));
+                    const someSelected = vaccines.some(v => selectedVaccines.has(v.name));
                     
                     return (
                       <div key={category.key} className="border rounded-lg overflow-hidden">
-                        <button
-                          onClick={() => toggleCategory(category.key)}
-                          className="w-full flex items-center justify-between p-3 bg-muted/50 hover:bg-muted transition-colors"
-                        >
-                          <div className="flex items-center gap-2">
+                        <div className="flex items-center justify-between p-3 bg-muted/50">
+                          <button
+                            onClick={() => toggleCategory(category.key)}
+                            className="flex items-center gap-2 hover:opacity-80 transition-opacity"
+                          >
                             {isExpanded ? (
                               <ChevronDown className="w-4 h-4 text-primary" />
                             ) : (
@@ -245,37 +295,62 @@ export function VaccineAdministrationModal({
                             <Badge variant="secondary" className="ml-2">
                               {vaccines.length} pending
                             </Badge>
-                          </div>
-                        </button>
+                          </button>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => selectAllInCategory(category.key)}
+                            className="h-7 text-xs"
+                          >
+                            {allSelected ? (
+                              <>
+                                <CheckSquare className="w-3 h-3 mr-1" />
+                                Deselect all
+                              </>
+                            ) : (
+                              <>
+                                <Square className="w-3 h-3 mr-1" />
+                                Select all
+                              </>
+                            )}
+                          </Button>
+                        </div>
                         
                         {isExpanded && (
                           <div className="p-2 space-y-2">
-                            {vaccines.map((vaccine) => (
-                              <button
-                                key={vaccine.name}
-                                onClick={() => setSelectedVaccine(vaccine)}
-                                className={cn(
-                                  "w-full flex items-center justify-between p-3 rounded-lg border transition-all text-left",
-                                  selectedVaccine?.name === vaccine.name
-                                    ? "border-primary bg-primary/5 ring-2 ring-primary"
-                                    : "border-border hover:border-primary/50 hover:bg-muted/50"
-                                )}
-                              >
-                                <div className="flex items-center gap-3">
-                                  <Syringe className={cn(
-                                    "w-4 h-4",
-                                    selectedVaccine?.name === vaccine.name ? "text-primary" : "text-muted-foreground"
-                                  )} />
-                                  <div>
-                                    <p className="font-medium text-sm">{vaccine.name}</p>
-                                    <p className="text-xs text-muted-foreground">
-                                      Due: {new Date(vaccine.dueDate).toLocaleDateString()}
-                                    </p>
+                            {vaccines.map((vaccine) => {
+                              const isSelected = selectedVaccines.has(vaccine.name);
+                              return (
+                                <button
+                                  key={vaccine.name}
+                                  onClick={() => toggleVaccineSelection(vaccine.name)}
+                                  className={cn(
+                                    "w-full flex items-center justify-between p-3 rounded-lg border transition-all text-left",
+                                    isSelected
+                                      ? "border-primary bg-primary/5 ring-2 ring-primary"
+                                      : "border-border hover:border-primary/50 hover:bg-muted/50"
+                                  )}
+                                >
+                                  <div className="flex items-center gap-3">
+                                    <div className={cn(
+                                      "w-5 h-5 rounded border-2 flex items-center justify-center transition-colors",
+                                      isSelected
+                                        ? "bg-primary border-primary"
+                                        : "border-muted-foreground"
+                                    )}>
+                                      {isSelected && <Check className="w-3 h-3 text-primary-foreground" />}
+                                    </div>
+                                    <div>
+                                      <p className="font-medium text-sm">{vaccine.name}</p>
+                                      <p className="text-xs text-muted-foreground">
+                                        Due: {new Date(vaccine.dueDate).toLocaleDateString()}
+                                      </p>
+                                    </div>
                                   </div>
-                                </div>
-                                {getStatusBadge(vaccine.status)}
-                              </button>
-                            ))}
+                                  {getStatusBadge(vaccine.status)}
+                                </button>
+                              );
+                            })}
                           </div>
                         )}
                       </div>
@@ -286,12 +361,19 @@ export function VaccineAdministrationModal({
             </div>
 
             {/* Administration Form */}
-            {selectedVaccine && (
+            {selectedVaccines.size > 0 && (
               <div className="border-t pt-4 space-y-4 animate-fade-in">
                 <div className="bg-primary/5 rounded-lg p-4 border border-primary/20">
-                  <p className="font-semibold text-primary">
-                    Administering: {selectedVaccine.name}
+                  <p className="font-semibold text-primary mb-2">
+                    Administering {selectedVaccines.size} vaccine(s):
                   </p>
+                  <div className="flex flex-wrap gap-1">
+                    {Array.from(selectedVaccines).map(name => (
+                      <Badge key={name} variant="secondary" className="text-xs">
+                        {name.split(' ')[0]}
+                      </Badge>
+                    ))}
+                  </div>
                 </div>
 
                 <div className="grid sm:grid-cols-2 gap-4">
@@ -327,7 +409,7 @@ export function VaccineAdministrationModal({
                   </div>
 
                   <div className="space-y-2">
-                    <Label htmlFor="batchNumber">Batch Number</Label>
+                    <Label htmlFor="batchNumber">Batch Number (optional)</Label>
                     <Input
                       id="batchNumber"
                       placeholder="e.g., BCG-2024-001"
@@ -344,11 +426,11 @@ export function VaccineAdministrationModal({
                     className="flex-1"
                   >
                     <Check className="w-4 h-4 mr-2" />
-                    Confirm Administration
+                    Confirm Administration ({selectedVaccines.size})
                   </Button>
                   <Button
                     variant="outline"
-                    onClick={() => setSelectedVaccine(null)}
+                    onClick={() => setSelectedVaccines(new Set())}
                   >
                     Cancel
                   </Button>
