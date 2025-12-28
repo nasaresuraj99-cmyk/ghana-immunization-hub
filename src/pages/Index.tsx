@@ -279,6 +279,7 @@ export default function Index() {
             userName={user?.name || ""}
             userEmail={user?.email || ""}
             facilityName={user?.facility || ""}
+            children={children}
             onUpdateProfile={(name, facility) => {
               updateFacility(facility);
               toast({

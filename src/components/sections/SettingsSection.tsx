@@ -1,14 +1,17 @@
 import { useState } from "react";
-import { Save, User, Building, Lock, AlertTriangle } from "lucide-react";
+import { Save, User, Building, Lock, AlertTriangle, Bell } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
+import { NotificationSettings } from "@/components/NotificationSettings";
+import { Child } from "@/types/child";
 
 interface SettingsSectionProps {
   userName: string;
   userEmail: string;
   facilityName: string;
+  children: Child[];
   onUpdateProfile: (name: string, facility: string) => void;
   onChangePassword: (currentPassword: string, newPassword: string) => void;
   onDeleteAccount: () => void;
@@ -18,6 +21,7 @@ export function SettingsSection({
   userName,
   userEmail,
   facilityName,
+  children,
   onUpdateProfile,
   onChangePassword,
   onDeleteAccount,
@@ -133,6 +137,15 @@ export function SettingsSection({
               Update Profile
             </Button>
           </div>
+        </div>
+
+        {/* Notifications Section */}
+        <div className="space-y-4">
+          <h3 className="text-lg font-semibold text-primary flex items-center gap-2 pb-2 border-b border-primary/20">
+            <Bell className="w-5 h-5" />
+            Vaccine Reminders
+          </h3>
+          <NotificationSettings children={children} />
         </div>
 
         {/* Password Section */}
