@@ -8,6 +8,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { Defaulter, Child } from "@/types/child";
 import { exportDefaultersExcel } from "@/lib/excelExport";
 import { exportDefaultersReport } from "@/lib/pdfExport";
+import { calculateExactAge } from "@/lib/ageCalculator";
 
 interface DefaultersSectionProps {
   children: Child[];
@@ -60,20 +61,6 @@ export function DefaultersSection({ children, onRefresh }: DefaultersSectionProp
     return Array.from(unique);
   }, [children]);
 
-  const calculateAge = (dob: string) => {
-    const birthDate = new Date(dob);
-    const today = new Date();
-    const months = (today.getFullYear() - birthDate.getFullYear()) * 12 + 
-                   (today.getMonth() - birthDate.getMonth());
-    
-    if (months < 12) {
-      return `${months}m`;
-    } else {
-      const years = Math.floor(months / 12);
-      const remainingMonths = months % 12;
-      return remainingMonths > 0 ? `${years}y ${remainingMonths}m` : `${years}y`;
-    }
-  };
 
   const handleExportExcel = () => {
     exportDefaultersExcel(defaulters);
@@ -200,7 +187,7 @@ export function DefaultersSection({ children, onRefresh }: DefaultersSectionProp
                     <td className="px-2 py-1.5 font-medium truncate max-w-[100px]" title={defaulter.child.name}>
                       {defaulter.child.name}
                     </td>
-                    <td className="px-2 py-1.5">{calculateAge(defaulter.child.dateOfBirth)}</td>
+                    <td className="px-2 py-1.5">{calculateExactAge(defaulter.child.dateOfBirth)}</td>
                     <td className="px-2 py-1.5 hidden sm:table-cell truncate max-w-[80px]" title={defaulter.child.motherName}>
                       {defaulter.child.motherName}
                     </td>
@@ -301,7 +288,7 @@ export function DefaultersSection({ children, onRefresh }: DefaultersSectionProp
                   </div>
                   <div>
                     <span className="text-muted-foreground">Age:</span>
-                    <p className="font-medium">{calculateAge(selectedDefaulter.child.dateOfBirth)}</p>
+                    <p className="font-medium">{calculateExactAge(selectedDefaulter.child.dateOfBirth)}</p>
                   </div>
                   <div>
                     <span className="text-muted-foreground">Sex:</span>

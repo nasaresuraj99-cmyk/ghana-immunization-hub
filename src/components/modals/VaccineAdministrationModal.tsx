@@ -1,6 +1,6 @@
 import { useState, useMemo } from "react";
 import { format } from "date-fns";
-import { CalendarIcon, Syringe, Check, ChevronDown, ChevronRight, CheckSquare, Square } from "lucide-react";
+import { CalendarIcon, Syringe, Check, ChevronDown, ChevronRight, CheckSquare, Square, Clock, AlertTriangle } from "lucide-react";
 import {
   Dialog,
   DialogContent,
@@ -19,6 +19,7 @@ import {
 } from "@/components/ui/popover";
 import { Child, VaccineRecord } from "@/types/child";
 import { cn } from "@/lib/utils";
+import { calculateExactAge, isVaccineDue } from "@/lib/ageCalculator";
 
 interface VaccineAdministrationModalProps {
   child: Child | null;
@@ -69,21 +70,36 @@ export function VaccineAdministrationModal({
   const [expandedCategories, setExpandedCategories] = useState<Set<string>>(new Set(['birth', '6weeks']));
   const [filterCategory, setFilterCategory] = useState<string>('all');
 
-  const pendingVaccines = child?.vaccines.filter(v => v.status !== 'completed') || [];
+  // Only show vaccines that are due (due date <= today) and not completed
+  const dueVaccines = child?.vaccines.filter(v => v.status !== 'completed' && isVaccineDue(v.dueDate)) || [];
+  const notYetDueVaccines = child?.vaccines.filter(v => v.status !== 'completed' && !isVaccineDue(v.dueDate)) || [];
   const completedVaccines = child?.vaccines.filter(v => v.status === 'completed') || [];
 
-  // Group vaccines by age category
-  const groupedPendingVaccines = useMemo(() => {
+  // Group due vaccines by age category (only vaccines that can be administered)
+  const groupedDueVaccines = useMemo(() => {
     const groups: Record<string, VaccineRecord[]> = {};
     
-    pendingVaccines.forEach(vaccine => {
+    dueVaccines.forEach(vaccine => {
       const category = getAgeCategory(vaccine.name);
       if (!groups[category]) groups[category] = [];
       groups[category].push(vaccine);
     });
 
     return groups;
-  }, [pendingVaccines]);
+  }, [dueVaccines]);
+
+  // Group not-yet-due vaccines by age category
+  const groupedNotYetDueVaccines = useMemo(() => {
+    const groups: Record<string, VaccineRecord[]> = {};
+    
+    notYetDueVaccines.forEach(vaccine => {
+      const category = getAgeCategory(vaccine.name);
+      if (!groups[category]) groups[category] = [];
+      groups[category].push(vaccine);
+    });
+
+    return groups;
+  }, [notYetDueVaccines]);
 
   const groupedCompletedVaccines = useMemo(() => {
     const groups: Record<string, VaccineRecord[]> = {};
@@ -97,10 +113,10 @@ export function VaccineAdministrationModal({
     return groups;
   }, [completedVaccines]);
 
-  // Get categories that have pending vaccines
+  // Get categories that have due vaccines
   const availableCategories = useMemo(() => {
-    return AGE_CATEGORIES.filter(cat => groupedPendingVaccines[cat.key]?.length > 0);
-  }, [groupedPendingVaccines]);
+    return AGE_CATEGORIES.filter(cat => groupedDueVaccines[cat.key]?.length > 0);
+  }, [groupedDueVaccines]);
 
   const toggleVaccineSelection = (vaccineName: string) => {
     setSelectedVaccines(prev => {
@@ -115,7 +131,7 @@ export function VaccineAdministrationModal({
   };
 
   const selectAllInCategory = (categoryKey: string) => {
-    const vaccines = groupedPendingVaccines[categoryKey] || [];
+    const vaccines = groupedDueVaccines[categoryKey] || [];
     const allSelected = vaccines.every(v => selectedVaccines.has(v.name));
     
     setSelectedVaccines(prev => {
@@ -226,7 +242,7 @@ export function VaccineAdministrationModal({
                   size="sm"
                   onClick={() => setFilterCategory('all')}
                 >
-                  All ({pendingVaccines.length})
+                  All ({dueVaccines.length})
                 </Button>
                 {availableCategories.map(cat => (
                   <Button
@@ -235,7 +251,7 @@ export function VaccineAdministrationModal({
                     size="sm"
                     onClick={() => setFilterCategory(cat.key)}
                   >
-                    {cat.label} ({groupedPendingVaccines[cat.key]?.length || 0})
+                    {cat.label} ({groupedDueVaccines[cat.key]?.length || 0})
                   </Button>
                 ))}
               </div>
@@ -261,18 +277,24 @@ export function VaccineAdministrationModal({
             {/* Vaccine Selection by Category - Multi-select */}
             <div>
               <Label className="text-sm font-semibold mb-3 block">
-                Select Vaccine(s) to Administer
+                Select Vaccine(s) to Administer (Due Now)
               </Label>
               
-              {pendingVaccines.length === 0 ? (
+              {dueVaccines.length === 0 && notYetDueVaccines.length === 0 ? (
                 <div className="text-center py-8 text-muted-foreground">
                   <Check className="w-12 h-12 mx-auto mb-2 text-ghs-green" />
                   <p>All vaccines have been administered!</p>
                 </div>
+              ) : dueVaccines.length === 0 ? (
+                <div className="text-center py-6 text-muted-foreground border rounded-lg bg-muted/30">
+                  <Clock className="w-10 h-10 mx-auto mb-2 text-amber-500" />
+                  <p className="font-medium">No vaccines due yet</p>
+                  <p className="text-sm mt-1">{notYetDueVaccines.length} vaccine(s) scheduled for future dates</p>
+                </div>
               ) : (
                 <div className="space-y-3 max-h-64 overflow-y-auto pr-2">
                   {filteredCategories.map(category => {
-                    const vaccines = groupedPendingVaccines[category.key] || [];
+                    const vaccines = groupedDueVaccines[category.key] || [];
                     if (vaccines.length === 0) return null;
                     
                     const isExpanded = expandedCategories.has(category.key);
@@ -434,6 +456,47 @@ export function VaccineAdministrationModal({
                   >
                     Cancel
                   </Button>
+                </div>
+              </div>
+            )}
+
+            {/* Not Yet Due Vaccines */}
+            {notYetDueVaccines.length > 0 && (
+              <div className="border-t pt-4">
+                <Label className="text-sm font-semibold mb-3 block text-amber-600 flex items-center gap-2">
+                  <Clock className="w-4 h-4" />
+                  Not Yet Due ({notYetDueVaccines.length})
+                </Label>
+                <p className="text-xs text-muted-foreground mb-3">
+                  These vaccines cannot be administered yet as their due dates are in the future.
+                </p>
+                <div className="space-y-2 max-h-40 overflow-y-auto">
+                  {AGE_CATEGORIES.map(category => {
+                    const vaccines = groupedNotYetDueVaccines[category.key] || [];
+                    if (vaccines.length === 0) return null;
+                    
+                    return (
+                      <div key={category.key}>
+                        <p className="text-xs font-medium text-muted-foreground mb-1">{category.label}</p>
+                        <div className="grid gap-1">
+                          {vaccines.map((vaccine) => (
+                            <div
+                              key={vaccine.name}
+                              className="flex items-center justify-between p-2 rounded-lg bg-amber-50 dark:bg-amber-950/20 text-sm border border-amber-200/50 dark:border-amber-800/30"
+                            >
+                              <div className="flex items-center gap-2">
+                                <Clock className="w-4 h-4 text-amber-500" />
+                                <span className="text-xs">{vaccine.name}</span>
+                              </div>
+                              <span className="text-xs text-muted-foreground">
+                                Due: {new Date(vaccine.dueDate).toLocaleDateString()}
+                              </span>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    );
+                  })}
                 </div>
               </div>
             )}

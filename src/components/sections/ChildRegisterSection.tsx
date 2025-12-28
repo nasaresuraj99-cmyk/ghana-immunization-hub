@@ -6,6 +6,7 @@ import { Badge } from "@/components/ui/badge";
 import { Child } from "@/types/child";
 import { exportImmunizationCard } from "@/lib/pdfExport";
 import { toast } from "sonner";
+import { calculateExactAge } from "@/lib/ageCalculator";
 interface ChildRegisterSectionProps {
   children: Child[];
   onEdit: (child: Child) => void;
@@ -27,20 +28,6 @@ export function ChildRegisterSection({ children, onEdit, onDelete, onViewVaccine
     );
   }, [children, searchTerm]);
 
-  const calculateAge = (dob: string) => {
-    const birthDate = new Date(dob);
-    const today = new Date();
-    const months = (today.getFullYear() - birthDate.getFullYear()) * 12 + 
-                   (today.getMonth() - birthDate.getMonth());
-    
-    if (months < 12) {
-      return `${months} months`;
-    } else {
-      const years = Math.floor(months / 12);
-      const remainingMonths = months % 12;
-      return remainingMonths > 0 ? `${years}y ${remainingMonths}m` : `${years} years`;
-    }
-  };
 
   const getNextVisit = (child: Child) => {
     const pendingVaccines = child.vaccines.filter(v => v.status === 'pending');
@@ -131,7 +118,7 @@ export function ChildRegisterSection({ children, onEdit, onDelete, onViewVaccine
                     <tr key={child.id} className="hover:bg-muted/50 transition-colors">
                       <td className="px-4 py-3 text-sm font-medium">{child.regNo}</td>
                       <td className="px-4 py-3 text-sm">{child.name}</td>
-                      <td className="px-4 py-3 text-sm">{calculateAge(child.dateOfBirth)}</td>
+                      <td className="px-4 py-3 text-sm">{calculateExactAge(child.dateOfBirth)}</td>
                       <td className="px-4 py-3 text-sm">{child.motherName}</td>
                       <td className="px-4 py-3 text-sm">{child.telephoneAddress}</td>
                       <td className="px-4 py-3 text-sm">
