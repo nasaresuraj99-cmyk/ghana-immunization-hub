@@ -130,6 +130,16 @@ export function useSyncStatus() {
     }));
   }, []);
 
+  const [manualSyncTrigger, setManualSyncTrigger] = useState(0);
+
+  const triggerManualSync = useCallback(() => {
+    if (!navigator.onLine) {
+      return false;
+    }
+    setManualSyncTrigger(prev => prev + 1);
+    return true;
+  }, []);
+
   const statusMessage = useMemo(() => {
     switch (progress.syncStatus) {
       case 'syncing':
@@ -155,6 +165,8 @@ export function useSyncStatus() {
     updateProgress,
     completeSync,
     setPendingCount,
+    triggerManualSync,
+    manualSyncTrigger,
   };
 }
 

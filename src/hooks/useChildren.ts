@@ -131,7 +131,7 @@ export function useChildren(userId?: string) {
   const currentUserIdRef = useRef(userId);
   
   const syncStatus = useSyncStatus();
-  const { isOnline, startSync, updateProgress, completeSync, setPendingCount, isSyncing } = syncStatus;
+  const { isOnline, startSync, updateProgress, completeSync, setPendingCount, isSyncing, manualSyncTrigger } = syncStatus;
   // Update pending count when it changes
   useEffect(() => {
     const pendingSyncs = loadPendingSyncs();
@@ -237,12 +237,12 @@ export function useChildren(userId?: string) {
     fetchFromFirebase();
   }, [userId, syncPendingChanges]);
 
-  // Sync when coming back online
+  // Sync when coming back online or when manual sync is triggered
   useEffect(() => {
     if (isOnline && !isLoading) {
       syncPendingChanges();
     }
-  }, [isOnline, isLoading, syncPendingChanges]);
+  }, [isOnline, isLoading, syncPendingChanges, manualSyncTrigger]);
 
   const mergeChildren = (local: Child[], firebase: Child[]): Child[] => {
     const merged = new Map<string, Child>();
