@@ -1,4 +1,4 @@
-import { useState, useCallback, useMemo, useEffect } from "react";
+import { useState, useCallback, useMemo, useEffect, useRef } from "react";
 import { Child, VaccineRecord, DashboardStats } from "@/types/child";
 import { 
   db, 
@@ -6,8 +6,7 @@ import {
   doc, 
   getDocs, 
   setDoc, 
-  deleteDoc, 
-  onSnapshot 
+  deleteDoc
 } from "@/lib/firebase";
 
 // Ghana EPI Schedule - Complete Immunization List
@@ -15,57 +14,37 @@ const getVaccineSchedule = (dateOfBirth: string): VaccineRecord[] => {
   const dob = new Date(dateOfBirth);
   const today = new Date();
   
-  // Helper: weeks for months (approximate)
   const weeksPerMonth = 4.33;
   
   const vaccines = [
-    // Birth vaccines
     { name: "BCG at Birth", weeksAfterBirth: 0 },
     { name: "OPV0 at Birth", weeksAfterBirth: 0 },
     { name: "Hepatitis B at Birth", weeksAfterBirth: 0 },
-    
-    // 6 weeks vaccines
     { name: "OPV1 at 6 weeks", weeksAfterBirth: 6 },
     { name: "Penta1 at 6 weeks", weeksAfterBirth: 6 },
     { name: "PCV1 at 6 weeks", weeksAfterBirth: 6 },
     { name: "Rotavirus1 at 6 weeks", weeksAfterBirth: 6 },
-    
-    // 10 weeks vaccines
     { name: "OPV2 at 10 weeks", weeksAfterBirth: 10 },
     { name: "Penta2 at 10 weeks", weeksAfterBirth: 10 },
     { name: "PCV2 at 10 weeks", weeksAfterBirth: 10 },
     { name: "Rotavirus2 at 10 weeks", weeksAfterBirth: 10 },
-    
-    // 14 weeks vaccines
     { name: "OPV3 at 14 weeks", weeksAfterBirth: 14 },
     { name: "Penta3 at 14 weeks", weeksAfterBirth: 14 },
     { name: "PCV3 at 14 weeks", weeksAfterBirth: 14 },
     { name: "Rotavirus3 at 14 weeks", weeksAfterBirth: 14 },
     { name: "IPV1 at 14 weeks", weeksAfterBirth: 14 },
-    
-    // 6 months vaccines
     { name: "Malaria1 at 6 months", weeksAfterBirth: Math.round(6 * weeksPerMonth) },
     { name: "Vitamin A at 6 months", weeksAfterBirth: Math.round(6 * weeksPerMonth) },
-    
-    // 7 months vaccines
     { name: "Malaria2 at 7 months", weeksAfterBirth: Math.round(7 * weeksPerMonth) },
     { name: "IPV2 at 7 months", weeksAfterBirth: Math.round(7 * weeksPerMonth) },
-    
-    // 9 months vaccines
     { name: "Malaria3 at 9 months", weeksAfterBirth: Math.round(9 * weeksPerMonth) },
     { name: "Measles Rubella1 at 9 months", weeksAfterBirth: Math.round(9 * weeksPerMonth) },
-    
-    // 12 months
     { name: "Vitamin A at 12 months", weeksAfterBirth: Math.round(12 * weeksPerMonth) },
-    
-    // 18 months vaccines
     { name: "Malaria4 at 18 months", weeksAfterBirth: Math.round(18 * weeksPerMonth) },
     { name: "Measles Rubella2 at 18 months", weeksAfterBirth: Math.round(18 * weeksPerMonth) },
     { name: "Men A at 18 months", weeksAfterBirth: Math.round(18 * weeksPerMonth) },
     { name: "LLIN at 18 months", weeksAfterBirth: Math.round(18 * weeksPerMonth) },
     { name: "Vitamin A at 18 months", weeksAfterBirth: Math.round(18 * weeksPerMonth) },
-    
-    // Vitamin A supplements (every 6 months from 24 months)
     { name: "Vitamin A at 24 months", weeksAfterBirth: Math.round(24 * weeksPerMonth) },
     { name: "Vitamin A at 30 months", weeksAfterBirth: Math.round(30 * weeksPerMonth) },
     { name: "Vitamin A at 36 months", weeksAfterBirth: Math.round(36 * weeksPerMonth) },
@@ -112,7 +91,6 @@ const generateSampleChildren = (): Child[] => {
     const dobString = dob.toISOString().split('T')[0];
 
     const vaccines = getVaccineSchedule(dobString);
-    // Mark some vaccines as completed for demo
     const completedCount = Math.min(Math.floor(monthsAgo / 2), vaccines.length);
     for (let i = 0; i < completedCount; i++) {
       vaccines[i].status = 'completed';
@@ -134,7 +112,6 @@ const generateSampleChildren = (): Child[] => {
   });
 };
 
-// Local storage keys for offline support
 const LOCAL_STORAGE_KEY = 'immunization_children_data';
 const PENDING_SYNC_KEY = 'immunization_pending_sync';
 
@@ -145,7 +122,6 @@ interface PendingSync {
   timestamp: number;
 }
 
-// Load from localStorage
 const loadFromLocalStorage = (): Child[] => {
   try {
     const stored = localStorage.getItem(LOCAL_STORAGE_KEY);
@@ -158,7 +134,6 @@ const loadFromLocalStorage = (): Child[] => {
   return generateSampleChildren();
 };
 
-// Save to localStorage
 const saveToLocalStorage = (children: Child[]) => {
   try {
     localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(children));
@@ -167,7 +142,6 @@ const saveToLocalStorage = (children: Child[]) => {
   }
 };
 
-// Load pending syncs
 const loadPendingSyncs = (): PendingSync[] => {
   try {
     const stored = localStorage.getItem(PENDING_SYNC_KEY);
@@ -180,7 +154,6 @@ const loadPendingSyncs = (): PendingSync[] => {
   return [];
 };
 
-// Save pending syncs
 const savePendingSyncs = (syncs: PendingSync[]) => {
   try {
     localStorage.setItem(PENDING_SYNC_KEY, JSON.stringify(syncs));
@@ -190,16 +163,14 @@ const savePendingSyncs = (syncs: PendingSync[]) => {
 };
 
 export function useChildren() {
-  const [children, setChildren] = useState<Child[]>(loadFromLocalStorage);
-  const [isOnline, setIsOnline] = useState(navigator.onLine);
+  const [children, setChildren] = useState<Child[]>(() => loadFromLocalStorage());
+  const [isOnline, setIsOnline] = useState(() => navigator.onLine);
   const [isSyncing, setIsSyncing] = useState(false);
+  const hasSyncedRef = useRef(false);
 
   // Monitor online status
   useEffect(() => {
-    const handleOnline = () => {
-      setIsOnline(true);
-      syncPendingChanges();
-    };
+    const handleOnline = () => setIsOnline(true);
     const handleOffline = () => setIsOnline(false);
 
     window.addEventListener('online', handleOnline);
@@ -238,56 +209,58 @@ export function useChildren() {
       }
     }
 
-    // Remove successful syncs
     const remainingSyncs = pendingSyncs.filter((_, index) => !successfulSyncs.includes(index));
     savePendingSyncs(remainingSyncs);
     setIsSyncing(false);
   }, [isSyncing]);
 
-  // Initial sync and listen for changes from Firebase
+  // Initial fetch from Firebase (only once)
   useEffect(() => {
-    // Try to sync on load
-    if (navigator.onLine) {
-      syncPendingChanges();
-    }
-
-    // Listen for real-time updates from Firebase
-    const childrenRef = collection(db, 'children');
-    const unsubscribe = onSnapshot(
-      childrenRef,
-      (snapshot) => {
+    if (hasSyncedRef.current || !navigator.onLine) return;
+    
+    const fetchFromFirebase = async () => {
+      try {
+        hasSyncedRef.current = true;
+        const childrenRef = collection(db, 'children');
+        const snapshot = await getDocs(childrenRef);
+        
         if (!snapshot.empty) {
           const firebaseChildren: Child[] = [];
-          snapshot.forEach((doc) => {
-            firebaseChildren.push(doc.data() as Child);
+          snapshot.forEach((docSnap) => {
+            firebaseChildren.push(docSnap.data() as Child);
           });
           
-          // Merge with local data, prioritizing newer timestamps
           const localChildren = loadFromLocalStorage();
-          const mergedChildren = mergeChildren(localChildren, firebaseChildren);
+          const merged = mergeChildren(localChildren, firebaseChildren);
           
-          setChildren(mergedChildren);
-          saveToLocalStorage(mergedChildren);
+          setChildren(merged);
+          saveToLocalStorage(merged);
         }
-      },
-      (error) => {
-        console.error('Firebase listener error:', error);
+        
+        // Sync any pending changes
+        syncPendingChanges();
+      } catch (error) {
+        console.error('Firebase fetch error:', error);
       }
-    );
+    };
 
-    return () => unsubscribe();
-  }, []);
+    fetchFromFirebase();
+  }, [syncPendingChanges]);
 
-  // Merge local and Firebase children, avoiding duplicates
+  // Sync when coming back online
+  useEffect(() => {
+    if (isOnline) {
+      syncPendingChanges();
+    }
+  }, [isOnline, syncPendingChanges]);
+
   const mergeChildren = (local: Child[], firebase: Child[]): Child[] => {
     const merged = new Map<string, Child>();
     
-    // Add Firebase children first
     firebase.forEach(child => {
       merged.set(child.id, child);
     });
     
-    // Override with local if local is newer (based on registeredAt)
     local.forEach(child => {
       const existing = merged.get(child.id);
       if (!existing || new Date(child.registeredAt) > new Date(existing.registeredAt)) {
@@ -298,18 +271,43 @@ export function useChildren() {
     return Array.from(merged.values());
   };
 
-  // Save children to localStorage whenever they change
+  // Save to localStorage whenever children change
   useEffect(() => {
     saveToLocalStorage(children);
   }, [children]);
 
   const addPendingSync = useCallback((sync: PendingSync) => {
     const pending = loadPendingSyncs();
-    // Remove any existing syncs for this child
     const filtered = pending.filter(p => p.childId !== sync.childId);
     filtered.push(sync);
     savePendingSyncs(filtered);
   }, []);
+
+  const syncToFirebase = useCallback(async (childId: string, data: Child | null, action: 'add' | 'update' | 'delete') => {
+    if (navigator.onLine) {
+      try {
+        const childRef = doc(db, 'children', childId);
+        if (action === 'delete') {
+          await deleteDoc(childRef);
+        } else if (data) {
+          await setDoc(childRef, data);
+        }
+      } catch (error) {
+        console.error('Firebase sync error:', error);
+        if (data) {
+          addPendingSync({ action, childId, data, timestamp: Date.now() });
+        } else {
+          addPendingSync({ action, childId, timestamp: Date.now() });
+        }
+      }
+    } else {
+      if (data) {
+        addPendingSync({ action, childId, data, timestamp: Date.now() });
+      } else {
+        addPendingSync({ action, childId, timestamp: Date.now() });
+      }
+    }
+  }, [addPendingSync]);
 
   const addChild = useCallback((childData: Omit<Child, 'id' | 'registeredAt' | 'vaccines'>) => {
     const newChild: Child = {
@@ -320,19 +318,10 @@ export function useChildren() {
     };
     
     setChildren(prev => [...prev, newChild]);
-
-    // Try to sync to Firebase
-    if (navigator.onLine) {
-      const childRef = doc(db, 'children', newChild.id);
-      setDoc(childRef, newChild).catch(() => {
-        addPendingSync({ action: 'add', childId: newChild.id, data: newChild, timestamp: Date.now() });
-      });
-    } else {
-      addPendingSync({ action: 'add', childId: newChild.id, data: newChild, timestamp: Date.now() });
-    }
+    syncToFirebase(newChild.id, newChild, 'add');
 
     return newChild;
-  }, [addPendingSync]);
+  }, [syncToFirebase]);
 
   const updateChild = useCallback((childId: string, childData: Partial<Child>) => {
     setChildren(prev => {
@@ -344,32 +333,17 @@ export function useChildren() {
       
       const updatedChild = updated.find(c => c.id === childId);
       if (updatedChild) {
-        if (navigator.onLine) {
-          const childRef = doc(db, 'children', childId);
-          setDoc(childRef, updatedChild).catch(() => {
-            addPendingSync({ action: 'update', childId, data: updatedChild, timestamp: Date.now() });
-          });
-        } else {
-          addPendingSync({ action: 'update', childId, data: updatedChild, timestamp: Date.now() });
-        }
+        syncToFirebase(childId, updatedChild, 'update');
       }
       
       return updated;
     });
-  }, [addPendingSync]);
+  }, [syncToFirebase]);
 
   const deleteChild = useCallback((childId: string) => {
     setChildren(prev => prev.filter(child => child.id !== childId));
-
-    if (navigator.onLine) {
-      const childRef = doc(db, 'children', childId);
-      deleteDoc(childRef).catch(() => {
-        addPendingSync({ action: 'delete', childId, timestamp: Date.now() });
-      });
-    } else {
-      addPendingSync({ action: 'delete', childId, timestamp: Date.now() });
-    }
-  }, [addPendingSync]);
+    syncToFirebase(childId, null, 'delete');
+  }, [syncToFirebase]);
 
   const updateVaccine = useCallback((childId: string, vaccineName: string, givenDate: string, batchNumber?: string) => {
     setChildren(prev => {
@@ -395,19 +369,12 @@ export function useChildren() {
 
       const updatedChild = updated.find(c => c.id === childId);
       if (updatedChild) {
-        if (navigator.onLine) {
-          const childRef = doc(db, 'children', childId);
-          setDoc(childRef, updatedChild).catch(() => {
-            addPendingSync({ action: 'update', childId, data: updatedChild, timestamp: Date.now() });
-          });
-        } else {
-          addPendingSync({ action: 'update', childId, data: updatedChild, timestamp: Date.now() });
-        }
+        syncToFirebase(childId, updatedChild, 'update');
       }
 
       return updated;
     });
-  }, [addPendingSync]);
+  }, [syncToFirebase]);
 
   const stats = useMemo((): DashboardStats => {
     const today = new Date();
