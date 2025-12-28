@@ -14,6 +14,7 @@ import { ChildProfileModal } from "@/components/modals/ChildProfileModal";
 import { GlobalSearchBar } from "@/components/GlobalSearchBar";
 import { DeveloperCredits } from "@/components/DeveloperCredits";
 import { PWAInstallBanner } from "@/components/PWAInstallBanner";
+import { OfflineIndicator } from "@/components/OfflineIndicator";
 import { useChildren } from "@/hooks/useChildren";
 import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
@@ -333,6 +334,7 @@ export default function Index() {
       />
 
       <PWAInstallBanner />
+      <OfflineIndicator isSyncing={isSyncing} />
     </div>
   );
 }

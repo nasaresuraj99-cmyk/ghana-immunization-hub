@@ -8,7 +8,8 @@ import {
   setDoc,
   deleteDoc,
   query,
-  where
+  where,
+  enableIndexedDbPersistence
 } from "firebase/firestore";
 import {
   getAuth,
@@ -19,6 +20,8 @@ import {
   sendEmailVerification,
   onAuthStateChanged,
   updateProfile,
+  setPersistence,
+  browserLocalPersistence,
   User
 } from "firebase/auth";
 
@@ -45,11 +48,25 @@ isSupported().then(supported => {
   // Analytics not supported
 });
 
-// Initialize Firestore
+// Initialize Firestore with offline persistence
 const db = getFirestore(app);
 
-// Initialize Auth
+// Enable offline persistence for Firestore
+enableIndexedDbPersistence(db).catch((err) => {
+  if (err.code === 'failed-precondition') {
+    // Multiple tabs open, persistence can only be enabled in one tab at a time
+    console.warn('Firestore persistence failed: Multiple tabs open');
+  } else if (err.code === 'unimplemented') {
+    // Current browser doesn't support persistence
+    console.warn('Firestore persistence not supported in this browser');
+  }
+});
+
+// Initialize Auth with persistence
 const auth = getAuth(app);
+setPersistence(auth, browserLocalPersistence).catch((err) => {
+  console.warn('Auth persistence failed:', err);
+});
 
 // Auth helper functions
 export const loginWithEmail = async (email: string, password: string) => {
