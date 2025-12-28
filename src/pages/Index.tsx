@@ -23,13 +23,15 @@ import { Loader2, Wifi, WifiOff, RefreshCw } from "lucide-react";
 type Section = 'home' | 'registration' | 'register' | 'defaulters' | 'dashboard' | 'reporting' | 'settings' | 'schedule';
 
 export default function Index() {
-  const { user, loading: authLoading, login, signup, logout, forgotPassword, updateFacility, isAuthenticated } = useAuth();
+  const { user, loading: authLoading, login, signup, logout, forgotPassword, updateFacility, isAuthenticated, refreshUser } = useAuth();
+  const emailVerified = user?.emailVerified ?? true;
+  const refreshAuth = refreshUser;
   const [currentSection, setCurrentSection] = useState<Section>('home');
   const [editingChild, setEditingChild] = useState<Child | null>(null);
   const [vaccineModalChild, setVaccineModalChild] = useState<Child | null>(null);
   const [profileModalChild, setProfileModalChild] = useState<Child | null>(null);
   
-  const { children, stats, addChild, updateChild, deleteChild, updateVaccine, isOnline, isSyncing, isLoading } = useChildren(user?.uid);
+  const { children, stats, addChild, updateChild, deleteChild, updateVaccine, importChildren, isOnline, isSyncing, isLoading } = useChildren(user?.uid);
   const { toast } = useToast();
 
   const handleLogin = async (email: string, password: string) => {
@@ -178,12 +180,14 @@ export default function Index() {
         facilityName={user?.facility || ""}
         userName={user?.name || ""}
         userEmail={user?.email || ""}
+        emailVerified={emailVerified}
         currentSection={currentSection}
         onSectionChange={(section) => {
           setCurrentSection(section as Section);
           setEditingChild(null);
         }}
         onLogout={handleLogout}
+        onRefreshAuth={refreshAuth}
       />
 
       {/* Sync Status Bar with Global Search */}
@@ -278,6 +282,7 @@ export default function Index() {
           <SettingsSection
             userName={user?.name || ""}
             userEmail={user?.email || ""}
+            userId={user?.uid || ""}
             facilityName={user?.facility || ""}
             children={children}
             stats={stats}
@@ -299,6 +304,7 @@ export default function Index() {
                 handleLogout();
               }
             }}
+            onImportChildren={importChildren}
           />
         )}
       </main>

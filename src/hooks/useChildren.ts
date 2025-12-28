@@ -428,6 +428,19 @@ export function useChildren(userId?: string) {
     };
   }, [children]);
 
+  const importChildren = useCallback((importedChildren: Child[]) => {
+    // Add all imported children
+    setChildren(prev => {
+      const newChildren = [...prev, ...importedChildren];
+      return newChildren;
+    });
+    
+    // Sync each imported child to Firebase
+    importedChildren.forEach(child => {
+      syncToFirebase(child.id, child, 'add');
+    });
+  }, [syncToFirebase]);
+
   return {
     children,
     stats,
@@ -435,6 +448,7 @@ export function useChildren(userId?: string) {
     updateChild,
     deleteChild,
     updateVaccine,
+    importChildren,
     isOnline,
     isSyncing,
     isLoading,

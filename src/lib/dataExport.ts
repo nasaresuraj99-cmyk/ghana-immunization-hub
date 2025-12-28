@@ -1,6 +1,6 @@
-import { Child, DashboardStats } from "@/types/child";
+import { Child, DashboardStats, VaccineRecord } from "@/types/child";
 
-interface FullExportData {
+export interface FullExportData {
   exportDate: string;
   facilityName: string;
   totalChildren: number;
@@ -198,4 +198,56 @@ export function exportVaccinationHistoryCSV(children: Child[]): void {
   link.click();
   document.body.removeChild(link);
   URL.revokeObjectURL(url);
+}
+
+// Import data from JSON backup
+export interface ImportResult {
+  success: boolean;
+  imported: number;
+  skipped: number;
+  errors: string[];
+}
+
+export function parseImportFile(fileContent: string): { data: FullExportData | null; error: string | null } {
+  try {
+    const parsed = JSON.parse(fileContent);
+    
+    // Validate required fields
+    if (!parsed.children || !Array.isArray(parsed.children)) {
+      return { data: null, error: "Invalid backup file: missing children array" };
+    }
+    
+    if (!parsed.exportDate) {
+      return { data: null, error: "Invalid backup file: missing export date" };
+    }
+    
+    return { data: parsed as FullExportData, error: null };
+  } catch (e) {
+    return { data: null, error: "Failed to parse JSON file. Please ensure it's a valid backup file." };
+  }
+}
+
+export function convertImportedChild(
+  importedChild: FullExportData["children"][0],
+  userId: string
+): Child {
+  return {
+    id: `child-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+    userId,
+    regNo: importedChild.regNo,
+    name: importedChild.name,
+    dateOfBirth: importedChild.dateOfBirth,
+    sex: importedChild.sex as "Male" | "Female",
+    motherName: importedChild.motherName,
+    telephoneAddress: importedChild.contact || "",
+    community: importedChild.community || "",
+    registeredAt: importedChild.registeredAt || new Date().toISOString(),
+    vaccines: importedChild.vaccines.map((v): VaccineRecord => ({
+      name: v.name,
+      dueDate: v.dueDate,
+      status: v.status as VaccineRecord["status"],
+      givenDate: v.givenDate,
+      batchNumber: v.batchNumber,
+    })),
+  };
 }
