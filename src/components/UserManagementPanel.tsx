@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Users, Shield, ShieldCheck, Eye, MoreVertical, UserPlus, Trash2, RefreshCw } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -10,29 +10,21 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { FacilityUser, AppRole, ROLE_PERMISSIONS } from '@/types/facility';
+import { useFacility } from '@/hooks/useFacility';
 import { cn } from '@/lib/utils';
 
 interface UserManagementPanelProps {
-  facilityUsers: FacilityUser[];
+  facilityId: string;
   currentUserId: string;
   currentUserRole: AppRole;
-  facilityCode?: string;
-  onUpdateRole: (userId: string, role: AppRole) => Promise<void>;
-  onRemoveUser: (userId: string) => Promise<void>;
-  onRefresh: () => void;
-  isLoading?: boolean;
 }
 
 export function UserManagementPanel({
-  facilityUsers,
+  facilityId,
   currentUserId,
   currentUserRole,
-  facilityCode,
-  onUpdateRole,
-  onRemoveUser,
-  onRefresh,
-  isLoading,
 }: UserManagementPanelProps) {
+  const { facility, users: facilityUsers, isLoading, updateUserRole, removeUserFromFacility, refreshUsers } = useFacility({ facilityId });
   const [isInviteOpen, setIsInviteOpen] = useState(false);
   const [confirmRemove, setConfirmRemove] = useState<FacilityUser | null>(null);
   const [updatingUser, setUpdatingUser] = useState<string | null>(null);
@@ -64,7 +56,7 @@ export function UserManagementPanel({
   const handleRoleChange = async (userId: string, newRole: AppRole) => {
     setUpdatingUser(userId);
     try {
-      await onUpdateRole(userId, newRole);
+      await updateUserRole(userId, newRole);
     } finally {
       setUpdatingUser(null);
     }
@@ -73,7 +65,7 @@ export function UserManagementPanel({
   const handleRemoveUser = async () => {
     if (!confirmRemove) return;
     try {
-      await onRemoveUser(confirmRemove.id);
+      await removeUserFromFacility(confirmRemove.id);
     } finally {
       setConfirmRemove(null);
     }
@@ -95,7 +87,7 @@ export function UserManagementPanel({
               variant="ghost"
               size="icon"
               className="h-8 w-8"
-              onClick={onRefresh}
+              onClick={refreshUsers}
               disabled={isLoading}
             >
               <RefreshCw className={cn('w-4 h-4', isLoading && 'animate-spin')} />
@@ -229,14 +221,14 @@ export function UserManagementPanel({
               <Label className="text-sm text-muted-foreground">Facility Code</Label>
               <div className="mt-1 flex items-center gap-2">
                 <Input
-                  value={facilityCode || ''}
+                  value={facility?.code || ''}
                   readOnly
                   className="font-mono text-lg tracking-wider"
                 />
                 <Button
                   variant="outline"
                   onClick={() => {
-                    navigator.clipboard.writeText(facilityCode || '');
+                    navigator.clipboard.writeText(facility?.code || '');
                   }}
                 >
                   Copy

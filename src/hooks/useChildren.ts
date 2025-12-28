@@ -1,6 +1,7 @@
 import { useState, useCallback, useMemo, useEffect, useRef } from "react";
 import { Child, VaccineRecord, DashboardStats } from "@/types/child";
 import { ConflictRecord, ConflictResolution } from "@/types/conflict";
+import { ActivityLog } from "@/types/facility";
 import { 
   db, 
   collection, 
@@ -9,10 +10,13 @@ import {
   setDoc, 
   deleteDoc,
   query,
-  where
+  where,
+  getDoc,
+  updateDoc
 } from "@/lib/firebase";
 import { useSyncStatus, SyncProgress } from "./useSyncStatus";
 import { useConflictDetection } from "./useConflictDetection";
+
 // Ghana EPI Schedule - Complete Immunization List
 const getVaccineSchedule = (dateOfBirth: string): VaccineRecord[] => {
   const dob = new Date(dateOfBirth);
@@ -80,10 +84,16 @@ const PENDING_SYNC_KEY = 'immunization_pending_sync';
 const FIREBASE_SYNCED_KEY = 'immunization_firebase_synced';
 
 interface PendingSync {
-  action: 'add' | 'update' | 'delete';
+  action: 'add' | 'update' | 'delete' | 'soft_delete' | 'restore';
   childId: string;
   data?: Child;
   timestamp: number;
+}
+
+interface UseChildrenOptions {
+  userId?: string;
+  facilityId?: string;
+  includeArchived?: boolean;
 }
 
 const loadFromLocalStorage = (): Child[] => {
@@ -126,17 +136,57 @@ const savePendingSyncs = (syncs: PendingSync[]) => {
   }
 };
 
-export function useChildren(userId?: string) {
-  const [children, setChildren] = useState<Child[]>(() => loadFromLocalStorage());
+// Activity log helper
+const logActivity = async (
+  facilityId: string,
+  userId: string,
+  userName: string,
+  action: ActivityLog['action'],
+  entityType: ActivityLog['entityType'],
+  entityId: string,
+  entityName: string,
+  oldData?: Record<string, any>,
+  newData?: Record<string, any>
+) => {
+  if (!facilityId) return;
+  
+  try {
+    const logRef = doc(collection(db, 'activityLogs'));
+    const log: ActivityLog = {
+      id: logRef.id,
+      facilityId,
+      userId,
+      userName,
+      action,
+      entityType,
+      entityId,
+      entityName,
+      oldData,
+      newData,
+      createdAt: new Date().toISOString(),
+    };
+    await setDoc(logRef, log);
+  } catch (error) {
+    console.error('Error logging activity:', error);
+  }
+};
+
+export function useChildren(options: UseChildrenOptions = {}) {
+  const { userId, facilityId, includeArchived = false } = options;
+  
+  const [children, setChildren] = useState<Child[]>([]);
+  const [archivedChildren, setArchivedChildren] = useState<Child[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const hasSyncedRef = useRef(false);
   const currentUserIdRef = useRef(userId);
+  const currentFacilityIdRef = useRef(facilityId);
   
   const syncStatus = useSyncStatus();
   const { isOnline, startSync, updateProgress, completeSync, setPendingCount, isSyncing, manualSyncTrigger } = syncStatus;
   
   const conflictDetection = useConflictDetection();
   const { detectConflict, addConflict, resolveConflict, getConflictDiffs, conflicts, isConflictModalOpen, setIsConflictModalOpen } = conflictDetection;
+
   // Update pending count when it changes
   useEffect(() => {
     const pendingSyncs = loadPendingSyncs();
@@ -182,25 +232,38 @@ export function useChildren(userId?: string) {
     completeSync(failedCount === 0);
   }, [isSyncing, startSync, updateProgress, completeSync, setPendingCount]);
 
-  // Update userId ref when it changes
+  // Update refs when they change
   useEffect(() => {
     if (userId && userId !== currentUserIdRef.current) {
       currentUserIdRef.current = userId;
-      hasSyncedRef.current = false; // Reset to re-fetch for new user
+      hasSyncedRef.current = false;
     }
-  }, [userId]);
+    if (facilityId && facilityId !== currentFacilityIdRef.current) {
+      currentFacilityIdRef.current = facilityId;
+      hasSyncedRef.current = false;
+    }
+  }, [userId, facilityId]);
 
-  // Initial fetch from Firebase - Always fetch to ensure data is persistent
+  // Initial fetch from Firebase - filter by facilityId
   useEffect(() => {
     if (hasSyncedRef.current || !userId) return;
     
     const fetchFromFirebase = async () => {
       setIsLoading(true);
       
-      // If offline, just use local data filtered by userId
+      // If offline, just use local data filtered by facilityId
       if (!navigator.onLine) {
-        const localData = loadFromLocalStorage().filter(c => c.userId === userId);
-        setChildren(localData);
+        const localData = loadFromLocalStorage();
+        const filtered = localData.filter(c => {
+          const matchesFacility = facilityId ? c.facilityId === facilityId : c.userId === userId;
+          return matchesFacility && !c.isDeleted;
+        });
+        const archived = localData.filter(c => {
+          const matchesFacility = facilityId ? c.facilityId === facilityId : c.userId === userId;
+          return matchesFacility && c.isDeleted;
+        });
+        setChildren(filtered);
+        setArchivedChildren(archived);
         setIsLoading(false);
         return;
       }
@@ -208,21 +271,42 @@ export function useChildren(userId?: string) {
       try {
         hasSyncedRef.current = true;
         const childrenRef = collection(db, 'children');
-        // Query only children belonging to current user
-        const userQuery = query(childrenRef, where('userId', '==', userId));
-        const snapshot = await getDocs(userQuery);
+        
+        // Query by facilityId if available, otherwise by userId
+        let childQuery;
+        if (facilityId) {
+          childQuery = query(childrenRef, where('facilityId', '==', facilityId));
+        } else {
+          childQuery = query(childrenRef, where('userId', '==', userId));
+        }
+        
+        const snapshot = await getDocs(childQuery);
         
         const firebaseChildren: Child[] = [];
+        const firebaseArchived: Child[] = [];
+        
         snapshot.forEach((docSnap) => {
-          firebaseChildren.push(docSnap.data() as Child);
+          const child = docSnap.data() as Child;
+          if (child.isDeleted) {
+            firebaseArchived.push(child);
+          } else {
+            firebaseChildren.push(child);
+          }
         });
         
         // Firebase is the source of truth - merge local pending changes
-        const localChildren = loadFromLocalStorage().filter(c => c.userId === userId);
-        const merged = mergeChildren(localChildren, firebaseChildren);
+        const localChildren = loadFromLocalStorage();
+        const localFiltered = localChildren.filter(c => {
+          const matchesFacility = facilityId ? c.facilityId === facilityId : c.userId === userId;
+          return matchesFacility;
+        });
+        
+        const merged = mergeChildren(localFiltered.filter(c => !c.isDeleted), firebaseChildren);
+        const mergedArchived = mergeChildren(localFiltered.filter(c => c.isDeleted), firebaseArchived);
         
         setChildren(merged);
-        saveToLocalStorage(merged);
+        setArchivedChildren(mergedArchived);
+        saveToLocalStorage([...merged, ...mergedArchived]);
         
         // Mark as synced
         localStorage.setItem(FIREBASE_SYNCED_KEY, 'true');
@@ -232,15 +316,24 @@ export function useChildren(userId?: string) {
       } catch (error) {
         console.error('Firebase fetch error:', error);
         // If Firebase fails, continue with local data
-        const localData = loadFromLocalStorage().filter(c => c.userId === userId);
-        setChildren(localData);
+        const localData = loadFromLocalStorage();
+        const filtered = localData.filter(c => {
+          const matchesFacility = facilityId ? c.facilityId === facilityId : c.userId === userId;
+          return matchesFacility && !c.isDeleted;
+        });
+        const archived = localData.filter(c => {
+          const matchesFacility = facilityId ? c.facilityId === facilityId : c.userId === userId;
+          return matchesFacility && c.isDeleted;
+        });
+        setChildren(filtered);
+        setArchivedChildren(archived);
       } finally {
         setIsLoading(false);
       }
     };
 
     fetchFromFirebase();
-  }, [userId, syncPendingChanges]);
+  }, [userId, facilityId, syncPendingChanges]);
 
   // Sync when coming back online or when manual sync is triggered
   useEffect(() => {
@@ -278,9 +371,9 @@ export function useChildren(userId?: string) {
   // Save to localStorage whenever children change
   useEffect(() => {
     if (!isLoading) {
-      saveToLocalStorage(children);
+      saveToLocalStorage([...children, ...archivedChildren]);
     }
-  }, [children, isLoading]);
+  }, [children, archivedChildren, isLoading]);
 
   const addPendingSync = useCallback((sync: PendingSync) => {
     const pending = loadPendingSyncs();
@@ -289,7 +382,7 @@ export function useChildren(userId?: string) {
     savePendingSyncs(filtered);
   }, []);
 
-  const syncToFirebase = useCallback(async (childId: string, data: Child | null, action: 'add' | 'update' | 'delete') => {
+  const syncToFirebase = useCallback(async (childId: string, data: Child | null, action: PendingSync['action']) => {
     // Always add to pending first for reliability
     if (data) {
       addPendingSync({ action, childId, data, timestamp: Date.now() });
@@ -330,7 +423,7 @@ export function useChildren(userId?: string) {
     resolveConflict(conflictId);
   }, [resolveConflict, syncToFirebase]);
 
-  const addChild = useCallback((childData: Omit<Child, 'id' | 'userId' | 'registeredAt' | 'vaccines'>) => {
+  const addChild = useCallback((childData: Omit<Child, 'id' | 'userId' | 'registeredAt' | 'vaccines'>, userName?: string) => {
     if (!currentUserIdRef.current) {
       throw new Error('User must be logged in to add children');
     }
@@ -339,46 +432,172 @@ export function useChildren(userId?: string) {
       ...childData,
       id: `child-${Date.now()}`,
       userId: currentUserIdRef.current,
+      facilityId: currentFacilityIdRef.current,
+      createdByUserId: currentUserIdRef.current,
       registeredAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
       vaccines: getVaccineSchedule(childData.dateOfBirth),
+      isDeleted: false,
     };
     
     setChildren(prev => [...prev, newChild]);
     syncToFirebase(newChild.id, newChild, 'add');
+    
+    // Log activity
+    if (currentFacilityIdRef.current) {
+      logActivity(
+        currentFacilityIdRef.current,
+        currentUserIdRef.current,
+        userName || 'Unknown',
+        'create',
+        'child',
+        newChild.id,
+        newChild.name
+      );
+    }
 
     return newChild;
   }, [syncToFirebase]);
 
-  const updateChild = useCallback((childId: string, childData: Partial<Child>) => {
+  const updateChild = useCallback((childId: string, childData: Partial<Child>, userName?: string) => {
     setChildren(prev => {
+      const oldChild = prev.find(c => c.id === childId);
       const updated = prev.map(child => 
         child.id === childId 
-          ? { ...child, ...childData, registeredAt: new Date().toISOString() }
+          ? { ...child, ...childData, updatedAt: new Date().toISOString() }
           : child
       );
       
       const updatedChild = updated.find(c => c.id === childId);
       if (updatedChild) {
         syncToFirebase(childId, updatedChild, 'update');
+        
+        // Log activity
+        if (currentFacilityIdRef.current && currentUserIdRef.current) {
+          logActivity(
+            currentFacilityIdRef.current,
+            currentUserIdRef.current,
+            userName || 'Unknown',
+            'update',
+            'child',
+            childId,
+            updatedChild.name,
+            oldChild,
+            childData
+          );
+        }
       }
       
       return updated;
     });
   }, [syncToFirebase]);
 
-  const deleteChild = useCallback((childId: string) => {
-    setChildren(prev => prev.filter(child => child.id !== childId));
-    syncToFirebase(childId, null, 'delete');
+  // Soft delete - marks child as deleted but keeps in database
+  const softDeleteChild = useCallback((childId: string, userId: string, userName?: string) => {
+    setChildren(prev => {
+      const childToDelete = prev.find(c => c.id === childId);
+      if (!childToDelete) return prev;
+      
+      const deletedChild: Child = {
+        ...childToDelete,
+        isDeleted: true,
+        deletedAt: new Date().toISOString(),
+        deletedByUserId: userId,
+        updatedAt: new Date().toISOString(),
+      };
+      
+      // Remove from active list and add to archived
+      setArchivedChildren(archived => [...archived, deletedChild]);
+      syncToFirebase(childId, deletedChild, 'soft_delete');
+      
+      // Log activity
+      if (currentFacilityIdRef.current) {
+        logActivity(
+          currentFacilityIdRef.current,
+          userId,
+          userName || 'Unknown',
+          'soft_delete',
+          'child',
+          childId,
+          childToDelete.name
+        );
+      }
+      
+      return prev.filter(c => c.id !== childId);
+    });
   }, [syncToFirebase]);
 
-  const updateVaccine = useCallback((childId: string, vaccineName: string, givenDate: string, batchNumber?: string) => {
+  // Restore a soft-deleted child
+  const restoreChild = useCallback((childId: string, userId: string, userName?: string) => {
+    setArchivedChildren(prev => {
+      const childToRestore = prev.find(c => c.id === childId);
+      if (!childToRestore) return prev;
+      
+      const restoredChild: Child = {
+        ...childToRestore,
+        isDeleted: false,
+        deletedAt: undefined,
+        deletedByUserId: undefined,
+        updatedAt: new Date().toISOString(),
+      };
+      
+      // Add back to active list
+      setChildren(active => [...active, restoredChild]);
+      syncToFirebase(childId, restoredChild, 'restore');
+      
+      // Log activity
+      if (currentFacilityIdRef.current) {
+        logActivity(
+          currentFacilityIdRef.current,
+          userId,
+          userName || 'Unknown',
+          'restore',
+          'child',
+          childId,
+          childToRestore.name
+        );
+      }
+      
+      return prev.filter(c => c.id !== childId);
+    });
+  }, [syncToFirebase]);
+
+  // Permanent delete - removes from database completely
+  const permanentDeleteChild = useCallback((childId: string, userId: string, userName?: string) => {
+    const childToDelete = archivedChildren.find(c => c.id === childId);
+    
+    setArchivedChildren(prev => prev.filter(c => c.id !== childId));
+    syncToFirebase(childId, null, 'delete');
+    
+    // Log activity
+    if (currentFacilityIdRef.current && childToDelete) {
+      logActivity(
+        currentFacilityIdRef.current,
+        userId,
+        userName || 'Unknown',
+        'permanent_delete',
+        'child',
+        childId,
+        childToDelete.name
+      );
+    }
+  }, [archivedChildren, syncToFirebase]);
+
+  // Legacy delete function - now uses soft delete
+  const deleteChild = useCallback((childId: string) => {
+    if (currentUserIdRef.current) {
+      softDeleteChild(childId, currentUserIdRef.current);
+    }
+  }, [softDeleteChild]);
+
+  const updateVaccine = useCallback((childId: string, vaccineName: string, givenDate: string, batchNumber?: string, userName?: string) => {
     setChildren(prev => {
       const updated = prev.map(child => {
         if (child.id !== childId) return child;
         
         return {
           ...child,
-          registeredAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString(),
           vaccines: child.vaccines.map(vaccine => 
             vaccine.name === vaccineName
               ? { 
@@ -386,7 +605,8 @@ export function useChildren(userId?: string) {
                   status: 'completed' as const, 
                   givenDate,
                   batchNumber: batchNumber || undefined,
-                  administeredBy: 'Current User'
+                  administeredBy: userName || 'Current User',
+                  administeredByUserId: currentUserIdRef.current,
                 }
               : vaccine
           ),
@@ -396,6 +616,19 @@ export function useChildren(userId?: string) {
       const updatedChild = updated.find(c => c.id === childId);
       if (updatedChild) {
         syncToFirebase(childId, updatedChild, 'update');
+        
+        // Log activity
+        if (currentFacilityIdRef.current && currentUserIdRef.current) {
+          logActivity(
+            currentFacilityIdRef.current,
+            currentUserIdRef.current,
+            userName || 'Unknown',
+            'update',
+            'vaccine',
+            childId,
+            `${vaccineName} for ${updatedChild.name}`
+          );
+        }
       }
 
       return updated;
@@ -446,28 +679,37 @@ export function useChildren(userId?: string) {
       coverageRate: totalVaccines > 0 ? Math.round((completedVaccines / totalVaccines) * 100) : 0,
       fullyImmunized,
       dropoutRate: children.length > 0 ? Math.round((defaulters / children.length) * 100) : 0,
+      archivedChildren: archivedChildren.length,
     };
-  }, [children]);
+  }, [children, archivedChildren]);
 
   const importChildren = useCallback((importedChildren: Child[]) => {
-    // Add all imported children
-    setChildren(prev => {
-      const newChildren = [...prev, ...importedChildren];
-      return newChildren;
-    });
+    // Add facilityId to all imported children
+    const childrenWithFacility = importedChildren.map(child => ({
+      ...child,
+      facilityId: currentFacilityIdRef.current,
+      createdByUserId: currentUserIdRef.current,
+      isDeleted: false,
+    }));
+    
+    setChildren(prev => [...prev, ...childrenWithFacility]);
     
     // Sync each imported child to Firebase
-    importedChildren.forEach(child => {
+    childrenWithFacility.forEach(child => {
       syncToFirebase(child.id, child, 'add');
     });
   }, [syncToFirebase]);
 
   return {
     children,
+    archivedChildren,
     stats,
     addChild,
     updateChild,
     deleteChild,
+    softDeleteChild,
+    restoreChild,
+    permanentDeleteChild,
     updateVaccine,
     importChildren,
     isOnline,

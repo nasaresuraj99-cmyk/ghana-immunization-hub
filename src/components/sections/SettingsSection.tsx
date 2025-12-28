@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Save, User, Building, Lock, AlertTriangle, Bell, Database, History } from "lucide-react";
+import { Save, User, Building, Lock, AlertTriangle, Bell, Database, History, Archive, Users, Activity } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -9,6 +9,7 @@ import { DataExportButton } from "@/components/DataExportButton";
 import { DataImportButton } from "@/components/DataImportButton";
 import { SyncHistoryLog } from "@/components/SyncHistoryLog";
 import { Child, DashboardStats } from "@/types/child";
+import { AppRole, ROLE_PERMISSIONS } from "@/types/facility";
 
 interface SettingsSectionProps {
   userName: string;
@@ -17,10 +18,14 @@ interface SettingsSectionProps {
   facilityName: string;
   children: Child[];
   stats: DashboardStats;
+  userRole?: AppRole;
   onUpdateProfile: (name: string, facility: string) => void;
   onChangePassword: (currentPassword: string, newPassword: string) => void;
   onDeleteAccount: () => void;
   onImportChildren: (children: Child[]) => void;
+  onNavigateToArchive?: () => void;
+  onNavigateToUsers?: () => void;
+  onNavigateToActivity?: () => void;
 }
 
 export function SettingsSection({
@@ -30,11 +35,16 @@ export function SettingsSection({
   facilityName,
   children,
   stats,
+  userRole = 'staff',
   onUpdateProfile,
   onChangePassword,
   onDeleteAccount,
   onImportChildren,
+  onNavigateToArchive,
+  onNavigateToUsers,
+  onNavigateToActivity,
 }: SettingsSectionProps) {
+  const permissions = ROLE_PERMISSIONS[userRole];
   const { toast } = useToast();
   const [name, setName] = useState(userName);
   const [facility, setFacility] = useState(facilityName);
@@ -193,6 +203,36 @@ export function SettingsSection({
           </p>
           <SyncHistoryLog />
         </div>
+
+        {/* Admin Shortcuts */}
+        {(permissions.canViewArchive || permissions.canManageUsers || permissions.canViewActivityLog) && (
+          <div className="space-y-4">
+            <h3 className="text-lg font-semibold text-primary flex items-center gap-2 pb-2 border-b border-primary/20">
+              <Users className="w-5 h-5" />
+              Administration
+            </h3>
+            <div className="grid gap-2 sm:grid-cols-3">
+              {permissions.canViewArchive && onNavigateToArchive && (
+                <Button variant="outline" onClick={onNavigateToArchive} className="justify-start gap-2">
+                  <Archive className="w-4 h-4" />
+                  Archived Records
+                </Button>
+              )}
+              {permissions.canManageUsers && onNavigateToUsers && (
+                <Button variant="outline" onClick={onNavigateToUsers} className="justify-start gap-2">
+                  <Users className="w-4 h-4" />
+                  Manage Users
+                </Button>
+              )}
+              {permissions.canViewActivityLog && onNavigateToActivity && (
+                <Button variant="outline" onClick={onNavigateToActivity} className="justify-start gap-2">
+                  <Activity className="w-4 h-4" />
+                  Activity Log
+                </Button>
+              )}
+            </div>
+          </div>
+        )}
 
         {/* Password Section */}
         <div className="space-y-4">
