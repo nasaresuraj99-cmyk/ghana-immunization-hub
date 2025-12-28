@@ -249,7 +249,7 @@ export default function Index() {
   };
 
   const handleAdministerVaccine = (childId: string, vaccineName: string, givenDate: string, batchNumber: string) => {
-    if (!permissions.canEdit) {
+    if (!permissions.canAdministerVaccines) {
       toast({
         title: "Permission Denied",
         description: "You don't have permission to administer vaccines.",
@@ -420,6 +420,8 @@ export default function Index() {
                 description: "Defaulters list has been updated.",
               });
             }}
+            canExport={permissions.canExportData}
+            onViewVaccines={handleViewVaccines}
           />
         )}
 
@@ -510,6 +512,7 @@ export default function Index() {
         isOpen={!!vaccineModalChild}
         onClose={() => setVaccineModalChild(null)}
         onAdminister={handleAdministerVaccine}
+        canAdminister={permissions.canAdministerVaccines}
       />
 
       <ChildProfileModal
