@@ -1,12 +1,15 @@
 import { Cloud, CloudOff, CheckCircle, XCircle, RefreshCw, Wifi, WifiOff } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Progress } from "@/components/ui/progress";
+import { Button } from "@/components/ui/button";
 import { SyncProgress } from "@/hooks/useSyncStatus";
+import { toast } from "sonner";
 
 interface SyncProgressBarProps {
   syncProgress: SyncProgress & {
     isOnline: boolean;
     statusMessage: string;
+    triggerManualSync: () => boolean;
   };
 }
 
@@ -18,8 +21,30 @@ export function SyncProgressBar({ syncProgress }: SyncProgressBarProps) {
     pendingCount, 
     syncedCount, 
     isSyncing,
-    lastSyncTime 
+    lastSyncTime,
+    triggerManualSync,
   } = syncProgress;
+
+  const handleManualSync = () => {
+    if (!isOnline) {
+      toast.error("Cannot sync while offline", {
+        description: "Please connect to the internet to sync your data.",
+      });
+      return;
+    }
+    
+    if (isSyncing) {
+      toast.info("Sync already in progress");
+      return;
+    }
+
+    const triggered = triggerManualSync();
+    if (triggered) {
+      toast.info("Manual sync started", {
+        description: "Your data is being synchronized...",
+      });
+    }
+  };
 
   const getStatusIcon = () => {
     if (!isOnline) return <WifiOff className="w-4 h-4" />;
@@ -95,6 +120,18 @@ export function SyncProgressBar({ syncProgress }: SyncProgressBarProps) {
           {pendingCount} pending
         </span>
       )}
+
+      {/* Manual Sync Button */}
+      <Button
+        variant="ghost"
+        size="sm"
+        onClick={handleManualSync}
+        disabled={isSyncing || !isOnline}
+        className="h-7 px-2 text-xs gap-1.5"
+      >
+        <RefreshCw className={cn("w-3.5 h-3.5", isSyncing && "animate-spin")} />
+        <span className="hidden sm:inline">Sync</span>
+      </Button>
     </div>
   );
 }
