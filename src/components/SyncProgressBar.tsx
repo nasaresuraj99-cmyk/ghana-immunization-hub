@@ -1,4 +1,4 @@
-import { Cloud, CloudOff, CheckCircle, XCircle, RefreshCw, Wifi, WifiOff, AlertTriangle, CloudUpload } from "lucide-react";
+import { Cloud, CloudOff, CheckCircle, XCircle, RefreshCw, Wifi, WifiOff, AlertTriangle, CloudUpload, History } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Progress } from "@/components/ui/progress";
 import { Button } from "@/components/ui/button";
@@ -16,9 +16,16 @@ interface SyncProgressBarProps {
   conflictCount?: number;
   onOpenConflicts?: () => void;
   onShowPendingQueue?: () => void;
+  onShowSyncHistory?: () => void;
+  retryInfo?: {
+    retryCount: number;
+    maxRetries: number;
+    isRetrying: boolean;
+    nextRetryAt: Date | null;
+  };
 }
 
-export function SyncProgressBar({ syncProgress, conflictCount = 0, onOpenConflicts, onShowPendingQueue }: SyncProgressBarProps) {
+export function SyncProgressBar({ syncProgress, conflictCount = 0, onOpenConflicts, onShowPendingQueue, onShowSyncHistory, retryInfo }: SyncProgressBarProps) {
   const { 
     isOnline, 
     syncStatus, 
@@ -162,6 +169,26 @@ export function SyncProgressBar({ syncProgress, conflictCount = 0, onOpenConflic
         >
           <AlertTriangle className="w-3.5 h-3.5" />
           <span>{conflictCount} conflict{conflictCount > 1 ? 's' : ''}</span>
+        </Button>
+      )}
+
+      {/* Retry Indicator */}
+      {retryInfo && retryInfo.retryCount > 0 && (
+        <Badge variant="outline" className="text-xs bg-warning/10 text-warning border-warning/30">
+          <RefreshCw className={cn("w-3 h-3 mr-1", retryInfo.isRetrying && "animate-spin")} />
+          Retry {retryInfo.retryCount}/{retryInfo.maxRetries}
+        </Badge>
+      )}
+
+      {/* Sync History Button */}
+      {onShowSyncHistory && (
+        <Button
+          variant="ghost"
+          size="sm"
+          onClick={onShowSyncHistory}
+          className="h-8 px-2 text-xs"
+        >
+          <History className="w-3.5 h-3.5" />
         </Button>
       )}
 
