@@ -1,361 +1,243 @@
 import { useState, useCallback, useEffect } from 'react';
-import { supabase } from '@/integrations/supabase/client';
-import { Facility, UserRole, FacilityUser, AppRole, ROLE_PERMISSIONS } from '@/types/facility';
+import { 
+  db, 
+  collection, 
+  doc, 
+  getDocs, 
+  getDoc,
+  setDoc, 
+  query, 
+  where 
+} from '@/lib/firebase';
+import { Facility, AppRole, FacilityUser, ROLE_PERMISSIONS } from '@/types/facility';
 
 const FACILITY_LOCAL_KEY = 'immunization_current_facility';
-const USER_ROLE_LOCAL_KEY = 'immunization_user_role';
 
-interface UseFacilityOptions {
-  userId?: string;
-}
-
-export function useFacility({ userId }: UseFacilityOptions = {}) {
+export function useFacility(userId?: string, userFacilityId?: string) {
   const [facility, setFacility] = useState<Facility | null>(null);
-  const [userRole, setUserRole] = useState<UserRole | null>(null);
   const [facilityUsers, setFacilityUsers] = useState<FacilityUser[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  // Get permissions based on current role
-  const permissions = userRole 
-    ? ROLE_PERMISSIONS[userRole.role] 
-    : ROLE_PERMISSIONS.read_only;
-
-  // Load from local storage first, then sync with server
-  const loadFacilityData = useCallback(async () => {
-    if (!userId) {
+  // Load facility data
+  useEffect(() => {
+    if (!userFacilityId) {
       setIsLoading(false);
       return;
     }
 
-    setIsLoading(true);
-    setError(null);
-
-    // Load from local storage first
-    try {
-      const localFacility = localStorage.getItem(FACILITY_LOCAL_KEY);
-      const localRole = localStorage.getItem(USER_ROLE_LOCAL_KEY);
-      
-      if (localFacility) {
-        setFacility(JSON.parse(localFacility));
-      }
-      if (localRole) {
-        setUserRole(JSON.parse(localRole));
-      }
-    } catch (e) {
-      console.error('Error loading facility from localStorage:', e);
-    }
-
-    // If online, sync with server
-    if (navigator.onLine) {
+    const loadFacility = async () => {
       try {
-        // Get user's role and facility
-        const { data: roleData, error: roleError } = await supabase
-          .from('user_roles')
-          .select('*, facilities(*)')
-          .eq('user_id', userId)
-          .single();
-
-        if (roleError) {
-          // User might not have a facility assigned yet
-          if (roleError.code !== 'PGRST116') { // Not found
-            console.error('Error fetching user role:', roleError);
-          }
-        } else if (roleData) {
-          const role: UserRole = {
-            id: roleData.id,
-            user_id: roleData.user_id,
-            facility_id: roleData.facility_id,
-            role: roleData.role as AppRole,
-            created_at: roleData.created_at,
+        setIsLoading(true);
+        const facilityRef = doc(db, 'facilities', userFacilityId);
+        const facilitySnap = await getDoc(facilityRef);
+        
+        if (facilitySnap.exists()) {
+          const data = facilitySnap.data();
+          const facilityData: Facility = {
+            id: facilitySnap.id,
+            name: data.name,
+            code: data.code,
+            address: data.address,
+            createdAt: data.createdAt,
+            updatedAt: data.updatedAt,
+            createdBy: data.createdBy,
           };
-          
-          const facilityData = (roleData as any).facilities as Facility;
-          
-          setUserRole(role);
           setFacility(facilityData);
-          
-          // Save to local storage
           localStorage.setItem(FACILITY_LOCAL_KEY, JSON.stringify(facilityData));
-          localStorage.setItem(USER_ROLE_LOCAL_KEY, JSON.stringify(role));
-
-          // Fetch facility users if admin
-          if (role.role === 'facility_admin') {
-            await loadFacilityUsers(facilityData.id);
+        } else {
+          // Try loading from cache
+          const cached = localStorage.getItem(FACILITY_LOCAL_KEY);
+          if (cached) {
+            setFacility(JSON.parse(cached));
           }
         }
-      } catch (e) {
-        console.error('Error loading facility data:', e);
-        setError('Failed to load facility data');
+      } catch (err) {
+        console.error('Error loading facility:', err);
+        // Try loading from cache
+        const cached = localStorage.getItem(FACILITY_LOCAL_KEY);
+        if (cached) {
+          setFacility(JSON.parse(cached));
+        }
+      } finally {
+        setIsLoading(false);
       }
-    }
+    };
 
-    setIsLoading(false);
+    loadFacility();
+  }, [userFacilityId]);
+
+  // Load facility users
+  useEffect(() => {
+    if (!userFacilityId) return;
+
+    const loadFacilityUsers = async () => {
+      try {
+        const usersRef = collection(db, 'userProfiles');
+        const usersQuery = query(usersRef, where('facilityId', '==', userFacilityId));
+        const snapshot = await getDocs(usersQuery);
+        
+        const users: FacilityUser[] = [];
+        snapshot.forEach((docSnap) => {
+          const data = docSnap.data();
+          users.push({
+            id: docSnap.id,
+            name: data.displayName || 'Unknown',
+            email: data.email || '',
+            role: data.role || 'staff',
+            facilityId: data.facilityId,
+            createdAt: data.createdAt,
+          });
+        });
+        
+        setFacilityUsers(users);
+      } catch (err) {
+        console.error('Error loading facility users:', err);
+      }
+    };
+
+    loadFacilityUsers();
+  }, [userFacilityId]);
+
+  const createFacility = useCallback(async (name: string, code: string): Promise<string> => {
+    if (!userId) throw new Error('User must be logged in');
+
+    try {
+      const facilityId = `facility-${Date.now()}`;
+      const newFacility: Facility = {
+        id: facilityId,
+        name,
+        code: code.toUpperCase(),
+        address: '',
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+        createdBy: userId,
+      };
+
+      const facilityRef = doc(db, 'facilities', facilityId);
+      await setDoc(facilityRef, newFacility);
+      
+      setFacility(newFacility);
+      localStorage.setItem(FACILITY_LOCAL_KEY, JSON.stringify(newFacility));
+      
+      return facilityId;
+    } catch (err) {
+      console.error('Error creating facility:', err);
+      throw new Error('Failed to create facility');
+    }
   }, [userId]);
 
-  // Load users in the facility (for admins)
-  const loadFacilityUsers = useCallback(async (facilityId: string) => {
-    try {
-      const { data, error } = await supabase
-        .from('user_roles')
-        .select(`
-          id,
-          user_id,
-          role,
-          created_at,
-          profiles!inner(display_name, email)
-        `)
-        .eq('facility_id', facilityId);
-
-      if (error) {
-        console.error('Error fetching facility users:', error);
-        return;
-      }
-
-      if (data) {
-        const users: FacilityUser[] = data.map((item: any) => ({
-          id: item.id,
-          user_id: item.user_id,
-          display_name: item.profiles?.display_name || 'Unknown',
-          email: item.profiles?.email || '',
-          role: item.role as AppRole,
-          created_at: item.created_at,
-        }));
-        setFacilityUsers(users);
-      }
-    } catch (e) {
-      console.error('Error loading facility users:', e);
-    }
-  }, []);
-
-  useEffect(() => {
-    loadFacilityData();
-  }, [loadFacilityData]);
-
-  // Create a new facility (used during signup)
-  const createFacility = useCallback(async (
-    name: string,
-    code?: string,
-    address?: string
-  ): Promise<Facility | null> => {
-    if (!userId) return null;
-
-    const facilityCode = code || name.toUpperCase().replace(/\s+/g, '-').slice(0, 20);
+  const joinFacility = useCallback(async (facilityCode: string): Promise<{ facilityId: string; facilityName: string } | null> => {
+    if (!userId) throw new Error('User must be logged in');
 
     try {
-      const { data: facilityData, error: facilityError } = await supabase
-        .from('facilities')
-        .insert({
-          name,
-          code: facilityCode,
-          address,
-        })
-        .select()
-        .single();
-
-      if (facilityError) {
-        console.error('Error creating facility:', facilityError);
-        setError('Failed to create facility');
+      // Find facility by code
+      const facilitiesRef = collection(db, 'facilities');
+      const facilityQuery = query(facilitiesRef, where('code', '==', facilityCode.toUpperCase()));
+      const snapshot = await getDocs(facilityQuery);
+      
+      if (snapshot.empty) {
+        setError('No facility found with this code');
         return null;
       }
 
-      // Assign user as facility admin
-      const { error: roleError } = await supabase
-        .from('user_roles')
-        .insert({
-          user_id: userId,
-          facility_id: facilityData.id,
-          role: 'facility_admin' as AppRole,
-        });
-
-      if (roleError) {
-        console.error('Error assigning user role:', roleError);
-      }
-
-      // Create user profile
-      const { error: profileError } = await supabase
-        .from('profiles')
-        .insert({
-          user_id: userId,
-          facility_id: facilityData.id,
-        });
-
-      if (profileError) {
-        console.error('Error creating profile:', profileError);
-      }
-
-      const facility = facilityData as Facility;
-      setFacility(facility);
-      
-      const role: UserRole = {
-        id: '',
-        user_id: userId,
-        facility_id: facility.id,
-        role: 'facility_admin',
-        created_at: new Date().toISOString(),
+      const facilityDoc = snapshot.docs[0];
+      const data = facilityDoc.data();
+      const facilityData: Facility = {
+        id: facilityDoc.id,
+        name: data.name,
+        code: data.code,
+        address: data.address,
+        createdAt: data.createdAt,
+        updatedAt: data.updatedAt,
+        createdBy: data.createdBy,
       };
-      setUserRole(role);
-
-      localStorage.setItem(FACILITY_LOCAL_KEY, JSON.stringify(facility));
-      localStorage.setItem(USER_ROLE_LOCAL_KEY, JSON.stringify(role));
-
-      return facility;
-    } catch (e) {
-      console.error('Error creating facility:', e);
-      setError('Failed to create facility');
+      
+      setFacility(facilityData);
+      localStorage.setItem(FACILITY_LOCAL_KEY, JSON.stringify(facilityData));
+      
+      return {
+        facilityId: facilityDoc.id,
+        facilityName: data.name,
+      };
+    } catch (err) {
+      console.error('Error joining facility:', err);
+      setError('Failed to join facility');
       return null;
     }
   }, [userId]);
 
-  // Join an existing facility with a code
-  const joinFacility = useCallback(async (
-    facilityCode: string,
-    role: AppRole = 'staff'
-  ): Promise<boolean> => {
-    if (!userId) return false;
+  const updateUserRole = useCallback(async (targetUserId: string, newRole: AppRole) => {
+    try {
+      const profileRef = doc(db, 'userProfiles', targetUserId);
+      await setDoc(profileRef, {
+        role: newRole,
+        updatedAt: new Date().toISOString(),
+      }, { merge: true });
+
+      // Update local state
+      setFacilityUsers(prev => prev.map(u => 
+        u.id === targetUserId ? { ...u, role: newRole } : u
+      ));
+    } catch (err) {
+      console.error('Error updating user role:', err);
+      throw new Error('Failed to update user role');
+    }
+  }, []);
+
+  const removeUserFromFacility = useCallback(async (targetUserId: string) => {
+    try {
+      const profileRef = doc(db, 'userProfiles', targetUserId);
+      await setDoc(profileRef, {
+        facilityId: null,
+        facilityName: null,
+        updatedAt: new Date().toISOString(),
+      }, { merge: true });
+
+      // Update local state
+      setFacilityUsers(prev => prev.filter(u => u.id !== targetUserId));
+    } catch (err) {
+      console.error('Error removing user from facility:', err);
+      throw new Error('Failed to remove user from facility');
+    }
+  }, []);
+
+  const refreshUsers = useCallback(async () => {
+    if (!userFacilityId) return;
 
     try {
-      // Find facility by code
-      const { data: facilityData, error: facilityError } = await supabase
-        .from('facilities')
-        .select()
-        .eq('code', facilityCode.toUpperCase())
-        .single();
-
-      if (facilityError || !facilityData) {
-        setError('Facility not found');
-        return false;
-      }
-
-      // Check if user already has a role in this facility
-      const { data: existingRole } = await supabase
-        .from('user_roles')
-        .select()
-        .eq('user_id', userId)
-        .eq('facility_id', facilityData.id)
-        .single();
-
-      if (existingRole) {
-        setError('You are already a member of this facility');
-        return false;
-      }
-
-      // Add user to facility
-      const { error: roleError } = await supabase
-        .from('user_roles')
-        .insert({
-          user_id: userId,
-          facility_id: facilityData.id,
-          role,
+      const usersRef = collection(db, 'userProfiles');
+      const usersQuery = query(usersRef, where('facilityId', '==', userFacilityId));
+      const snapshot = await getDocs(usersQuery);
+      
+      const users: FacilityUser[] = [];
+      snapshot.forEach((docSnap) => {
+        const data = docSnap.data();
+        users.push({
+          id: docSnap.id,
+          name: data.displayName || 'Unknown',
+          email: data.email || '',
+          role: data.role || 'staff',
+          facilityId: data.facilityId,
+          createdAt: data.createdAt,
         });
-
-      if (roleError) {
-        console.error('Error joining facility:', roleError);
-        setError('Failed to join facility');
-        return false;
-      }
-
-      // Create or update profile
-      const { error: profileError } = await supabase
-        .from('profiles')
-        .upsert({
-          user_id: userId,
-          facility_id: facilityData.id,
-        });
-
-      if (profileError) {
-        console.error('Error updating profile:', profileError);
-      }
-
-      await loadFacilityData();
-      return true;
-    } catch (e) {
-      console.error('Error joining facility:', e);
-      setError('Failed to join facility');
-      return false;
+      });
+      
+      setFacilityUsers(users);
+    } catch (err) {
+      console.error('Error refreshing facility users:', err);
     }
-  }, [userId, loadFacilityData]);
-
-  // Update user role (admin only)
-  const updateUserRole = useCallback(async (
-    targetUserId: string,
-    newRole: AppRole
-  ): Promise<boolean> => {
-    if (!facility || userRole?.role !== 'facility_admin') {
-      setError('Only facility admins can update roles');
-      return false;
-    }
-
-    try {
-      const { error } = await supabase
-        .from('user_roles')
-        .update({ role: newRole })
-        .eq('user_id', targetUserId)
-        .eq('facility_id', facility.id);
-
-      if (error) {
-        console.error('Error updating user role:', error);
-        setError('Failed to update user role');
-        return false;
-      }
-
-      // Refresh facility users
-      await loadFacilityUsers(facility.id);
-      return true;
-    } catch (e) {
-      console.error('Error updating user role:', e);
-      setError('Failed to update user role');
-      return false;
-    }
-  }, [facility, userRole, loadFacilityUsers]);
-
-  // Remove user from facility (admin only)
-  const removeUser = useCallback(async (
-    targetUserId: string
-  ): Promise<boolean> => {
-    if (!facility || userRole?.role !== 'facility_admin') {
-      setError('Only facility admins can remove users');
-      return false;
-    }
-
-    if (targetUserId === userId) {
-      setError('You cannot remove yourself');
-      return false;
-    }
-
-    try {
-      const { error } = await supabase
-        .from('user_roles')
-        .delete()
-        .eq('user_id', targetUserId)
-        .eq('facility_id', facility.id);
-
-      if (error) {
-        console.error('Error removing user:', error);
-        setError('Failed to remove user');
-        return false;
-      }
-
-      await loadFacilityUsers(facility.id);
-      return true;
-    } catch (e) {
-      console.error('Error removing user:', e);
-      setError('Failed to remove user');
-      return false;
-    }
-  }, [facility, userRole, userId, loadFacilityUsers]);
+  }, [userFacilityId]);
 
   return {
     facility,
-    userRole,
     facilityUsers,
-    permissions,
     isLoading,
     error,
     createFacility,
     joinFacility,
     updateUserRole,
-    removeUser,
-    refreshFacility: loadFacilityData,
+    removeUserFromFacility,
+    refreshUsers,
   };
 }

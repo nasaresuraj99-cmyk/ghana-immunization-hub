@@ -1,138 +1,163 @@
 import { useState, useCallback, useEffect } from 'react';
+import { 
+  db, 
+  collection, 
+  doc, 
+  getDocs, 
+  setDoc, 
+  query, 
+  where, 
+  orderBy, 
+  limit 
+} from '@/lib/firebase';
 import { SyncHistoryRecord } from '@/types/facility';
-import { supabase } from '@/integrations/supabase/client';
 
-const SYNC_HISTORY_LOCAL_KEY = 'immunization_sync_history';
-const MAX_LOCAL_HISTORY = 50;
+const SYNC_HISTORY_LOCAL_KEY = 'sync_history';
 
-interface UseSyncHistoryOptions {
-  userId?: string;
-  facilityId?: string;
-}
+const loadLocalHistory = (): SyncHistoryRecord[] => {
+  try {
+    const stored = localStorage.getItem(SYNC_HISTORY_LOCAL_KEY);
+    return stored ? JSON.parse(stored) : [];
+  } catch {
+    return [];
+  }
+};
 
-export function useSyncHistory({ userId, facilityId }: UseSyncHistoryOptions = {}) {
-  const [history, setHistory] = useState<SyncHistoryRecord[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
+const saveLocalHistory = (history: SyncHistoryRecord[]) => {
+  try {
+    localStorage.setItem(SYNC_HISTORY_LOCAL_KEY, JSON.stringify(history.slice(0, 50)));
+  } catch {}
+};
 
-  // Load history from local storage and optionally sync with server
-  const loadHistory = useCallback(async () => {
-    setIsLoading(true);
-    
-    // First load from local storage
-    try {
-      const localData = localStorage.getItem(SYNC_HISTORY_LOCAL_KEY);
-      if (localData) {
-        const parsed = JSON.parse(localData) as SyncHistoryRecord[];
-        setHistory(parsed.slice(0, MAX_LOCAL_HISTORY));
-      }
-    } catch (e) {
-      console.error('Error loading sync history from localStorage:', e);
-    }
+export function useSyncHistory(userId?: string, facilityId?: string) {
+  const [history, setHistory] = useState<SyncHistoryRecord[]>(() => loadLocalHistory());
+  const [isLoading, setIsLoading] = useState(false);
 
-    // If we have a userId, try to fetch from server
-    if (userId && navigator.onLine) {
+  // Load history from Firebase
+  useEffect(() => {
+    if (!userId || !navigator.onLine) return;
+
+    const load = async () => {
+      setIsLoading(true);
       try {
-        const { data, error } = await supabase
-          .from('sync_history')
-          .select('*')
-          .eq('user_id', userId)
-          .order('started_at', { ascending: false })
-          .limit(MAX_LOCAL_HISTORY);
-
-        if (!error && data) {
-          const serverHistory = data as SyncHistoryRecord[];
-          setHistory(serverHistory);
-          // Update local storage with server data
-          localStorage.setItem(SYNC_HISTORY_LOCAL_KEY, JSON.stringify(serverHistory));
-        }
-      } catch (e) {
-        console.error('Error fetching sync history from server:', e);
+        const ref = collection(db, 'syncHistory');
+        const q = query(
+          ref, 
+          where('userId', '==', userId),
+          orderBy('startedAt', 'desc'),
+          limit(50)
+        );
+        const snap = await getDocs(q);
+        const records: SyncHistoryRecord[] = [];
+        
+        snap.forEach(d => {
+          const data = d.data();
+          records.push({
+            id: d.id,
+            userId: data.userId,
+            facilityId: data.facilityId,
+            status: data.status,
+            syncedCount: data.syncedCount || 0,
+            failedCount: data.failedCount || 0,
+            errorMessage: data.errorMessage,
+            startedAt: data.startedAt,
+            completedAt: data.completedAt,
+          });
+        });
+        
+        setHistory(records);
+        saveLocalHistory(records);
+      } catch (error) {
+        console.error('Error loading sync history:', error);
+      } finally {
+        setIsLoading(false);
       }
-    }
+    };
 
-    setIsLoading(false);
+    load();
   }, [userId]);
 
-  useEffect(() => {
-    loadHistory();
-  }, [loadHistory]);
-
-  // Add a new sync record
   const addSyncRecord = useCallback(async (
-    status: 'success' | 'failed' | 'partial',
+    status: SyncHistoryRecord['status'],
     syncedCount: number,
     failedCount: number,
     errorMessage?: string
-  ): Promise<SyncHistoryRecord> => {
+  ) => {
+    if (!userId) return;
+
     const now = new Date().toISOString();
-    const newRecord: SyncHistoryRecord = {
+    const record: SyncHistoryRecord = {
       id: `sync-${Date.now()}`,
-      user_id: userId || 'unknown',
-      facility_id: facilityId,
+      userId,
+      facilityId,
       status,
-      synced_count: syncedCount,
-      failed_count: failedCount,
-      error_message: errorMessage,
-      started_at: now,
-      completed_at: now,
+      syncedCount,
+      failedCount,
+      errorMessage,
+      startedAt: now,
+      completedAt: now,
     };
 
     // Update local state
     setHistory(prev => {
-      const updated = [newRecord, ...prev].slice(0, MAX_LOCAL_HISTORY);
-      localStorage.setItem(SYNC_HISTORY_LOCAL_KEY, JSON.stringify(updated));
+      const updated = [record, ...prev].slice(0, 50);
+      saveLocalHistory(updated);
       return updated;
     });
 
-    // Try to save to server
-    if (userId && navigator.onLine) {
+    // Sync to Firebase
+    if (navigator.onLine) {
       try {
-        const { error } = await supabase
-          .from('sync_history')
-          .insert({
-            user_id: userId,
-            facility_id: facilityId,
-            status,
-            synced_count: syncedCount,
-            failed_count: failedCount,
-            error_message: errorMessage,
-            started_at: now,
-            completed_at: now,
-          });
-
-        if (error) {
-          console.error('Error saving sync history:', error);
-        }
-      } catch (e) {
-        console.error('Error saving sync history:', e);
+        await setDoc(doc(db, 'syncHistory', record.id), record);
+      } catch (error) {
+        console.error('Error saving sync record:', error);
       }
     }
-
-    return newRecord;
   }, [userId, facilityId]);
 
-  // Get recent sync stats
-  const getRecentStats = useCallback(() => {
-    const last24Hours = new Date(Date.now() - 24 * 60 * 60 * 1000);
-    const recentHistory = history.filter(
-      h => new Date(h.started_at) > last24Hours
-    );
+  const refreshHistory = useCallback(async () => {
+    if (!userId || !navigator.onLine) return;
 
-    return {
-      totalSyncs: recentHistory.length,
-      successfulSyncs: recentHistory.filter(h => h.status === 'success').length,
-      failedSyncs: recentHistory.filter(h => h.status === 'failed').length,
-      partialSyncs: recentHistory.filter(h => h.status === 'partial').length,
-      totalSynced: recentHistory.reduce((sum, h) => sum + h.synced_count, 0),
-      totalFailed: recentHistory.reduce((sum, h) => sum + h.failed_count, 0),
-    };
-  }, [history]);
+    setIsLoading(true);
+    try {
+      const ref = collection(db, 'syncHistory');
+      const q = query(
+        ref, 
+        where('userId', '==', userId),
+        orderBy('startedAt', 'desc'),
+        limit(50)
+      );
+      const snap = await getDocs(q);
+      const records: SyncHistoryRecord[] = [];
+      
+      snap.forEach(d => {
+        const data = d.data();
+        records.push({
+          id: d.id,
+          userId: data.userId,
+          facilityId: data.facilityId,
+          status: data.status,
+          syncedCount: data.syncedCount || 0,
+          failedCount: data.failedCount || 0,
+          errorMessage: data.errorMessage,
+          startedAt: data.startedAt,
+          completedAt: data.completedAt,
+        });
+      });
+      
+      setHistory(records);
+      saveLocalHistory(records);
+    } catch (error) {
+      console.error('Error refreshing sync history:', error);
+    } finally {
+      setIsLoading(false);
+    }
+  }, [userId]);
 
   return {
     history,
     isLoading,
     addSyncRecord,
-    getRecentStats,
-    refreshHistory: loadHistory,
+    refreshHistory,
   };
 }
