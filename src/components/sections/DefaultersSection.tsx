@@ -13,9 +13,11 @@ import { calculateExactAge } from "@/lib/ageCalculator";
 interface DefaultersSectionProps {
   children: Child[];
   onRefresh: () => void;
+  canExport?: boolean;
+  onViewVaccines?: (child: Child) => void;
 }
 
-export function DefaultersSection({ children, onRefresh }: DefaultersSectionProps) {
+export function DefaultersSection({ children, onRefresh, canExport = true, onViewVaccines }: DefaultersSectionProps) {
   const [periodFilter, setPeriodFilter] = useState("7");
   const [vaccineFilter, setVaccineFilter] = useState("all");
   const [communityFilter, setCommunityFilter] = useState("all");
@@ -84,14 +86,18 @@ export function DefaultersSection({ children, onRefresh }: DefaultersSectionProp
               <RefreshCw className="w-4 h-4 mr-2" />
               Refresh
             </Button>
-            <Button size="sm" onClick={handleExportExcel}>
-              <Download className="w-4 h-4 mr-2" />
-              Excel
-            </Button>
-            <Button size="sm" onClick={handleExportPDF}>
-              <FileText className="w-4 h-4 mr-2" />
-              PDF
-            </Button>
+            {canExport && (
+              <>
+                <Button size="sm" onClick={handleExportExcel}>
+                  <Download className="w-4 h-4 mr-2" />
+                  Excel
+                </Button>
+                <Button size="sm" onClick={handleExportPDF}>
+                  <FileText className="w-4 h-4 mr-2" />
+                  PDF
+                </Button>
+              </>
+            )}
           </div>
         </div>
 

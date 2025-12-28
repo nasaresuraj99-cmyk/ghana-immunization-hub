@@ -26,6 +26,7 @@ interface VaccineAdministrationModalProps {
   isOpen: boolean;
   onClose: () => void;
   onAdminister: (childId: string, vaccineName: string, givenDate: string, batchNumber: string) => void;
+  canAdminister?: boolean;
 }
 
 // Age category definitions
@@ -62,6 +63,7 @@ export function VaccineAdministrationModal({
   isOpen,
   onClose,
   onAdminister,
+  canAdminister = true,
 }: VaccineAdministrationModalProps) {
   const [selectedVaccines, setSelectedVaccines] = useState<Set<string>>(new Set());
   const [givenDate, setGivenDate] = useState<Date | undefined>(new Date());
@@ -212,6 +214,17 @@ export function VaccineAdministrationModal({
 
         {child && (
           <div className="space-y-6">
+            {/* Read-only notice for users without permission */}
+            {!canAdminister && (
+              <div className="bg-warning/10 border border-warning/30 rounded-lg p-4 flex items-start gap-3">
+                <AlertTriangle className="w-5 h-5 text-warning shrink-0 mt-0.5" />
+                <div className="text-sm">
+                  <p className="font-medium text-foreground">View Only Mode</p>
+                  <p className="text-muted-foreground">You don't have permission to administer vaccines. Contact your facility admin for access.</p>
+                </div>
+              </div>
+            )}
+
             {/* Child Info */}
             <div className="bg-muted/50 rounded-lg p-4">
               <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 text-sm">
@@ -258,7 +271,7 @@ export function VaccineAdministrationModal({
             )}
 
             {/* Selected Count */}
-            {selectedVaccines.size > 0 && (
+            {selectedVaccines.size > 0 && canAdminister && (
               <div className="bg-primary/10 border border-primary/30 rounded-lg p-3 flex items-center justify-between">
                 <span className="font-medium text-primary">
                   {selectedVaccines.size} vaccine(s) selected
@@ -275,10 +288,11 @@ export function VaccineAdministrationModal({
             )}
 
             {/* Vaccine Selection by Category - Multi-select */}
-            <div>
-              <Label className="text-sm font-semibold mb-3 block">
-                Select Vaccine(s) to Administer (Due Now)
-              </Label>
+            {canAdminister && (
+              <div>
+                <Label className="text-sm font-semibold mb-3 block">
+                  Select Vaccine(s) to Administer (Due Now)
+                </Label>
               
               {dueVaccines.length === 0 && notYetDueVaccines.length === 0 ? (
                 <div className="text-center py-8 text-muted-foreground">
@@ -381,6 +395,7 @@ export function VaccineAdministrationModal({
                 </div>
               )}
             </div>
+            )}
 
             {/* Administration Form */}
             {selectedVaccines.size > 0 && (
