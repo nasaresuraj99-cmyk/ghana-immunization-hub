@@ -275,17 +275,6 @@ export function useChildren(userId?: string) {
     return Array.from(merged.values());
   };
 
-  const handleConflictResolution = useCallback((conflictId: string, resolution: ConflictResolution, resolvedChild: Child) => {
-    // Update local state with resolved child
-    setChildren(prev => prev.map(c => c.id === resolvedChild.id ? resolvedChild : c));
-    
-    // Sync to Firebase
-    syncToFirebase(resolvedChild.id, resolvedChild, 'update');
-    
-    // Mark conflict as resolved
-    resolveConflict(conflictId);
-  }, [resolveConflict, syncToFirebase]);
-
   // Save to localStorage whenever children change
   useEffect(() => {
     if (!isLoading) {
@@ -328,6 +317,18 @@ export function useChildren(userId?: string) {
       }
     }
   }, [addPendingSync]);
+
+  // Must be declared after syncToFirebase
+  const handleConflictResolution = useCallback((conflictId: string, resolution: ConflictResolution, resolvedChild: Child) => {
+    // Update local state with resolved child
+    setChildren(prev => prev.map(c => c.id === resolvedChild.id ? resolvedChild : c));
+    
+    // Sync to Firebase
+    syncToFirebase(resolvedChild.id, resolvedChild, 'update');
+    
+    // Mark conflict as resolved
+    resolveConflict(conflictId);
+  }, [resolveConflict, syncToFirebase]);
 
   const addChild = useCallback((childData: Omit<Child, 'id' | 'userId' | 'registeredAt' | 'vaccines'>) => {
     if (!currentUserIdRef.current) {
