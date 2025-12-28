@@ -29,7 +29,7 @@ export default function Index() {
   const [vaccineModalChild, setVaccineModalChild] = useState<Child | null>(null);
   const [profileModalChild, setProfileModalChild] = useState<Child | null>(null);
   
-  const { children, stats, addChild, updateChild, deleteChild, updateVaccine, isOnline, isSyncing, isLoading } = useChildren();
+  const { children, stats, addChild, updateChild, deleteChild, updateVaccine, isOnline, isSyncing, isLoading } = useChildren(user?.uid);
   const { toast } = useToast();
 
   const handleLogin = async (email: string, password: string) => {
@@ -97,7 +97,7 @@ export default function Index() {
     }
   };
 
-  const handleSaveChild = (childData: Omit<Child, 'id' | 'registeredAt' | 'vaccines'>) => {
+  const handleSaveChild = (childData: Omit<Child, 'id' | 'userId' | 'registeredAt' | 'vaccines'>) => {
     if (editingChild) {
       updateChild(editingChild.id, childData);
       setEditingChild(null);
@@ -280,6 +280,7 @@ export default function Index() {
             userEmail={user?.email || ""}
             facilityName={user?.facility || ""}
             children={children}
+            stats={stats}
             onUpdateProfile={(name, facility) => {
               updateFacility(facility);
               toast({

@@ -1,17 +1,19 @@
 import { useState } from "react";
-import { Save, User, Building, Lock, AlertTriangle, Bell } from "lucide-react";
+import { Save, User, Building, Lock, AlertTriangle, Bell, Database } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
 import { NotificationSettings } from "@/components/NotificationSettings";
-import { Child } from "@/types/child";
+import { DataExportButton } from "@/components/DataExportButton";
+import { Child, DashboardStats } from "@/types/child";
 
 interface SettingsSectionProps {
   userName: string;
   userEmail: string;
   facilityName: string;
   children: Child[];
+  stats: DashboardStats;
   onUpdateProfile: (name: string, facility: string) => void;
   onChangePassword: (currentPassword: string, newPassword: string) => void;
   onDeleteAccount: () => void;
@@ -22,6 +24,7 @@ export function SettingsSection({
   userEmail,
   facilityName,
   children,
+  stats,
   onUpdateProfile,
   onChangePassword,
   onDeleteAccount,
@@ -146,6 +149,24 @@ export function SettingsSection({
             Vaccine Reminders
           </h3>
           <NotificationSettings children={children} />
+        </div>
+
+        {/* Data & Backup Section */}
+        <div className="space-y-4">
+          <h3 className="text-lg font-semibold text-primary flex items-center gap-2 pb-2 border-b border-primary/20">
+            <Database className="w-5 h-5" />
+            Data & Backup
+          </h3>
+          <div className="space-y-3">
+            <p className="text-sm text-muted-foreground">
+              Export your vaccination records for backup or analysis. Your data includes {children.length} registered children.
+            </p>
+            <DataExportButton 
+              children={children} 
+              stats={stats} 
+              facilityName={facilityName} 
+            />
+          </div>
         </div>
 
         {/* Password Section */}

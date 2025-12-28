@@ -6,7 +6,9 @@ import {
   doc, 
   getDocs, 
   setDoc, 
-  deleteDoc
+  deleteDoc,
+  query,
+  where
 } from "@/lib/firebase";
 
 // Ghana EPI Schedule - Complete Immunization List
@@ -122,12 +124,13 @@ const savePendingSyncs = (syncs: PendingSync[]) => {
   }
 };
 
-export function useChildren() {
+export function useChildren(userId?: string) {
   const [children, setChildren] = useState<Child[]>(() => loadFromLocalStorage());
   const [isOnline, setIsOnline] = useState(() => navigator.onLine);
   const [isSyncing, setIsSyncing] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const hasSyncedRef = useRef(false);
+  const currentUserIdRef = useRef(userId);
 
   // Monitor online status
   useEffect(() => {
@@ -175,15 +178,25 @@ export function useChildren() {
     setIsSyncing(false);
   }, [isSyncing]);
 
+  // Update userId ref when it changes
+  useEffect(() => {
+    if (userId && userId !== currentUserIdRef.current) {
+      currentUserIdRef.current = userId;
+      hasSyncedRef.current = false; // Reset to re-fetch for new user
+    }
+  }, [userId]);
+
   // Initial fetch from Firebase - Always fetch to ensure data is persistent
   useEffect(() => {
-    if (hasSyncedRef.current) return;
+    if (hasSyncedRef.current || !userId) return;
     
     const fetchFromFirebase = async () => {
       setIsLoading(true);
       
-      // If offline, just use local data
+      // If offline, just use local data filtered by userId
       if (!navigator.onLine) {
+        const localData = loadFromLocalStorage().filter(c => c.userId === userId);
+        setChildren(localData);
         setIsLoading(false);
         return;
       }
@@ -191,7 +204,9 @@ export function useChildren() {
       try {
         hasSyncedRef.current = true;
         const childrenRef = collection(db, 'children');
-        const snapshot = await getDocs(childrenRef);
+        // Query only children belonging to current user
+        const userQuery = query(childrenRef, where('userId', '==', userId));
+        const snapshot = await getDocs(userQuery);
         
         const firebaseChildren: Child[] = [];
         snapshot.forEach((docSnap) => {
@@ -199,7 +214,7 @@ export function useChildren() {
         });
         
         // Firebase is the source of truth - merge local pending changes
-        const localChildren = loadFromLocalStorage();
+        const localChildren = loadFromLocalStorage().filter(c => c.userId === userId);
         const merged = mergeChildren(localChildren, firebaseChildren);
         
         setChildren(merged);
@@ -213,13 +228,15 @@ export function useChildren() {
       } catch (error) {
         console.error('Firebase fetch error:', error);
         // If Firebase fails, continue with local data
+        const localData = loadFromLocalStorage().filter(c => c.userId === userId);
+        setChildren(localData);
       } finally {
         setIsLoading(false);
       }
     };
 
     fetchFromFirebase();
-  }, [syncPendingChanges]);
+  }, [userId, syncPendingChanges]);
 
   // Sync when coming back online
   useEffect(() => {
@@ -292,10 +309,15 @@ export function useChildren() {
     }
   }, [addPendingSync]);
 
-  const addChild = useCallback((childData: Omit<Child, 'id' | 'registeredAt' | 'vaccines'>) => {
+  const addChild = useCallback((childData: Omit<Child, 'id' | 'userId' | 'registeredAt' | 'vaccines'>) => {
+    if (!currentUserIdRef.current) {
+      throw new Error('User must be logged in to add children');
+    }
+    
     const newChild: Child = {
       ...childData,
       id: `child-${Date.now()}`,
+      userId: currentUserIdRef.current,
       registeredAt: new Date().toISOString(),
       vaccines: getVaccineSchedule(childData.dateOfBirth),
     };

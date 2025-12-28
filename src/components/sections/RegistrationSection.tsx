@@ -10,7 +10,7 @@ import { generateRegistrationId } from "@/lib/registrationId";
 
 interface RegistrationSectionProps {
   editingChild?: Child | null;
-  onSave: (child: Omit<Child, 'id' | 'registeredAt' | 'vaccines'>) => void;
+  onSave: (child: Omit<Child, 'id' | 'userId' | 'registeredAt' | 'vaccines'>) => void;
   onCancel: () => void;
   onBack: () => void;
   existingChildren: Child[];

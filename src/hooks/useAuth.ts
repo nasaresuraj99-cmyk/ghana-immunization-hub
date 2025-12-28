@@ -5,6 +5,7 @@ import {
   logout as firebaseLogout, 
   resetPassword,
   onAuthChange,
+  auth,
   User
 } from "@/lib/firebase";
 
@@ -13,6 +14,7 @@ export interface AuthUser {
   email: string;
   name: string;
   facility: string;
+  emailVerified: boolean;
 }
 
 const FACILITY_KEY = 'user_facility';
@@ -31,6 +33,7 @@ export function useAuth() {
           email: firebaseUser.email || "",
           name: firebaseUser.displayName || "Health Worker",
           facility,
+          emailVerified: firebaseUser.emailVerified,
         });
       } else {
         setUser(null);
@@ -39,6 +42,21 @@ export function useAuth() {
     });
 
     return () => unsubscribe();
+  }, []);
+
+  const refreshUser = useCallback(async () => {
+    const currentUser = auth.currentUser;
+    if (currentUser) {
+      await currentUser.reload();
+      const facility = localStorage.getItem(`${FACILITY_KEY}_${currentUser.uid}`) || "Health Facility";
+      setUser({
+        uid: currentUser.uid,
+        email: currentUser.email || "",
+        name: currentUser.displayName || "Health Worker",
+        facility,
+        emailVerified: currentUser.emailVerified,
+      });
+    }
   }, []);
 
   const login = useCallback(async (email: string, password: string) => {
@@ -109,6 +127,7 @@ export function useAuth() {
     logout,
     forgotPassword,
     updateFacility,
+    refreshUser,
     isAuthenticated: !!user,
   };
 }
