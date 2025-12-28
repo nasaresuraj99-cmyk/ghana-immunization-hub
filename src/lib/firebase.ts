@@ -6,8 +6,20 @@ import {
   doc,
   getDocs,
   setDoc,
-  deleteDoc
+  deleteDoc,
+  query,
+  where
 } from "firebase/firestore";
+import {
+  getAuth,
+  signInWithEmailAndPassword,
+  createUserWithEmailAndPassword,
+  signOut,
+  sendPasswordResetEmail,
+  onAuthStateChanged,
+  updateProfile,
+  User
+} from "firebase/auth";
 
 const firebaseConfig = {
   apiKey: "AIzaSyC-IZkSs3muNFkgKC2KMEbArhJXcg8lyAY",
@@ -35,13 +47,46 @@ isSupported().then(supported => {
 // Initialize Firestore
 const db = getFirestore(app);
 
+// Initialize Auth
+const auth = getAuth(app);
+
+// Auth helper functions
+export const loginWithEmail = async (email: string, password: string) => {
+  return signInWithEmailAndPassword(auth, email, password);
+};
+
+export const signupWithEmail = async (email: string, password: string, displayName: string) => {
+  const result = await createUserWithEmailAndPassword(auth, email, password);
+  if (result.user) {
+    await updateProfile(result.user, { displayName });
+  }
+  return result;
+};
+
+export const logout = async () => {
+  return signOut(auth);
+};
+
+export const resetPassword = async (email: string) => {
+  return sendPasswordResetEmail(auth, email);
+};
+
+export const onAuthChange = (callback: (user: User | null) => void) => {
+  return onAuthStateChanged(auth, callback);
+};
+
 export { 
   app, 
   analytics, 
   db, 
+  auth,
   collection, 
   doc, 
   getDocs, 
   setDoc, 
-  deleteDoc
+  deleteDoc,
+  query,
+  where
 };
+
+export type { User };

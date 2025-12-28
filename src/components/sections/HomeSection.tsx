@@ -1,4 +1,4 @@
-import { Users, Syringe, Clock, AlertTriangle, UserPlus, List, FileText, Calendar, Download, BarChart3, Sparkles, TrendingUp } from "lucide-react";
+import { Users, Syringe, Clock, AlertTriangle, UserPlus, List, FileText, Calendar, Download, BarChart3, Sparkles, TrendingUp, CalendarDays } from "lucide-react";
 import { StatCard } from "@/components/ui/stat-card";
 import { Button } from "@/components/ui/button";
 import { DashboardStats } from "@/types/child";
@@ -105,6 +105,14 @@ export function HomeSection({ stats, onNavigate }: HomeSectionProps) {
             <span className="text-xs font-medium">View Defaulters</span>
           </Button>
           <Button 
+            onClick={() => onNavigate('schedule')}
+            variant="secondary" 
+            className="flex flex-col h-auto py-5 gap-3 rounded-xl hover:bg-secondary/80 transition-all"
+          >
+            <CalendarDays className="w-6 h-6" />
+            <span className="text-xs font-medium">EPI Schedule</span>
+          </Button>
+          <Button 
             onClick={() => onNavigate('dashboard')}
             variant="secondary" 
             className="flex flex-col h-auto py-5 gap-3 rounded-xl hover:bg-secondary/80 transition-all"
@@ -115,14 +123,6 @@ export function HomeSection({ stats, onNavigate }: HomeSectionProps) {
           <Button 
             onClick={() => onNavigate('reporting')}
             variant="secondary"
-            className="flex flex-col h-auto py-5 gap-3 rounded-xl hover:bg-secondary/80 transition-all"
-          >
-            <Download className="w-6 h-6" />
-            <span className="text-xs font-medium">Export Data</span>
-          </Button>
-          <Button 
-            onClick={() => onNavigate('reporting')} 
-            variant="secondary" 
             className="flex flex-col h-auto py-5 gap-3 rounded-xl hover:bg-secondary/80 transition-all"
           >
             <BarChart3 className="w-6 h-6" />
