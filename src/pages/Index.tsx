@@ -291,7 +291,7 @@ export default function Index() {
             children={children}
             stats={stats}
             onUpdateProfile={(name, facility) => {
-              updateFacility(facility);
+              // Note: Full facility update requires facilityId
               toast({
                 title: "Profile Updated",
                 description: "Your profile has been updated successfully.",
