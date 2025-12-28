@@ -1,11 +1,16 @@
 import { useMemo } from "react";
-import { PieChart, BarChart3, TrendingUp, Users, Syringe, AlertTriangle, CheckCircle, TrendingDown } from "lucide-react";
+import { BarChart3, TrendingUp, AlertTriangle, CheckCircle, TrendingDown, Activity, Users as UsersIcon } from "lucide-react";
 import { StatCard } from "@/components/ui/stat-card";
 import { DashboardStats, Child } from "@/types/child";
+import { VaccinationCoverageChart } from "@/components/charts/VaccinationCoverageChart";
+import { MonthlyTrendsChart } from "@/components/charts/MonthlyTrendsChart";
+import { AgeDistributionChart } from "@/components/charts/AgeDistributionChart";
+import { VaccineDueReminders } from "@/components/VaccineDueReminders";
 
 interface DashboardSectionProps {
   stats: DashboardStats;
   children: Child[];
+  onViewChild: (child: Child) => void;
 }
 
 // Dropout rate pairs for calculation
@@ -17,7 +22,7 @@ const DROPOUT_PAIRS = [
   { start: 'IPV1', end: 'IPV2', label: 'IPV1 → IPV2' },
 ];
 
-export function DashboardSection({ stats, children }: DashboardSectionProps) {
+export function DashboardSection({ stats, children, onViewChild }: DashboardSectionProps) {
   // Group vaccines by child and visit date (same date = same visit/session)
   const recentActivity = useMemo(() => {
     const visitMap = new Map<string, {
@@ -31,7 +36,6 @@ export function DashboardSection({ stats, children }: DashboardSectionProps) {
       child.vaccines
         .filter(v => v.givenDate)
         .forEach(v => {
-          // Create unique key for child + date combination (visit session)
           const visitKey = `${child.id}-${v.givenDate}`;
           
           if (visitMap.has(visitKey)) {
@@ -49,7 +53,7 @@ export function DashboardSection({ stats, children }: DashboardSectionProps) {
 
     return Array.from(visitMap.values())
       .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
-      .slice(0, 10);
+      .slice(0, 8);
   }, [children]);
 
   const vaccinationStatusData = useMemo(() => {
@@ -77,7 +81,6 @@ export function DashboardSection({ stats, children }: DashboardSectionProps) {
       let endCount = 0;
 
       children.forEach(child => {
-        // Find vaccines that match the start and end of the pair
         const startVaccine = child.vaccines.find(v => v.name.includes(pair.start) && v.status === 'completed');
         const endVaccine = child.vaccines.find(v => v.name.includes(pair.end) && v.status === 'completed');
 
@@ -85,20 +88,18 @@ export function DashboardSection({ stats, children }: DashboardSectionProps) {
         if (endVaccine) endCount++;
       });
 
-      // Dropout rate formula: ((start - end) / start) * 100
       const dropoutRate = startCount > 0 ? Math.round(((startCount - endCount) / startCount) * 100) : 0;
 
       rates[pair.label] = {
         startCount,
         endCount,
-        dropoutRate: Math.max(0, dropoutRate), // Ensure non-negative
+        dropoutRate: Math.max(0, dropoutRate),
       };
     });
 
     return rates;
   }, [children]);
 
-  // Calculate overall dropout rate (average of all pairs)
   const overallDropoutRate = useMemo(() => {
     const validRates = Object.values(dropoutRates).filter(r => r.startCount > 0);
     if (validRates.length === 0) return 0;
@@ -115,7 +116,8 @@ export function DashboardSection({ stats, children }: DashboardSectionProps) {
           📊 Immunization Dashboard
         </h2>
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
+        {/* Stats Cards */}
+        <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
           <StatCard
             title="Coverage Rate"
             value={`${stats.coverageRate}%`}
@@ -142,81 +144,115 @@ export function DashboardSection({ stats, children }: DashboardSectionProps) {
           />
         </div>
 
-        {/* Dropout Rates Section */}
-        <div className="bg-muted/30 rounded-lg p-6 mb-8">
-          <div className="flex items-center gap-2 mb-4">
-            <TrendingDown className="w-5 h-5 text-warning" />
-            <h3 className="font-semibold">Dropout Rates by Vaccine Pair</h3>
+        {/* Charts Row */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-6 mb-8">
+          <div className="bg-muted/30 rounded-lg p-4">
+            <div className="flex items-center gap-2 mb-4">
+              <BarChart3 className="w-5 h-5 text-primary" />
+              <h3 className="font-semibold text-sm">Vaccine Coverage by Type</h3>
+            </div>
+            <VaccinationCoverageChart children={children} />
           </div>
-          
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-            {DROPOUT_PAIRS.map(pair => {
-              const data = dropoutRates[pair.label];
-              const isHigh = data.dropoutRate > 10;
-              const isCritical = data.dropoutRate > 20;
-              
-              return (
-                <div 
-                  key={pair.label}
-                  className={`bg-card rounded-lg p-4 border-2 transition-colors ${
-                    isCritical ? 'border-destructive' : isHigh ? 'border-warning' : 'border-success'
-                  }`}
-                >
-                  <div className="flex items-center justify-between mb-2">
-                    <span className="text-sm font-medium">{pair.label}</span>
-                    <span className={`text-lg font-bold ${
-                      isCritical ? 'text-destructive' : isHigh ? 'text-warning' : 'text-success'
-                    }`}>
-                      {data.dropoutRate}%
-                    </span>
-                  </div>
-                  <div className="h-2 bg-muted rounded-full overflow-hidden">
-                    <div 
-                      className={`h-full transition-all duration-500 ${
-                        isCritical ? 'bg-destructive' : isHigh ? 'bg-warning' : 'bg-success'
-                      }`}
-                      style={{ width: `${Math.min(data.dropoutRate, 100)}%` }}
-                    />
-                  </div>
-                  <div className="flex justify-between text-xs text-muted-foreground mt-2">
-                    <span>{pair.start}: {data.startCount}</span>
-                    <span>{pair.end.split(' ')[0]}: {data.endCount}</span>
-                  </div>
-                </div>
-              );
-            })}
+
+          <div className="bg-muted/30 rounded-lg p-4">
+            <div className="flex items-center gap-2 mb-4">
+              <Activity className="w-5 h-5 text-primary" />
+              <h3 className="font-semibold text-sm">Monthly Trends</h3>
+            </div>
+            <MonthlyTrendsChart children={children} />
           </div>
-          
-          <div className="mt-4 flex flex-wrap gap-4 text-xs">
-            <div className="flex items-center gap-1">
-              <div className="w-3 h-3 rounded-full bg-success" />
-              <span className="text-muted-foreground">Good (&lt;10%)</span>
+
+          <div className="bg-muted/30 rounded-lg p-4">
+            <div className="flex items-center gap-2 mb-4">
+              <UsersIcon className="w-5 h-5 text-primary" />
+              <h3 className="font-semibold text-sm">Age Distribution</h3>
             </div>
-            <div className="flex items-center gap-1">
-              <div className="w-3 h-3 rounded-full bg-warning" />
-              <span className="text-muted-foreground">Moderate (10-20%)</span>
-            </div>
-            <div className="flex items-center gap-1">
-              <div className="w-3 h-3 rounded-full bg-destructive" />
-              <span className="text-muted-foreground">Critical (&gt;20%)</span>
-            </div>
+            <AgeDistributionChart children={children} />
           </div>
         </div>
 
+        {/* Dropout Rates and Due Reminders Row */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
-          <div className="bg-muted/30 rounded-lg p-6">
+          {/* Dropout Rates */}
+          <div className="bg-muted/30 rounded-lg p-4">
             <div className="flex items-center gap-2 mb-4">
-              <PieChart className="w-5 h-5 text-primary" />
-              <h3 className="font-semibold">Vaccination Status</h3>
+              <TrendingDown className="w-5 h-5 text-warning" />
+              <h3 className="font-semibold text-sm">Dropout Rates by Vaccine Pair</h3>
             </div>
             
-            <div className="space-y-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              {DROPOUT_PAIRS.map(pair => {
+                const data = dropoutRates[pair.label];
+                const isHigh = data.dropoutRate > 10;
+                const isCritical = data.dropoutRate > 20;
+                
+                return (
+                  <div 
+                    key={pair.label}
+                    className={`bg-card rounded-lg p-3 border-2 transition-colors ${
+                      isCritical ? 'border-destructive' : isHigh ? 'border-warning' : 'border-success'
+                    }`}
+                  >
+                    <div className="flex items-center justify-between mb-2">
+                      <span className="text-xs font-medium">{pair.label}</span>
+                      <span className={`text-sm font-bold ${
+                        isCritical ? 'text-destructive' : isHigh ? 'text-warning' : 'text-success'
+                      }`}>
+                        {data.dropoutRate}%
+                      </span>
+                    </div>
+                    <div className="h-1.5 bg-muted rounded-full overflow-hidden">
+                      <div 
+                        className={`h-full transition-all duration-500 ${
+                          isCritical ? 'bg-destructive' : isHigh ? 'bg-warning' : 'bg-success'
+                        }`}
+                        style={{ width: `${Math.min(data.dropoutRate, 100)}%` }}
+                      />
+                    </div>
+                    <div className="flex justify-between text-xs text-muted-foreground mt-1">
+                      <span>{data.startCount}</span>
+                      <span>{data.endCount}</span>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+            
+            <div className="mt-3 flex flex-wrap gap-3 text-xs">
+              <div className="flex items-center gap-1">
+                <div className="w-2 h-2 rounded-full bg-success" />
+                <span className="text-muted-foreground">Good (&lt;10%)</span>
+              </div>
+              <div className="flex items-center gap-1">
+                <div className="w-2 h-2 rounded-full bg-warning" />
+                <span className="text-muted-foreground">Moderate (10-20%)</span>
+              </div>
+              <div className="flex items-center gap-1">
+                <div className="w-2 h-2 rounded-full bg-destructive" />
+                <span className="text-muted-foreground">Critical (&gt;20%)</span>
+              </div>
+            </div>
+          </div>
+
+          {/* Due Reminders */}
+          <VaccineDueReminders children={children} onViewChild={onViewChild} />
+        </div>
+
+        {/* Vaccination Status & Summary */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
+          <div className="bg-muted/30 rounded-lg p-4">
+            <div className="flex items-center gap-2 mb-4">
+              <CheckCircle className="w-5 h-5 text-primary" />
+              <h3 className="font-semibold text-sm">Vaccination Status</h3>
+            </div>
+            
+            <div className="space-y-3">
               <div>
                 <div className="flex justify-between text-sm mb-1">
                   <span className="text-success">Completed</span>
                   <span>{vaccinationStatusData.completed} ({total > 0 ? Math.round((vaccinationStatusData.completed / total) * 100) : 0}%)</span>
                 </div>
-                <div className="h-3 bg-muted rounded-full overflow-hidden">
+                <div className="h-2 bg-muted rounded-full overflow-hidden">
                   <div 
                     className="h-full bg-success transition-all duration-500"
                     style={{ width: `${total > 0 ? (vaccinationStatusData.completed / total) * 100 : 0}%` }}
@@ -229,7 +265,7 @@ export function DashboardSection({ stats, children }: DashboardSectionProps) {
                   <span className="text-info">Pending</span>
                   <span>{vaccinationStatusData.pending} ({total > 0 ? Math.round((vaccinationStatusData.pending / total) * 100) : 0}%)</span>
                 </div>
-                <div className="h-3 bg-muted rounded-full overflow-hidden">
+                <div className="h-2 bg-muted rounded-full overflow-hidden">
                   <div 
                     className="h-full bg-info transition-all duration-500"
                     style={{ width: `${total > 0 ? (vaccinationStatusData.pending / total) * 100 : 0}%` }}
@@ -242,7 +278,7 @@ export function DashboardSection({ stats, children }: DashboardSectionProps) {
                   <span className="text-destructive">Overdue</span>
                   <span>{vaccinationStatusData.overdue} ({total > 0 ? Math.round((vaccinationStatusData.overdue / total) * 100) : 0}%)</span>
                 </div>
-                <div className="h-3 bg-muted rounded-full overflow-hidden">
+                <div className="h-2 bg-muted rounded-full overflow-hidden">
                   <div 
                     className="h-full bg-destructive transition-all duration-500"
                     style={{ width: `${total > 0 ? (vaccinationStatusData.overdue / total) * 100 : 0}%` }}
@@ -252,68 +288,74 @@ export function DashboardSection({ stats, children }: DashboardSectionProps) {
             </div>
           </div>
 
-          <div className="bg-muted/30 rounded-lg p-6">
+          <div className="bg-muted/30 rounded-lg p-4">
             <div className="flex items-center gap-2 mb-4">
               <BarChart3 className="w-5 h-5 text-primary" />
-              <h3 className="font-semibold">Monthly Summary</h3>
+              <h3 className="font-semibold text-sm">Quick Summary</h3>
             </div>
             
-            <div className="grid grid-cols-3 gap-4 text-center">
-              <div className="bg-card rounded-lg p-4">
-                <div className="text-2xl font-bold text-primary">{children.length}</div>
+            <div className="grid grid-cols-3 gap-3 text-center">
+              <div className="bg-card rounded-lg p-3">
+                <div className="text-xl font-bold text-primary">{children.length}</div>
                 <div className="text-xs text-muted-foreground">Total Children</div>
               </div>
-              <div className="bg-card rounded-lg p-4">
-                <div className="text-2xl font-bold text-success">{stats.vaccinatedToday}</div>
-                <div className="text-xs text-muted-foreground">Today</div>
+              <div className="bg-card rounded-lg p-3">
+                <div className="text-xl font-bold text-success">{stats.vaccinatedToday}</div>
+                <div className="text-xs text-muted-foreground">Vaccinated Today</div>
               </div>
-              <div className="bg-card rounded-lg p-4">
-                <div className="text-2xl font-bold text-warning">{stats.dueSoon}</div>
+              <div className="bg-card rounded-lg p-3">
+                <div className="text-xl font-bold text-warning">{stats.dueSoon}</div>
                 <div className="text-xs text-muted-foreground">Due Soon</div>
               </div>
             </div>
           </div>
         </div>
 
+        {/* Recent Activity */}
         <div>
-          <h3 className="font-semibold mb-4">Recent Immunization Activity</h3>
+          <h3 className="font-semibold mb-4 text-sm">Recent Immunization Activity</h3>
           <div className="overflow-x-auto">
             <table className="w-full">
               <thead>
                 <tr className="bg-primary text-primary-foreground">
-                  <th className="px-4 py-3 text-left text-xs font-semibold">Date</th>
-                  <th className="px-4 py-3 text-left text-xs font-semibold">Child</th>
-                  <th className="px-4 py-3 text-left text-xs font-semibold">Vaccines Administered</th>
-                  <th className="px-4 py-3 text-left text-xs font-semibold">Status</th>
+                  <th className="px-4 py-2 text-left text-xs font-semibold">Date</th>
+                  <th className="px-4 py-2 text-left text-xs font-semibold">Child</th>
+                  <th className="px-4 py-2 text-left text-xs font-semibold">Vaccines Administered</th>
+                  <th className="px-4 py-2 text-left text-xs font-semibold">Status</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-border">
                 {recentActivity.length === 0 ? (
                   <tr>
-                    <td colSpan={4} className="px-4 py-8 text-center text-muted-foreground">
+                    <td colSpan={4} className="px-4 py-6 text-center text-muted-foreground text-sm">
                       No recent activity
                     </td>
                   </tr>
                 ) : (
                   recentActivity.map((visit) => (
                     <tr key={`${visit.childId}-${visit.date}`} className="hover:bg-muted/50">
-                      <td className="px-4 py-3 text-sm">
+                      <td className="px-4 py-2 text-xs">
                         {new Date(visit.date).toLocaleDateString()}
                       </td>
-                      <td className="px-4 py-3 text-sm font-medium">{visit.childName}</td>
-                      <td className="px-4 py-3 text-sm">
+                      <td className="px-4 py-2 text-xs font-medium">{visit.childName}</td>
+                      <td className="px-4 py-2">
                         <div className="flex flex-wrap gap-1">
-                          {visit.vaccines.map((vaccine, idx) => (
+                          {visit.vaccines.slice(0, 3).map((vaccine, idx) => (
                             <span 
                               key={idx}
-                              className="inline-flex items-center px-2 py-0.5 rounded-full text-xs bg-primary/10 text-primary"
+                              className="inline-flex items-center px-1.5 py-0.5 rounded-full text-xs bg-primary/10 text-primary"
                             >
-                              {vaccine}
+                              {vaccine.split(' at ')[0]}
                             </span>
                           ))}
+                          {visit.vaccines.length > 3 && (
+                            <span className="text-xs text-muted-foreground">
+                              +{visit.vaccines.length - 3} more
+                            </span>
+                          )}
                         </div>
                       </td>
-                      <td className="px-4 py-3">
+                      <td className="px-4 py-2">
                         <span className="inline-flex items-center gap-1 text-xs text-success">
                           <CheckCircle className="w-3 h-3" />
                           {visit.vaccines.length} given

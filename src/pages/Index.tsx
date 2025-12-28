@@ -10,6 +10,8 @@ import { ReportingSection } from "@/components/sections/ReportingSection";
 import { SettingsSection } from "@/components/sections/SettingsSection";
 import { ImmunizationScheduleSection } from "@/components/sections/ImmunizationScheduleSection";
 import { VaccineAdministrationModal } from "@/components/modals/VaccineAdministrationModal";
+import { ChildProfileModal } from "@/components/modals/ChildProfileModal";
+import { GlobalSearchBar } from "@/components/GlobalSearchBar";
 import { DeveloperCredits } from "@/components/DeveloperCredits";
 import { useChildren } from "@/hooks/useChildren";
 import { useAuth } from "@/hooks/useAuth";
@@ -24,6 +26,7 @@ export default function Index() {
   const [currentSection, setCurrentSection] = useState<Section>('home');
   const [editingChild, setEditingChild] = useState<Child | null>(null);
   const [vaccineModalChild, setVaccineModalChild] = useState<Child | null>(null);
+  const [profileModalChild, setProfileModalChild] = useState<Child | null>(null);
   
   const { children, stats, addChild, updateChild, deleteChild, updateVaccine, isOnline, isSyncing } = useChildren();
   const { toast } = useToast();
@@ -130,6 +133,10 @@ export default function Index() {
     setVaccineModalChild(child);
   };
 
+  const handleViewProfile = (child: Child) => {
+    setProfileModalChild(child);
+  };
+
   const handleAdministerVaccine = (childId: string, vaccineName: string, givenDate: string, batchNumber: string) => {
     updateVaccine(childId, vaccineName, givenDate, batchNumber);
     toast({
@@ -178,25 +185,30 @@ export default function Index() {
         onLogout={handleLogout}
       />
 
-      {/* Sync Status Bar */}
+      {/* Sync Status Bar with Global Search */}
       <div className="bg-card border-b px-4 py-2">
-        <div className="max-w-7xl mx-auto flex items-center justify-between text-sm">
+        <div className="max-w-7xl mx-auto flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
           <div className="flex items-center gap-2">
             {isOnline ? (
               <Wifi className="w-4 h-4 text-success" />
             ) : (
               <WifiOff className="w-4 h-4 text-warning" />
             )}
-            <span className={isOnline ? "text-success" : "text-warning"}>
+            <span className={`text-sm ${isOnline ? "text-success" : "text-warning"}`}>
               {isOnline ? "Online" : "Offline"}
             </span>
+            {isSyncing && (
+              <div className="flex items-center gap-2 text-primary ml-4">
+                <RefreshCw className="w-4 h-4 animate-spin" />
+                <span className="text-sm">Syncing...</span>
+              </div>
+            )}
           </div>
-          {isSyncing && (
-            <div className="flex items-center gap-2 text-primary">
-              <RefreshCw className="w-4 h-4 animate-spin" />
-              <span>Syncing...</span>
-            </div>
-          )}
+          <GlobalSearchBar 
+            children={children} 
+            onSelectChild={handleViewProfile}
+            onViewVaccines={handleViewVaccines}
+          />
         </div>
       </div>
 
@@ -246,6 +258,7 @@ export default function Index() {
           <DashboardSection
             stats={stats}
             children={children}
+            onViewChild={handleViewProfile}
           />
         )}
 
@@ -298,6 +311,16 @@ export default function Index() {
         isOpen={!!vaccineModalChild}
         onClose={() => setVaccineModalChild(null)}
         onAdminister={handleAdministerVaccine}
+      />
+
+      <ChildProfileModal
+        child={profileModalChild}
+        isOpen={!!profileModalChild}
+        onClose={() => setProfileModalChild(null)}
+        onAdministerVaccine={(child) => {
+          setProfileModalChild(null);
+          setVaccineModalChild(child);
+        }}
       />
     </div>
   );
