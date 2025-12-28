@@ -15,11 +15,12 @@ import { GlobalSearchBar } from "@/components/GlobalSearchBar";
 import { DeveloperCredits } from "@/components/DeveloperCredits";
 import { PWAInstallBanner } from "@/components/PWAInstallBanner";
 import { OfflineIndicator } from "@/components/OfflineIndicator";
+import { SyncProgressBar } from "@/components/SyncProgressBar";
 import { useChildren } from "@/hooks/useChildren";
 import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
 import { Child } from "@/types/child";
-import { Loader2, Wifi, WifiOff, RefreshCw } from "lucide-react";
+import { Loader2 } from "lucide-react";
 
 type Section = 'home' | 'registration' | 'register' | 'defaulters' | 'dashboard' | 'reporting' | 'settings' | 'schedule';
 
@@ -32,7 +33,7 @@ export default function Index() {
   const [vaccineModalChild, setVaccineModalChild] = useState<Child | null>(null);
   const [profileModalChild, setProfileModalChild] = useState<Child | null>(null);
   
-  const { children, stats, addChild, updateChild, deleteChild, updateVaccine, importChildren, isOnline, isSyncing, isLoading } = useChildren(user?.uid);
+  const { children, stats, addChild, updateChild, deleteChild, updateVaccine, importChildren, isSyncing, isLoading, syncProgress } = useChildren(user?.uid);
   const { toast } = useToast();
 
   const handleLogin = async (email: string, password: string) => {
@@ -194,22 +195,7 @@ export default function Index() {
       {/* Sync Status Bar with Global Search */}
       <div className="bg-card border-b px-4 py-2">
         <div className="max-w-7xl mx-auto flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
-          <div className="flex items-center gap-2">
-            {isOnline ? (
-              <Wifi className="w-4 h-4 text-success" />
-            ) : (
-              <WifiOff className="w-4 h-4 text-warning" />
-            )}
-            <span className={`text-sm ${isOnline ? "text-success" : "text-warning"}`}>
-              {isOnline ? "Online" : "Offline"}
-            </span>
-            {isSyncing && (
-              <div className="flex items-center gap-2 text-primary ml-4">
-                <RefreshCw className="w-4 h-4 animate-spin" />
-                <span className="text-sm">Syncing...</span>
-              </div>
-            )}
-          </div>
+          <SyncProgressBar syncProgress={syncProgress} />
           <GlobalSearchBar 
             children={children} 
             onSelectChild={handleViewProfile}

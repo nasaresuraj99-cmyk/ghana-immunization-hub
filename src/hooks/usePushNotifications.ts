@@ -1,11 +1,13 @@
 import { useState, useEffect, useCallback } from 'react';
 import { Child } from '@/types/child';
 import { toast } from 'sonner';
+import { initializeFCM, requestFCMToken, setupForegroundMessageHandler } from '@/lib/fcm';
 
 interface NotificationSettings {
   enabled: boolean;
   daysBefore: number;
   lastChecked: string | null;
+  fcmToken: string | null;
 }
 
 const NOTIFICATION_SETTINGS_KEY = 'vaccine_notification_settings';
@@ -20,7 +22,7 @@ const loadSettings = (): NotificationSettings => {
   } catch (e) {
     console.error('Error loading notification settings:', e);
   }
-  return { enabled: false, daysBefore: 3, lastChecked: null };
+  return { enabled: false, daysBefore: 3, lastChecked: null, fcmToken: null };
 };
 
 const saveSettings = (settings: NotificationSettings) => {
@@ -31,22 +33,51 @@ const saveSettings = (settings: NotificationSettings) => {
   }
 };
 
-export function usePushNotifications(children: Child[]) {
+export function usePushNotifications(children: Child[], userId?: string) {
   const [settings, setSettings] = useState<NotificationSettings>(loadSettings);
   const [permissionStatus, setPermissionStatus] = useState<NotificationPermission>('default');
   const [isSupported, setIsSupported] = useState(false);
+  const [fcmInitialized, setFcmInitialized] = useState(false);
 
-  // Check if notifications are supported
+  // Check if notifications are supported and initialize FCM
   useEffect(() => {
     const supported = 'Notification' in window && 'serviceWorker' in navigator;
     setIsSupported(supported);
     
     if (supported) {
       setPermissionStatus(Notification.permission);
+      
+      // Initialize FCM
+      initializeFCM().then((initialized) => {
+        setFcmInitialized(initialized);
+        if (initialized) {
+          console.log('FCM initialized successfully');
+        }
+      });
     }
   }, []);
 
-  // Request notification permission
+  // Set up foreground message handler
+  useEffect(() => {
+    if (!fcmInitialized || !settings.enabled) return;
+
+    const unsubscribe = setupForegroundMessageHandler((title, body, data) => {
+      // Show toast notification for foreground messages
+      toast(title, {
+        description: body,
+        action: data?.action ? {
+          label: 'View',
+          onClick: () => window.focus()
+        } : undefined
+      });
+    });
+
+    return () => {
+      if (unsubscribe) unsubscribe();
+    };
+  }, [fcmInitialized, settings.enabled]);
+
+  // Request notification permission and FCM token
   const requestPermission = useCallback(async (): Promise<boolean> => {
     if (!isSupported) {
       toast.error('Push notifications are not supported in this browser');
@@ -59,6 +90,17 @@ export function usePushNotifications(children: Child[]) {
       localStorage.setItem(NOTIFICATION_PERMISSION_KEY, 'true');
       
       if (permission === 'granted') {
+        // Request FCM token if user is authenticated
+        if (userId && fcmInitialized) {
+          const token = await requestFCMToken(userId);
+          if (token) {
+            const newSettings = { ...settings, fcmToken: token };
+            setSettings(newSettings);
+            saveSettings(newSettings);
+            console.log('FCM token saved');
+          }
+        }
+        
         toast.success('Notifications enabled! You will receive vaccine reminders.');
         return true;
       } else if (permission === 'denied') {
@@ -71,9 +113,9 @@ export function usePushNotifications(children: Child[]) {
       toast.error('Failed to request notification permission');
       return false;
     }
-  }, [isSupported]);
+  }, [isSupported, userId, fcmInitialized, settings]);
 
-  // Enable notifications
+  // Enable notifications with FCM
   const enableNotifications = useCallback(async () => {
     const granted = await requestPermission();
     if (granted) {
@@ -138,7 +180,7 @@ export function usePushNotifications(children: Child[]) {
     return upcoming.sort((a, b) => a.daysUntilDue - b.daysUntilDue);
   }, [children, settings.daysBefore]);
 
-  // Show a notification
+  // Show a notification (local notification for when page is open)
   const showNotification = useCallback((title: string, body: string, tag?: string) => {
     if (permissionStatus !== 'granted' || !settings.enabled) return;
 
@@ -246,7 +288,7 @@ export function usePushNotifications(children: Child[]) {
 
     showNotification(
       '🧪 Test Notification',
-      'Push notifications are working correctly!',
+      'Push notifications are working correctly! You will receive vaccine reminders.',
       'test-notification'
     );
     toast.success('Test notification sent');
@@ -256,6 +298,7 @@ export function usePushNotifications(children: Child[]) {
     isSupported,
     permissionStatus,
     settings,
+    fcmInitialized,
     enableNotifications,
     disableNotifications,
     setDaysBefore,

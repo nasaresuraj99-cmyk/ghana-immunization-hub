@@ -153,7 +153,7 @@ export function SettingsSection({
             <Bell className="w-5 h-5" />
             Vaccine Reminders
           </h3>
-          <NotificationSettings children={children} />
+          <NotificationSettings children={children} userId={userId} />
         </div>
 
         {/* Data & Backup Section */}
