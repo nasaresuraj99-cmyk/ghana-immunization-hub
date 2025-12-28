@@ -16,6 +16,7 @@ import { DeveloperCredits } from "@/components/DeveloperCredits";
 import { PWAInstallBanner } from "@/components/PWAInstallBanner";
 import { OfflineIndicator } from "@/components/OfflineIndicator";
 import { SyncProgressBar } from "@/components/SyncProgressBar";
+import { PendingChangesQueue } from "@/components/PendingChangesQueue";
 import { ConflictResolutionModal } from "@/components/ConflictResolutionModal";
 import { useChildren } from "@/hooks/useChildren";
 import { useAuth } from "@/hooks/useAuth";
@@ -33,6 +34,7 @@ export default function Index() {
   const [editingChild, setEditingChild] = useState<Child | null>(null);
   const [vaccineModalChild, setVaccineModalChild] = useState<Child | null>(null);
   const [profileModalChild, setProfileModalChild] = useState<Child | null>(null);
+  const [showPendingQueue, setShowPendingQueue] = useState(false);
   
   const { children, stats, addChild, updateChild, deleteChild, updateVaccine, importChildren, isSyncing, isLoading, syncProgress, conflicts, isConflictModalOpen, setIsConflictModalOpen, handleConflictResolution, getConflictDiffs } = useChildren(user?.uid);
   const { toast } = useToast();
@@ -199,6 +201,7 @@ export default function Index() {
             syncProgress={syncProgress} 
             conflictCount={conflicts.length}
             onOpenConflicts={() => setIsConflictModalOpen(true)}
+            onShowPendingQueue={() => setShowPendingQueue(!showPendingQueue)}
           />
           <GlobalSearchBar 
             children={children} 
@@ -207,6 +210,16 @@ export default function Index() {
           />
         </div>
       </div>
+
+      {/* Pending Changes Queue */}
+      {showPendingQueue && syncProgress.pendingCount > 0 && (
+        <div className="max-w-7xl mx-auto px-4 py-3">
+          <PendingChangesQueue 
+            isOnline={syncProgress.isOnline}
+            pendingCount={syncProgress.pendingCount}
+          />
+        </div>
+      )}
 
       <main className="max-w-7xl mx-auto px-4 py-6">
         {currentSection === 'home' && (
