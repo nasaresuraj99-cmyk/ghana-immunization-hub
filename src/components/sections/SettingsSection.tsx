@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Save, User, Building, Lock, AlertTriangle, Bell, Database } from "lucide-react";
+import { Save, User, Building, Lock, AlertTriangle, Bell, Database, History } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -7,6 +7,7 @@ import { useToast } from "@/hooks/use-toast";
 import { NotificationSettings } from "@/components/NotificationSettings";
 import { DataExportButton } from "@/components/DataExportButton";
 import { DataImportButton } from "@/components/DataImportButton";
+import { SyncHistoryLog } from "@/components/SyncHistoryLog";
 import { Child, DashboardStats } from "@/types/child";
 
 interface SettingsSectionProps {
@@ -179,6 +180,18 @@ export function SettingsSection({
               />
             </div>
           </div>
+        </div>
+
+        {/* Sync History Section */}
+        <div className="space-y-4">
+          <h3 className="text-lg font-semibold text-primary flex items-center gap-2 pb-2 border-b border-primary/20">
+            <History className="w-5 h-5" />
+            Sync History
+          </h3>
+          <p className="text-sm text-muted-foreground">
+            View your recent data synchronization history including successful and failed sync attempts.
+          </p>
+          <SyncHistoryLog />
         </div>
 
         {/* Password Section */}
