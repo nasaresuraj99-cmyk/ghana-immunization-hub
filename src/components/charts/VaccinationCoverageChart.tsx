@@ -68,41 +68,74 @@ export function VaccinationCoverageChart({ children }: VaccinationCoverageChartP
     return "hsl(0, 72%, 51%)";
   };
 
+  // Calculate chart width based on number of vaccines (50px per bar minimum)
+  const chartWidth = Math.max(data.length * 50, 600);
+
   return (
-    <div className="h-64">
-      <ResponsiveContainer width="100%" height="100%">
-        <BarChart data={data} margin={{ top: 10, right: 10, left: -10, bottom: 0 }}>
-          <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
-          <XAxis 
-            dataKey="name" 
-            tick={{ fontSize: 11, fill: "hsl(var(--muted-foreground))" }}
-            axisLine={{ stroke: "hsl(var(--border))" }}
-          />
-          <YAxis 
-            tick={{ fontSize: 11, fill: "hsl(var(--muted-foreground))" }}
-            axisLine={{ stroke: "hsl(var(--border))" }}
-            domain={[0, 100]}
-            tickFormatter={(value) => `${value}%`}
-          />
-          <Tooltip 
-            contentStyle={{ 
-              backgroundColor: "hsl(var(--card))", 
-              border: "1px solid hsl(var(--border))",
-              borderRadius: "8px",
-              fontSize: "12px"
-            }}
-            formatter={(value: number, name: string, props: any) => [
-              `${value}% (${props.payload.completed}/${props.payload.total})`,
-              "Coverage"
-            ]}
-          />
-          <Bar dataKey="coverage" radius={[4, 4, 0, 0]}>
-            {data.map((entry, index) => (
-              <Cell key={`cell-${index}`} fill={getBarColor(entry.coverage)} />
-            ))}
-          </Bar>
-        </BarChart>
-      </ResponsiveContainer>
+    <div className="flex flex-col gap-3">
+      {/* Legend */}
+      <div className="flex flex-wrap gap-4 text-xs justify-center">
+        <div className="flex items-center gap-1.5">
+          <div className="w-3 h-3 rounded-sm" style={{ backgroundColor: "hsl(152, 69%, 31%)" }} />
+          <span className="text-muted-foreground">≥90% (High)</span>
+        </div>
+        <div className="flex items-center gap-1.5">
+          <div className="w-3 h-3 rounded-sm" style={{ backgroundColor: "hsl(38, 92%, 50%)" }} />
+          <span className="text-muted-foreground">70-89% (Medium)</span>
+        </div>
+        <div className="flex items-center gap-1.5">
+          <div className="w-3 h-3 rounded-sm" style={{ backgroundColor: "hsl(0, 72%, 51%)" }} />
+          <span className="text-muted-foreground">&lt;70% (Low)</span>
+        </div>
+      </div>
+
+      {/* Scrollable chart container */}
+      <div className="h-64 overflow-x-auto scrollbar-thin">
+        <div style={{ width: chartWidth, height: "100%", minWidth: "100%" }}>
+          <ResponsiveContainer width="100%" height="100%">
+            <BarChart data={data} margin={{ top: 10, right: 10, left: -10, bottom: 0 }}>
+              <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
+              <XAxis 
+                dataKey="name" 
+                tick={{ fontSize: 10, fill: "hsl(var(--muted-foreground))" }}
+                axisLine={{ stroke: "hsl(var(--border))" }}
+                interval={0}
+                angle={-45}
+                textAnchor="end"
+                height={50}
+              />
+              <YAxis 
+                tick={{ fontSize: 11, fill: "hsl(var(--muted-foreground))" }}
+                axisLine={{ stroke: "hsl(var(--border))" }}
+                domain={[0, 100]}
+                tickFormatter={(value) => `${value}%`}
+              />
+              <Tooltip 
+                contentStyle={{ 
+                  backgroundColor: "hsl(var(--card))", 
+                  border: "1px solid hsl(var(--border))",
+                  borderRadius: "8px",
+                  fontSize: "12px"
+                }}
+                formatter={(value: number, name: string, props: any) => [
+                  `${value}% (${props.payload.completed}/${props.payload.total})`,
+                  "Coverage"
+                ]}
+              />
+              <Bar dataKey="coverage" radius={[4, 4, 0, 0]}>
+                {data.map((entry, index) => (
+                  <Cell key={`cell-${index}`} fill={getBarColor(entry.coverage)} />
+                ))}
+              </Bar>
+            </BarChart>
+          </ResponsiveContainer>
+        </div>
+      </div>
+
+      {/* Scroll hint for mobile */}
+      <p className="text-xs text-muted-foreground text-center md:hidden">
+        ← Scroll horizontally to see all vaccines →
+      </p>
     </div>
   );
 }
