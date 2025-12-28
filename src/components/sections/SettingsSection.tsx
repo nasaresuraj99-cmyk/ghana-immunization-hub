@@ -6,28 +6,33 @@ import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
 import { NotificationSettings } from "@/components/NotificationSettings";
 import { DataExportButton } from "@/components/DataExportButton";
+import { DataImportButton } from "@/components/DataImportButton";
 import { Child, DashboardStats } from "@/types/child";
 
 interface SettingsSectionProps {
   userName: string;
   userEmail: string;
+  userId: string;
   facilityName: string;
   children: Child[];
   stats: DashboardStats;
   onUpdateProfile: (name: string, facility: string) => void;
   onChangePassword: (currentPassword: string, newPassword: string) => void;
   onDeleteAccount: () => void;
+  onImportChildren: (children: Child[]) => void;
 }
 
 export function SettingsSection({
   userName,
   userEmail,
+  userId,
   facilityName,
   children,
   stats,
   onUpdateProfile,
   onChangePassword,
   onDeleteAccount,
+  onImportChildren,
 }: SettingsSectionProps) {
   const { toast } = useToast();
   const [name, setName] = useState(userName);
@@ -161,11 +166,18 @@ export function SettingsSection({
             <p className="text-sm text-muted-foreground">
               Export your vaccination records for backup or analysis. Your data includes {children.length} registered children.
             </p>
-            <DataExportButton 
-              children={children} 
-              stats={stats} 
-              facilityName={facilityName} 
-            />
+            <div className="flex flex-wrap gap-2">
+              <DataExportButton 
+                children={children} 
+                stats={stats} 
+                facilityName={facilityName} 
+              />
+              <DataImportButton
+                userId={userId}
+                existingChildren={children}
+                onImport={onImportChildren}
+              />
+            </div>
           </div>
         </div>
 

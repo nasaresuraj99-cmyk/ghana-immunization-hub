@@ -1,15 +1,19 @@
 import { useState } from "react";
-import { Menu, LogOut, Home, UserPlus, List, AlertTriangle, LayoutDashboard, BarChart3, Settings, X, Wifi, WifiOff, Calendar } from "lucide-react";
+import { Menu, LogOut, Home, UserPlus, List, AlertTriangle, LayoutDashboard, BarChart3, Settings, X, Wifi, WifiOff, Calendar, Mail, RefreshCw } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
+import { resendVerificationEmail } from "@/lib/firebase";
+import { toast } from "sonner";
 
 interface HeaderProps {
   facilityName: string;
   userName: string;
   userEmail: string;
+  emailVerified: boolean;
   currentSection: string;
   onSectionChange: (section: string) => void;
   onLogout: () => void;
+  onRefreshAuth: () => void;
 }
 
 const navItems = [
@@ -23,12 +27,67 @@ const navItems = [
   { id: 'settings', label: 'Settings', icon: Settings },
 ];
 
-export function Header({ facilityName, userName, userEmail, currentSection, onSectionChange, onLogout }: HeaderProps) {
+export function Header({ facilityName, userName, userEmail, emailVerified, currentSection, onSectionChange, onLogout, onRefreshAuth }: HeaderProps) {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [isSendingVerification, setIsSendingVerification] = useState(false);
   const isOnline = navigator.onLine;
+
+  const handleResendVerification = async () => {
+    setIsSendingVerification(true);
+    try {
+      await resendVerificationEmail();
+      toast.success("Verification email sent!");
+    } catch (error: any) {
+      if (error.code === "auth/too-many-requests") {
+        toast.error("Too many requests. Please wait.");
+      } else {
+        toast.error("Failed to send verification email.");
+      }
+    } finally {
+      setIsSendingVerification(false);
+    }
+  };
 
   return (
     <>
+      {/* Email Verification Banner */}
+      {!emailVerified && (
+        <div className="bg-warning/90 text-warning-foreground px-4 py-2 sticky top-0 z-[60]">
+          <div className="max-w-7xl mx-auto flex flex-wrap items-center justify-between gap-2">
+            <div className="flex items-center gap-2 text-sm">
+              <Mail className="w-4 h-4" />
+              <span>Please verify your email address to secure your account.</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <Button
+                variant="secondary"
+                size="sm"
+                className="h-7 text-xs"
+                onClick={handleResendVerification}
+                disabled={isSendingVerification}
+              >
+                {isSendingVerification ? (
+                  <>
+                    <RefreshCw className="w-3 h-3 mr-1 animate-spin" />
+                    Sending...
+                  </>
+                ) : (
+                  "Resend Email"
+                )}
+              </Button>
+              <Button
+                variant="ghost"
+                size="sm"
+                className="h-7 text-xs"
+                onClick={onRefreshAuth}
+              >
+                I've Verified
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
+      
       <header className="gradient-ghs text-primary-foreground sticky top-0 z-50 shadow-elevation-3">
         <div className="max-w-7xl mx-auto px-4 py-4">
           <div className="flex items-center justify-between">
