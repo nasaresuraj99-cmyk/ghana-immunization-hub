@@ -1,5 +1,14 @@
-import { useState, useCallback, useMemo } from "react";
+import { useState, useCallback, useMemo, useEffect } from "react";
 import { Child, VaccineRecord, DashboardStats } from "@/types/child";
+import { 
+  db, 
+  collection, 
+  doc, 
+  getDocs, 
+  setDoc, 
+  deleteDoc, 
+  onSnapshot 
+} from "@/lib/firebase";
 
 // Ghana EPI Schedule - Complete Immunization List
 const getVaccineSchedule = (dateOfBirth: string): VaccineRecord[] => {
@@ -125,8 +134,182 @@ const generateSampleChildren = (): Child[] => {
   });
 };
 
+// Local storage keys for offline support
+const LOCAL_STORAGE_KEY = 'immunization_children_data';
+const PENDING_SYNC_KEY = 'immunization_pending_sync';
+
+interface PendingSync {
+  action: 'add' | 'update' | 'delete';
+  childId: string;
+  data?: Child;
+  timestamp: number;
+}
+
+// Load from localStorage
+const loadFromLocalStorage = (): Child[] => {
+  try {
+    const stored = localStorage.getItem(LOCAL_STORAGE_KEY);
+    if (stored) {
+      return JSON.parse(stored);
+    }
+  } catch (e) {
+    console.error('Error loading from localStorage:', e);
+  }
+  return generateSampleChildren();
+};
+
+// Save to localStorage
+const saveToLocalStorage = (children: Child[]) => {
+  try {
+    localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(children));
+  } catch (e) {
+    console.error('Error saving to localStorage:', e);
+  }
+};
+
+// Load pending syncs
+const loadPendingSyncs = (): PendingSync[] => {
+  try {
+    const stored = localStorage.getItem(PENDING_SYNC_KEY);
+    if (stored) {
+      return JSON.parse(stored);
+    }
+  } catch (e) {
+    console.error('Error loading pending syncs:', e);
+  }
+  return [];
+};
+
+// Save pending syncs
+const savePendingSyncs = (syncs: PendingSync[]) => {
+  try {
+    localStorage.setItem(PENDING_SYNC_KEY, JSON.stringify(syncs));
+  } catch (e) {
+    console.error('Error saving pending syncs:', e);
+  }
+};
+
 export function useChildren() {
-  const [children, setChildren] = useState<Child[]>(generateSampleChildren());
+  const [children, setChildren] = useState<Child[]>(loadFromLocalStorage);
+  const [isOnline, setIsOnline] = useState(navigator.onLine);
+  const [isSyncing, setIsSyncing] = useState(false);
+
+  // Monitor online status
+  useEffect(() => {
+    const handleOnline = () => {
+      setIsOnline(true);
+      syncPendingChanges();
+    };
+    const handleOffline = () => setIsOnline(false);
+
+    window.addEventListener('online', handleOnline);
+    window.addEventListener('offline', handleOffline);
+
+    return () => {
+      window.removeEventListener('online', handleOnline);
+      window.removeEventListener('offline', handleOffline);
+    };
+  }, []);
+
+  // Sync pending changes when online
+  const syncPendingChanges = useCallback(async () => {
+    if (!navigator.onLine || isSyncing) return;
+
+    const pendingSyncs = loadPendingSyncs();
+    if (pendingSyncs.length === 0) return;
+
+    setIsSyncing(true);
+    const successfulSyncs: number[] = [];
+
+    for (let i = 0; i < pendingSyncs.length; i++) {
+      const sync = pendingSyncs[i];
+      try {
+        const childRef = doc(db, 'children', sync.childId);
+        
+        if (sync.action === 'delete') {
+          await deleteDoc(childRef);
+        } else if (sync.data) {
+          await setDoc(childRef, sync.data);
+        }
+        
+        successfulSyncs.push(i);
+      } catch (error) {
+        console.error('Error syncing:', error);
+      }
+    }
+
+    // Remove successful syncs
+    const remainingSyncs = pendingSyncs.filter((_, index) => !successfulSyncs.includes(index));
+    savePendingSyncs(remainingSyncs);
+    setIsSyncing(false);
+  }, [isSyncing]);
+
+  // Initial sync and listen for changes from Firebase
+  useEffect(() => {
+    // Try to sync on load
+    if (navigator.onLine) {
+      syncPendingChanges();
+    }
+
+    // Listen for real-time updates from Firebase
+    const childrenRef = collection(db, 'children');
+    const unsubscribe = onSnapshot(
+      childrenRef,
+      (snapshot) => {
+        if (!snapshot.empty) {
+          const firebaseChildren: Child[] = [];
+          snapshot.forEach((doc) => {
+            firebaseChildren.push(doc.data() as Child);
+          });
+          
+          // Merge with local data, prioritizing newer timestamps
+          const localChildren = loadFromLocalStorage();
+          const mergedChildren = mergeChildren(localChildren, firebaseChildren);
+          
+          setChildren(mergedChildren);
+          saveToLocalStorage(mergedChildren);
+        }
+      },
+      (error) => {
+        console.error('Firebase listener error:', error);
+      }
+    );
+
+    return () => unsubscribe();
+  }, []);
+
+  // Merge local and Firebase children, avoiding duplicates
+  const mergeChildren = (local: Child[], firebase: Child[]): Child[] => {
+    const merged = new Map<string, Child>();
+    
+    // Add Firebase children first
+    firebase.forEach(child => {
+      merged.set(child.id, child);
+    });
+    
+    // Override with local if local is newer (based on registeredAt)
+    local.forEach(child => {
+      const existing = merged.get(child.id);
+      if (!existing || new Date(child.registeredAt) > new Date(existing.registeredAt)) {
+        merged.set(child.id, child);
+      }
+    });
+    
+    return Array.from(merged.values());
+  };
+
+  // Save children to localStorage whenever they change
+  useEffect(() => {
+    saveToLocalStorage(children);
+  }, [children]);
+
+  const addPendingSync = useCallback((sync: PendingSync) => {
+    const pending = loadPendingSyncs();
+    // Remove any existing syncs for this child
+    const filtered = pending.filter(p => p.childId !== sync.childId);
+    filtered.push(sync);
+    savePendingSyncs(filtered);
+  }, []);
 
   const addChild = useCallback((childData: Omit<Child, 'id' | 'registeredAt' | 'vaccines'>) => {
     const newChild: Child = {
@@ -135,42 +318,96 @@ export function useChildren() {
       registeredAt: new Date().toISOString(),
       vaccines: getVaccineSchedule(childData.dateOfBirth),
     };
+    
     setChildren(prev => [...prev, newChild]);
+
+    // Try to sync to Firebase
+    if (navigator.onLine) {
+      const childRef = doc(db, 'children', newChild.id);
+      setDoc(childRef, newChild).catch(() => {
+        addPendingSync({ action: 'add', childId: newChild.id, data: newChild, timestamp: Date.now() });
+      });
+    } else {
+      addPendingSync({ action: 'add', childId: newChild.id, data: newChild, timestamp: Date.now() });
+    }
+
     return newChild;
-  }, []);
+  }, [addPendingSync]);
 
   const updateChild = useCallback((childId: string, childData: Partial<Child>) => {
-    setChildren(prev => prev.map(child => 
-      child.id === childId 
-        ? { ...child, ...childData }
-        : child
-    ));
-  }, []);
+    setChildren(prev => {
+      const updated = prev.map(child => 
+        child.id === childId 
+          ? { ...child, ...childData, registeredAt: new Date().toISOString() }
+          : child
+      );
+      
+      const updatedChild = updated.find(c => c.id === childId);
+      if (updatedChild) {
+        if (navigator.onLine) {
+          const childRef = doc(db, 'children', childId);
+          setDoc(childRef, updatedChild).catch(() => {
+            addPendingSync({ action: 'update', childId, data: updatedChild, timestamp: Date.now() });
+          });
+        } else {
+          addPendingSync({ action: 'update', childId, data: updatedChild, timestamp: Date.now() });
+        }
+      }
+      
+      return updated;
+    });
+  }, [addPendingSync]);
 
   const deleteChild = useCallback((childId: string) => {
     setChildren(prev => prev.filter(child => child.id !== childId));
-  }, []);
+
+    if (navigator.onLine) {
+      const childRef = doc(db, 'children', childId);
+      deleteDoc(childRef).catch(() => {
+        addPendingSync({ action: 'delete', childId, timestamp: Date.now() });
+      });
+    } else {
+      addPendingSync({ action: 'delete', childId, timestamp: Date.now() });
+    }
+  }, [addPendingSync]);
 
   const updateVaccine = useCallback((childId: string, vaccineName: string, givenDate: string, batchNumber?: string) => {
-    setChildren(prev => prev.map(child => {
-      if (child.id !== childId) return child;
-      
-      return {
-        ...child,
-        vaccines: child.vaccines.map(vaccine => 
-          vaccine.name === vaccineName
-            ? { 
-                ...vaccine, 
-                status: 'completed' as const, 
-                givenDate,
-                batchNumber: batchNumber || undefined,
-                administeredBy: 'Current User'
-              }
-            : vaccine
-        ),
-      };
-    }));
-  }, []);
+    setChildren(prev => {
+      const updated = prev.map(child => {
+        if (child.id !== childId) return child;
+        
+        return {
+          ...child,
+          registeredAt: new Date().toISOString(),
+          vaccines: child.vaccines.map(vaccine => 
+            vaccine.name === vaccineName
+              ? { 
+                  ...vaccine, 
+                  status: 'completed' as const, 
+                  givenDate,
+                  batchNumber: batchNumber || undefined,
+                  administeredBy: 'Current User'
+                }
+              : vaccine
+          ),
+        };
+      });
+
+      const updatedChild = updated.find(c => c.id === childId);
+      if (updatedChild) {
+        if (navigator.onLine) {
+          const childRef = doc(db, 'children', childId);
+          setDoc(childRef, updatedChild).catch(() => {
+            addPendingSync({ action: 'update', childId, data: updatedChild, timestamp: Date.now() });
+          });
+        } else {
+          addPendingSync({ action: 'update', childId, data: updatedChild, timestamp: Date.now() });
+        }
+      }
+
+      return updated;
+    });
+  }, [addPendingSync]);
 
   const stats = useMemo((): DashboardStats => {
     const today = new Date();
@@ -226,5 +463,7 @@ export function useChildren() {
     updateChild,
     deleteChild,
     updateVaccine,
+    isOnline,
+    isSyncing,
   };
 }

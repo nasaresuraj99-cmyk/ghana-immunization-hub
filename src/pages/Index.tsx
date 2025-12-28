@@ -9,6 +9,7 @@ import { DashboardSection } from "@/components/sections/DashboardSection";
 import { ReportingSection } from "@/components/sections/ReportingSection";
 import { SettingsSection } from "@/components/sections/SettingsSection";
 import { VaccineAdministrationModal } from "@/components/modals/VaccineAdministrationModal";
+import { DeveloperCredits } from "@/components/DeveloperCredits";
 import { useChildren } from "@/hooks/useChildren";
 import { useToast } from "@/hooks/use-toast";
 import { Child } from "@/types/child";
@@ -218,7 +219,9 @@ export default function Index() {
         )}
       </main>
 
-      <footer className="text-center py-6 text-sm text-muted-foreground border-t bg-card mt-12">
+      <DeveloperCredits />
+      
+      <footer className="text-center py-4 text-xs text-muted-foreground border-t bg-card">
         © {new Date().getFullYear()} Ghana Health Service - Immunization Tracker
       </footer>
 
