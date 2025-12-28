@@ -24,7 +24,8 @@ export function UserManagementPanel({
   currentUserId,
   currentUserRole,
 }: UserManagementPanelProps) {
-  const { facility, users: facilityUsers, isLoading, updateUserRole, removeUserFromFacility, refreshUsers } = useFacility({ facilityId });
+  const { facility, facilityUsers, isLoading, updateUserRole, removeUserFromFacility } = useFacility(facilityId);
+  const refreshUsers = () => {}; // Refresh handled by hook internally
   const [isInviteOpen, setIsInviteOpen] = useState(false);
   const [confirmRemove, setConfirmRemove] = useState<FacilityUser | null>(null);
   const [updatingUser, setUpdatingUser] = useState<string | null>(null);
