@@ -71,49 +71,9 @@ const getVaccineSchedule = (dateOfBirth: string): VaccineRecord[] => {
   });
 };
 
-// Sample data for demo
-const generateSampleChildren = (): Child[] => {
-  const names = [
-    { name: "Kwame Asante", mother: "Ama Asante", sex: "Male" as const },
-    { name: "Akua Mensah", mother: "Efua Mensah", sex: "Female" as const },
-    { name: "Kofi Owusu", mother: "Abena Owusu", sex: "Male" as const },
-    { name: "Adwoa Boateng", mother: "Akosua Boateng", sex: "Female" as const },
-    { name: "Yaw Ankrah", mother: "Esi Ankrah", sex: "Male" as const },
-  ];
-
-  const communities = ["Accra New Town", "Tema", "Kumasi Central", "Takoradi", "Cape Coast"];
-  const phones = ["0241234567", "0551234567", "0271234567", "0201234567", "0541234567"];
-
-  return names.map((data, index) => {
-    const monthsAgo = Math.floor(Math.random() * 24) + 1;
-    const dob = new Date();
-    dob.setMonth(dob.getMonth() - monthsAgo);
-    const dobString = dob.toISOString().split('T')[0];
-
-    const vaccines = getVaccineSchedule(dobString);
-    const completedCount = Math.min(Math.floor(monthsAgo / 2), vaccines.length);
-    for (let i = 0; i < completedCount; i++) {
-      vaccines[i].status = 'completed';
-      vaccines[i].givenDate = vaccines[i].dueDate;
-    }
-
-    return {
-      id: `child-${index + 1}`,
-      regNo: `GHS-2024-${String(index + 1).padStart(4, '0')}`,
-      name: data.name,
-      dateOfBirth: dobString,
-      sex: data.sex,
-      motherName: data.mother,
-      telephoneAddress: phones[index],
-      community: communities[index],
-      registeredAt: new Date().toISOString(),
-      vaccines,
-    };
-  });
-};
-
 const LOCAL_STORAGE_KEY = 'immunization_children_data';
 const PENDING_SYNC_KEY = 'immunization_pending_sync';
+const FIREBASE_SYNCED_KEY = 'immunization_firebase_synced';
 
 interface PendingSync {
   action: 'add' | 'update' | 'delete';
@@ -131,7 +91,7 @@ const loadFromLocalStorage = (): Child[] => {
   } catch (e) {
     console.error('Error loading from localStorage:', e);
   }
-  return generateSampleChildren();
+  return [];
 };
 
 const saveToLocalStorage = (children: Child[]) => {
@@ -166,6 +126,7 @@ export function useChildren() {
   const [children, setChildren] = useState<Child[]>(() => loadFromLocalStorage());
   const [isOnline, setIsOnline] = useState(() => navigator.onLine);
   const [isSyncing, setIsSyncing] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
   const hasSyncedRef = useRef(false);
 
   // Monitor online status
@@ -214,33 +175,46 @@ export function useChildren() {
     setIsSyncing(false);
   }, [isSyncing]);
 
-  // Initial fetch from Firebase (only once)
+  // Initial fetch from Firebase - Always fetch to ensure data is persistent
   useEffect(() => {
-    if (hasSyncedRef.current || !navigator.onLine) return;
+    if (hasSyncedRef.current) return;
     
     const fetchFromFirebase = async () => {
+      setIsLoading(true);
+      
+      // If offline, just use local data
+      if (!navigator.onLine) {
+        setIsLoading(false);
+        return;
+      }
+      
       try {
         hasSyncedRef.current = true;
         const childrenRef = collection(db, 'children');
         const snapshot = await getDocs(childrenRef);
         
-        if (!snapshot.empty) {
-          const firebaseChildren: Child[] = [];
-          snapshot.forEach((docSnap) => {
-            firebaseChildren.push(docSnap.data() as Child);
-          });
-          
-          const localChildren = loadFromLocalStorage();
-          const merged = mergeChildren(localChildren, firebaseChildren);
-          
-          setChildren(merged);
-          saveToLocalStorage(merged);
-        }
+        const firebaseChildren: Child[] = [];
+        snapshot.forEach((docSnap) => {
+          firebaseChildren.push(docSnap.data() as Child);
+        });
+        
+        // Firebase is the source of truth - merge local pending changes
+        const localChildren = loadFromLocalStorage();
+        const merged = mergeChildren(localChildren, firebaseChildren);
+        
+        setChildren(merged);
+        saveToLocalStorage(merged);
+        
+        // Mark as synced
+        localStorage.setItem(FIREBASE_SYNCED_KEY, 'true');
         
         // Sync any pending changes
-        syncPendingChanges();
+        await syncPendingChanges();
       } catch (error) {
         console.error('Firebase fetch error:', error);
+        // If Firebase fails, continue with local data
+      } finally {
+        setIsLoading(false);
       }
     };
 
@@ -249,21 +223,25 @@ export function useChildren() {
 
   // Sync when coming back online
   useEffect(() => {
-    if (isOnline) {
+    if (isOnline && !isLoading) {
       syncPendingChanges();
     }
-  }, [isOnline, syncPendingChanges]);
+  }, [isOnline, isLoading, syncPendingChanges]);
 
   const mergeChildren = (local: Child[], firebase: Child[]): Child[] => {
     const merged = new Map<string, Child>();
     
+    // First add all Firebase children (source of truth)
     firebase.forEach(child => {
       merged.set(child.id, child);
     });
     
+    // Then check local children - only add if newer or not in Firebase
     local.forEach(child => {
       const existing = merged.get(child.id);
-      if (!existing || new Date(child.registeredAt) > new Date(existing.registeredAt)) {
+      if (!existing) {
+        merged.set(child.id, child);
+      } else if (new Date(child.registeredAt) > new Date(existing.registeredAt)) {
         merged.set(child.id, child);
       }
     });
@@ -273,8 +251,10 @@ export function useChildren() {
 
   // Save to localStorage whenever children change
   useEffect(() => {
-    saveToLocalStorage(children);
-  }, [children]);
+    if (!isLoading) {
+      saveToLocalStorage(children);
+    }
+  }, [children, isLoading]);
 
   const addPendingSync = useCallback((sync: PendingSync) => {
     const pending = loadPendingSyncs();
@@ -284,6 +264,14 @@ export function useChildren() {
   }, []);
 
   const syncToFirebase = useCallback(async (childId: string, data: Child | null, action: 'add' | 'update' | 'delete') => {
+    // Always add to pending first for reliability
+    if (data) {
+      addPendingSync({ action, childId, data, timestamp: Date.now() });
+    } else {
+      addPendingSync({ action, childId, timestamp: Date.now() });
+    }
+
+    // If online, try to sync immediately
     if (navigator.onLine) {
       try {
         const childRef = doc(db, 'children', childId);
@@ -292,19 +280,14 @@ export function useChildren() {
         } else if (data) {
           await setDoc(childRef, data);
         }
+        
+        // Remove from pending on success
+        const pending = loadPendingSyncs();
+        const filtered = pending.filter(p => p.childId !== childId || p.timestamp < Date.now() - 1000);
+        savePendingSyncs(filtered);
       } catch (error) {
         console.error('Firebase sync error:', error);
-        if (data) {
-          addPendingSync({ action, childId, data, timestamp: Date.now() });
-        } else {
-          addPendingSync({ action, childId, timestamp: Date.now() });
-        }
-      }
-    } else {
-      if (data) {
-        addPendingSync({ action, childId, data, timestamp: Date.now() });
-      } else {
-        addPendingSync({ action, childId, timestamp: Date.now() });
+        // Pending sync already added above
       }
     }
   }, [addPendingSync]);
@@ -432,5 +415,6 @@ export function useChildren() {
     updateVaccine,
     isOnline,
     isSyncing,
+    isLoading,
   };
 }

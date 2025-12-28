@@ -13,6 +13,7 @@ import { VaccineAdministrationModal } from "@/components/modals/VaccineAdministr
 import { ChildProfileModal } from "@/components/modals/ChildProfileModal";
 import { GlobalSearchBar } from "@/components/GlobalSearchBar";
 import { DeveloperCredits } from "@/components/DeveloperCredits";
+import { PWAInstallBanner } from "@/components/PWAInstallBanner";
 import { useChildren } from "@/hooks/useChildren";
 import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
@@ -28,7 +29,7 @@ export default function Index() {
   const [vaccineModalChild, setVaccineModalChild] = useState<Child | null>(null);
   const [profileModalChild, setProfileModalChild] = useState<Child | null>(null);
   
-  const { children, stats, addChild, updateChild, deleteChild, updateVaccine, isOnline, isSyncing } = useChildren();
+  const { children, stats, addChild, updateChild, deleteChild, updateVaccine, isOnline, isSyncing, isLoading } = useChildren();
   const { toast } = useToast();
 
   const handleLogin = async (email: string, password: string) => {
@@ -322,6 +323,8 @@ export default function Index() {
           setVaccineModalChild(child);
         }}
       />
+
+      <PWAInstallBanner />
     </div>
   );
 }
