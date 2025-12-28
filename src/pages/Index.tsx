@@ -16,6 +16,7 @@ import { DeveloperCredits } from "@/components/DeveloperCredits";
 import { PWAInstallBanner } from "@/components/PWAInstallBanner";
 import { OfflineIndicator } from "@/components/OfflineIndicator";
 import { SyncProgressBar } from "@/components/SyncProgressBar";
+import { ConflictResolutionModal } from "@/components/ConflictResolutionModal";
 import { useChildren } from "@/hooks/useChildren";
 import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
@@ -33,7 +34,7 @@ export default function Index() {
   const [vaccineModalChild, setVaccineModalChild] = useState<Child | null>(null);
   const [profileModalChild, setProfileModalChild] = useState<Child | null>(null);
   
-  const { children, stats, addChild, updateChild, deleteChild, updateVaccine, importChildren, isSyncing, isLoading, syncProgress } = useChildren(user?.uid);
+  const { children, stats, addChild, updateChild, deleteChild, updateVaccine, importChildren, isSyncing, isLoading, syncProgress, conflicts, isConflictModalOpen, setIsConflictModalOpen, handleConflictResolution, getConflictDiffs } = useChildren(user?.uid);
   const { toast } = useToast();
 
   const handleLogin = async (email: string, password: string) => {
@@ -192,10 +193,13 @@ export default function Index() {
         onRefreshAuth={refreshAuth}
       />
 
-      {/* Sync Status Bar with Global Search */}
-      <div className="bg-card border-b px-4 py-2">
+      <div className="bg-card border-b px-4 py-3 shadow-elevation-1">
         <div className="max-w-7xl mx-auto flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
-          <SyncProgressBar syncProgress={syncProgress} />
+          <SyncProgressBar 
+            syncProgress={syncProgress} 
+            conflictCount={conflicts.length}
+            onOpenConflicts={() => setIsConflictModalOpen(true)}
+          />
           <GlobalSearchBar 
             children={children} 
             onSelectChild={handleViewProfile}
@@ -317,6 +321,14 @@ export default function Index() {
           setProfileModalChild(null);
           setVaccineModalChild(child);
         }}
+      />
+
+      <ConflictResolutionModal
+        isOpen={isConflictModalOpen}
+        onClose={() => setIsConflictModalOpen(false)}
+        conflicts={conflicts}
+        onResolve={handleConflictResolution}
+        getConflictDiffs={getConflictDiffs}
       />
 
       <PWAInstallBanner />

@@ -1,4 +1,4 @@
-@import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Outfit:wght@400;500;600;700;800&display=swap');
 
 @tailwind base;
 @tailwind components;
@@ -17,6 +17,7 @@
 
     --primary: 152 69% 31%;
     --primary-foreground: 0 0% 100%;
+    --primary-hover: 152 69% 26%;
 
     --secondary: 145 25% 93%;
     --secondary-foreground: 150 25% 15%;
@@ -43,8 +44,17 @@
     --input: 145 20% 88%;
     --ring: 152 69% 31%;
 
-    --radius: 1rem;
+    --radius: 0.75rem;
 
+    /* Material Design inspired shadows */
+    --shadow-xs: 0 1px 2px 0 hsl(0 0% 0% / 0.05);
+    --shadow-sm: 0 1px 3px 0 hsl(0 0% 0% / 0.1), 0 1px 2px -1px hsl(0 0% 0% / 0.1);
+    --shadow-md: 0 4px 6px -1px hsl(0 0% 0% / 0.1), 0 2px 4px -2px hsl(0 0% 0% / 0.1);
+    --shadow-lg: 0 10px 15px -3px hsl(0 0% 0% / 0.1), 0 4px 6px -4px hsl(0 0% 0% / 0.1);
+    --shadow-xl: 0 20px 25px -5px hsl(0 0% 0% / 0.1), 0 8px 10px -6px hsl(0 0% 0% / 0.1);
+    --shadow-2xl: 0 25px 50px -12px hsl(0 0% 0% / 0.25);
+
+    /* Ghana Health Service colors */
     --ghs-green: 152 69% 31%;
     --ghs-green-dark: 152 69% 25%;
     --ghs-green-light: 145 50% 95%;
@@ -74,6 +84,7 @@
 
     --primary: 152 60% 40%;
     --primary-foreground: 0 0% 100%;
+    --primary-hover: 152 60% 45%;
 
     --secondary: 150 20% 15%;
     --secondary-foreground: 145 30% 95%;
@@ -87,8 +98,8 @@
     --destructive: 0 72% 45%;
     --destructive-foreground: 145 30% 95%;
 
-    --border: 150 20% 15%;
-    --input: 150 20% 15%;
+    --border: 150 20% 18%;
+    --input: 150 20% 18%;
     --ring: 152 60% 40%;
 
     --sidebar-background: 150 25% 8%;
@@ -109,11 +120,19 @@
 
   body {
     @apply bg-background text-foreground font-sans antialiased;
-    font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+
+  h1, h2, h3, h4, h5, h6 {
+    font-family: 'Outfit', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    @apply font-semibold tracking-tight;
   }
 }
 
 @layer utilities {
+  /* Material Design inspired gradients */
   .gradient-ghs {
     background: linear-gradient(135deg, hsl(152 69% 31%) 0%, hsl(152 69% 22%) 50%, hsl(160 70% 18%) 100%);
   }
@@ -126,6 +145,11 @@
     background: linear-gradient(145deg, hsl(var(--card)) 0%, hsl(145 30% 98%) 100%);
   }
 
+  .gradient-surface {
+    background: linear-gradient(180deg, hsl(var(--background)) 0%, hsl(145 30% 95%) 100%);
+  }
+
+  /* Material Design elevation shadows */
   .shadow-ghs {
     box-shadow: 0 4px 20px -5px hsl(var(--primary) / 0.3);
   }
@@ -142,16 +166,59 @@
     box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
   }
 
+  .shadow-elevation-4 {
+    box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+  }
+
   .shadow-glow {
     box-shadow: 0 0 20px hsl(var(--primary) / 0.2), 0 4px 12px hsl(var(--primary) / 0.15);
   }
 
+  .shadow-glow-accent {
+    box-shadow: 0 0 20px hsl(var(--accent) / 0.3), 0 4px 12px hsl(var(--accent) / 0.2);
+  }
+
+  /* Material Design ripple effect base */
+  .ripple {
+    position: relative;
+    overflow: hidden;
+    transform: translate3d(0, 0, 0);
+  }
+
+  .ripple::after {
+    content: '';
+    display: block;
+    position: absolute;
+    width: 100%;
+    height: 100%;
+    top: 0;
+    left: 0;
+    pointer-events: none;
+    background-image: radial-gradient(circle, hsl(var(--foreground) / 0.1) 10%, transparent 10.01%);
+    background-repeat: no-repeat;
+    background-position: 50%;
+    transform: scale(10, 10);
+    opacity: 0;
+    transition: transform 0.4s, opacity 0.8s;
+  }
+
+  .ripple:active::after {
+    transform: scale(0, 0);
+    opacity: 0.2;
+    transition: 0s;
+  }
+
+  /* Smooth animations */
   .animate-slide-up {
     animation: slideUp 0.5s cubic-bezier(0.16, 1, 0.3, 1);
   }
 
   .animate-fade-in {
     animation: fadeIn 0.4s ease-out;
+  }
+
+  .animate-fade-in-up {
+    animation: fadeInUp 0.5s cubic-bezier(0.16, 1, 0.3, 1);
   }
 
   .animate-pulse-slow {
@@ -166,9 +233,43 @@
     animation: float 4s ease-in-out infinite;
   }
 
+  .animate-scale-in {
+    animation: scaleIn 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+  }
+
+  .animate-shimmer {
+    animation: shimmer 2s infinite linear;
+    background: linear-gradient(90deg, transparent, hsl(var(--primary) / 0.1), transparent);
+    background-size: 200% 100%;
+  }
+
+  /* Glass morphism */
   .glass-effect {
     backdrop-filter: blur(12px);
     background: hsl(var(--card) / 0.85);
+  }
+
+  .glass-effect-strong {
+    backdrop-filter: blur(20px) saturate(180%);
+    background: hsl(var(--card) / 0.75);
+  }
+
+  /* Material Design surface states */
+  .surface-hover {
+    @apply transition-all duration-200;
+  }
+
+  .surface-hover:hover {
+    @apply bg-muted/50;
+  }
+
+  .surface-active:active {
+    @apply bg-muted/80;
+  }
+
+  /* Focus ring for accessibility */
+  .focus-ring {
+    @apply focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background;
   }
 }
 
@@ -189,6 +290,17 @@
   }
   to {
     opacity: 1;
+  }
+}
+
+@keyframes fadeInUp {
+  from {
+    opacity: 0;
+    transform: translateY(16px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
   }
 }
 
@@ -219,12 +331,33 @@
   }
 }
 
+@keyframes scaleIn {
+  from {
+    transform: scale(0.95);
+    opacity: 0;
+  }
+  to {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+
+@keyframes shimmer {
+  from {
+    background-position: -200% 0;
+  }
+  to {
+    background-position: 200% 0;
+  }
+}
+
 @keyframes spin {
   to {
     transform: rotate(360deg);
   }
 }
 
+/* Material Design stat card with top border accent */
 .stat-card-border::before {
   content: '';
   position: absolute;
@@ -236,7 +369,22 @@
   border-radius: var(--radius) var(--radius) 0 0;
 }
 
-/* Custom scrollbar */
+/* Material Design FAB shadow */
+.fab-shadow {
+  box-shadow: 
+    0 3px 5px -1px rgba(0, 0, 0, 0.2),
+    0 6px 10px 0 rgba(0, 0, 0, 0.14),
+    0 1px 18px 0 rgba(0, 0, 0, 0.12);
+}
+
+.fab-shadow:hover {
+  box-shadow: 
+    0 5px 5px -3px rgba(0, 0, 0, 0.2),
+    0 8px 10px 1px rgba(0, 0, 0, 0.14),
+    0 3px 14px 2px rgba(0, 0, 0, 0.12);
+}
+
+/* Custom scrollbar with Material Design feel */
 ::-webkit-scrollbar {
   width: 8px;
   height: 8px;
@@ -250,8 +398,30 @@
 ::-webkit-scrollbar-thumb {
   background: hsl(var(--primary) / 0.3);
   border-radius: 10px;
+  transition: background 0.2s ease;
 }
 
 ::-webkit-scrollbar-thumb:hover {
   background: hsl(var(--primary) / 0.5);
+}
+
+/* Smooth transitions for interactive elements */
+@layer utilities {
+  .transition-material {
+    @apply transition-all duration-200 ease-out;
+  }
+
+  .transition-material-fast {
+    @apply transition-all duration-150 ease-out;
+  }
+
+  .transition-material-slow {
+    @apply transition-all duration-300 ease-out;
+  }
+}
+
+/* Text selection */
+::selection {
+  background: hsl(var(--primary) / 0.2);
+  color: hsl(var(--foreground));
 }

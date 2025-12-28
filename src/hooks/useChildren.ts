@@ -1,5 +1,6 @@
 import { useState, useCallback, useMemo, useEffect, useRef } from "react";
 import { Child, VaccineRecord, DashboardStats } from "@/types/child";
+import { ConflictRecord, ConflictResolution } from "@/types/conflict";
 import { 
   db, 
   collection, 
@@ -11,6 +12,7 @@ import {
   where
 } from "@/lib/firebase";
 import { useSyncStatus, SyncProgress } from "./useSyncStatus";
+import { useConflictDetection } from "./useConflictDetection";
 // Ghana EPI Schedule - Complete Immunization List
 const getVaccineSchedule = (dateOfBirth: string): VaccineRecord[] => {
   const dob = new Date(dateOfBirth);
@@ -132,6 +134,9 @@ export function useChildren(userId?: string) {
   
   const syncStatus = useSyncStatus();
   const { isOnline, startSync, updateProgress, completeSync, setPendingCount, isSyncing, manualSyncTrigger } = syncStatus;
+  
+  const conflictDetection = useConflictDetection();
+  const { detectConflict, addConflict, resolveConflict, getConflictDiffs, conflicts, isConflictModalOpen, setIsConflictModalOpen } = conflictDetection;
   // Update pending count when it changes
   useEffect(() => {
     const pendingSyncs = loadPendingSyncs();
@@ -252,11 +257,16 @@ export function useChildren(userId?: string) {
       merged.set(child.id, child);
     });
     
-    // Then check local children - only add if newer or not in Firebase
+    // Then check local children - detect conflicts or add if not in Firebase
     local.forEach(child => {
       const existing = merged.get(child.id);
       if (!existing) {
         merged.set(child.id, child);
+      } else if (detectConflict(child, existing)) {
+        // Conflict detected - add to conflict list
+        addConflict(child, existing);
+        // Keep remote version for now until resolved
+        merged.set(child.id, existing);
       } else if (new Date(child.registeredAt) > new Date(existing.registeredAt)) {
         merged.set(child.id, child);
       }
@@ -264,6 +274,17 @@ export function useChildren(userId?: string) {
     
     return Array.from(merged.values());
   };
+
+  const handleConflictResolution = useCallback((conflictId: string, resolution: ConflictResolution, resolvedChild: Child) => {
+    // Update local state with resolved child
+    setChildren(prev => prev.map(c => c.id === resolvedChild.id ? resolvedChild : c));
+    
+    // Sync to Firebase
+    syncToFirebase(resolvedChild.id, resolvedChild, 'update');
+    
+    // Mark conflict as resolved
+    resolveConflict(conflictId);
+  }, [resolveConflict, syncToFirebase]);
 
   // Save to localStorage whenever children change
   useEffect(() => {
@@ -452,5 +473,11 @@ export function useChildren(userId?: string) {
     isSyncing,
     isLoading,
     syncProgress: syncStatus,
+    // Conflict resolution
+    conflicts,
+    isConflictModalOpen,
+    setIsConflictModalOpen,
+    handleConflictResolution,
+    getConflictDiffs,
   };
 }
