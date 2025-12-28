@@ -1,10 +1,11 @@
-import { Cloud, CloudOff, CheckCircle, XCircle, RefreshCw, Wifi, WifiOff, AlertTriangle } from "lucide-react";
+import { Cloud, CloudOff, CheckCircle, XCircle, RefreshCw, Wifi, WifiOff, AlertTriangle, CloudUpload } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Progress } from "@/components/ui/progress";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { SyncProgress } from "@/hooks/useSyncStatus";
 import { toast } from "sonner";
+import { useEffect, useRef } from "react";
 
 interface SyncProgressBarProps {
   syncProgress: SyncProgress & {
@@ -14,37 +15,73 @@ interface SyncProgressBarProps {
   };
   conflictCount?: number;
   onOpenConflicts?: () => void;
+  onShowPendingQueue?: () => void;
 }
 
-export function SyncProgressBar({ syncProgress, conflictCount = 0, onOpenConflicts }: SyncProgressBarProps) {
+export function SyncProgressBar({ syncProgress, conflictCount = 0, onOpenConflicts, onShowPendingQueue }: SyncProgressBarProps) {
   const { 
     isOnline, 
     syncStatus, 
     statusMessage,
     pendingCount, 
-    syncedCount, 
+    syncedCount,
+    failedCount,
     isSyncing,
     lastSyncTime,
     triggerManualSync,
   } = syncProgress;
 
+  const prevSyncStatus = useRef(syncStatus);
+
+  // Show toast feedback when sync completes
+  useEffect(() => {
+    if (prevSyncStatus.current === 'syncing' && syncStatus !== 'syncing') {
+      if (syncStatus === 'success') {
+        toast.success("Sync completed successfully!", {
+          description: `${syncedCount} item${syncedCount !== 1 ? 's' : ''} synced to cloud.`,
+          icon: <CheckCircle className="w-4 h-4 text-success" />,
+          duration: 4000,
+        });
+      } else if (syncStatus === 'error') {
+        toast.error("Sync failed", {
+          description: `${failedCount} item${failedCount !== 1 ? 's' : ''} failed to sync. Will retry when online.`,
+          icon: <XCircle className="w-4 h-4 text-destructive" />,
+          duration: 5000,
+        });
+      }
+    }
+    prevSyncStatus.current = syncStatus;
+  }, [syncStatus, syncedCount, failedCount]);
+
   const handleManualSync = () => {
     if (!isOnline) {
       toast.error("Cannot sync while offline", {
         description: "Please connect to the internet to sync your data.",
+        icon: <WifiOff className="w-4 h-4" />,
       });
       return;
     }
     
     if (isSyncing) {
-      toast.info("Sync already in progress");
+      toast.info("Sync already in progress", {
+        icon: <RefreshCw className="w-4 h-4 animate-spin" />,
+      });
+      return;
+    }
+
+    if (pendingCount === 0) {
+      toast.info("Already up to date", {
+        description: "No pending changes to sync.",
+        icon: <CheckCircle className="w-4 h-4" />,
+      });
       return;
     }
 
     const triggered = triggerManualSync();
     if (triggered) {
-      toast.info("Manual sync started", {
-        description: "Your data is being synchronized...",
+      toast.info("Syncing...", {
+        description: `Uploading ${pendingCount} pending change${pendingCount !== 1 ? 's' : ''}...`,
+        icon: <CloudUpload className="w-4 h-4" />,
       });
     }
   };
@@ -52,6 +89,7 @@ export function SyncProgressBar({ syncProgress, conflictCount = 0, onOpenConflic
   const getStatusIcon = () => {
     if (!isOnline) return <WifiOff className="w-4 h-4" />;
     if (isSyncing) return <RefreshCw className="w-4 h-4 animate-spin" />;
+    if (syncStatus === 'success') return <CheckCircle className="w-4 h-4" />;
     if (syncStatus === 'error') return <XCircle className="w-4 h-4" />;
     if (pendingCount === 0) return <CheckCircle className="w-4 h-4" />;
     return <Cloud className="w-4 h-4" />;
@@ -59,6 +97,7 @@ export function SyncProgressBar({ syncProgress, conflictCount = 0, onOpenConflic
 
   const getStatusColor = () => {
     if (!isOnline) return "text-muted-foreground bg-muted";
+    if (syncStatus === 'success') return "text-success bg-success/10";
     if (syncStatus === 'error') return "text-destructive bg-destructive/10";
     if (isSyncing) return "text-info bg-info/10";
     if (pendingCount === 0) return "text-success bg-success/10";
@@ -79,7 +118,7 @@ export function SyncProgressBar({ syncProgress, conflictCount = 0, onOpenConflic
         {getStatusIcon()}
         <span className="hidden sm:inline">{statusMessage}</span>
         <span className="sm:hidden">
-          {isOnline ? (isSyncing ? "Syncing..." : "Online") : "Offline"}
+          {isOnline ? (isSyncing ? "Syncing..." : syncStatus === 'success' ? "Synced!" : "Online") : "Offline"}
         </span>
       </div>
 
@@ -94,18 +133,23 @@ export function SyncProgressBar({ syncProgress, conflictCount = 0, onOpenConflic
       )}
 
       {/* Last Sync Time */}
-      {lastSyncTime && !isSyncing && (
+      {lastSyncTime && !isSyncing && syncStatus !== 'success' && syncStatus !== 'error' && (
         <span className="text-xs text-muted-foreground hidden md:inline">
           Last sync: {new Date(lastSyncTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
         </span>
       )}
 
-      {/* Pending Count */}
+      {/* Pending Count - Clickable to show queue */}
       {pendingCount > 0 && !isSyncing && (
-        <Badge variant="secondary" className="text-xs gap-1">
+        <Button
+          variant="ghost"
+          size="sm"
+          onClick={onShowPendingQueue}
+          className="h-7 px-2 text-xs gap-1.5 bg-warning/10 text-warning hover:bg-warning/20"
+        >
           <Cloud className="w-3 h-3" />
           {pendingCount} pending
-        </Badge>
+        </Button>
       )}
 
       {/* Conflict Warning */}
@@ -127,10 +171,15 @@ export function SyncProgressBar({ syncProgress, conflictCount = 0, onOpenConflic
         size="sm"
         onClick={handleManualSync}
         disabled={isSyncing || !isOnline}
-        className="h-8 px-3 text-xs gap-1.5 bg-muted/50 hover:bg-muted"
+        className={cn(
+          "h-8 px-3 text-xs gap-1.5",
+          isSyncing 
+            ? "bg-info/10 text-info" 
+            : "bg-muted/50 hover:bg-muted"
+        )}
       >
         <RefreshCw className={cn("w-3.5 h-3.5", isSyncing && "animate-spin")} />
-        <span className="hidden sm:inline">Sync</span>
+        <span className="hidden sm:inline">{isSyncing ? "Syncing..." : "Sync"}</span>
       </Button>
     </div>
   );
