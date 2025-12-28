@@ -10,7 +10,7 @@ import {
   query,
   where
 } from "@/lib/firebase";
-
+import { useSyncStatus, SyncProgress } from "./useSyncStatus";
 // Ghana EPI Schedule - Complete Immunization List
 const getVaccineSchedule = (dateOfBirth: string): VaccineRecord[] => {
   const dob = new Date(dateOfBirth);
@@ -126,34 +126,28 @@ const savePendingSyncs = (syncs: PendingSync[]) => {
 
 export function useChildren(userId?: string) {
   const [children, setChildren] = useState<Child[]>(() => loadFromLocalStorage());
-  const [isOnline, setIsOnline] = useState(() => navigator.onLine);
-  const [isSyncing, setIsSyncing] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const hasSyncedRef = useRef(false);
   const currentUserIdRef = useRef(userId);
-
-  // Monitor online status
+  
+  const syncStatus = useSyncStatus();
+  const { isOnline, startSync, updateProgress, completeSync, setPendingCount, isSyncing } = syncStatus;
+  // Update pending count when it changes
   useEffect(() => {
-    const handleOnline = () => setIsOnline(true);
-    const handleOffline = () => setIsOnline(false);
+    const pendingSyncs = loadPendingSyncs();
+    setPendingCount(pendingSyncs.length);
+  }, [setPendingCount]);
 
-    window.addEventListener('online', handleOnline);
-    window.addEventListener('offline', handleOffline);
-
-    return () => {
-      window.removeEventListener('online', handleOnline);
-      window.removeEventListener('offline', handleOffline);
-    };
-  }, []);
-
-  // Sync pending changes when online
+  // Sync pending changes when online with progress tracking
   const syncPendingChanges = useCallback(async () => {
     if (!navigator.onLine || isSyncing) return;
 
     const pendingSyncs = loadPendingSyncs();
     if (pendingSyncs.length === 0) return;
 
-    setIsSyncing(true);
+    startSync(pendingSyncs.length);
+    let syncedCount = 0;
+    let failedCount = 0;
     const successfulSyncs: number[] = [];
 
     for (let i = 0; i < pendingSyncs.length; i++) {
@@ -168,15 +162,20 @@ export function useChildren(userId?: string) {
         }
         
         successfulSyncs.push(i);
+        syncedCount++;
+        updateProgress(syncedCount, failedCount);
       } catch (error) {
         console.error('Error syncing:', error);
+        failedCount++;
+        updateProgress(syncedCount, failedCount);
       }
     }
 
     const remainingSyncs = pendingSyncs.filter((_, index) => !successfulSyncs.includes(index));
     savePendingSyncs(remainingSyncs);
-    setIsSyncing(false);
-  }, [isSyncing]);
+    setPendingCount(remainingSyncs.length);
+    completeSync(failedCount === 0);
+  }, [isSyncing, startSync, updateProgress, completeSync, setPendingCount]);
 
   // Update userId ref when it changes
   useEffect(() => {
@@ -452,5 +451,6 @@ export function useChildren(userId?: string) {
     isOnline,
     isSyncing,
     isLoading,
+    syncProgress: syncStatus,
   };
 }

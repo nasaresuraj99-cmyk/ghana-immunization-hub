@@ -14,19 +14,21 @@ import { Child } from "@/types/child";
 
 interface NotificationSettingsProps {
   children: Child[];
+  userId?: string;
 }
 
-export function NotificationSettings({ children }: NotificationSettingsProps) {
+export function NotificationSettings({ children, userId }: NotificationSettingsProps) {
   const {
     isSupported,
     permissionStatus,
     settings,
+    fcmInitialized,
     enableNotifications,
     disableNotifications,
     setDaysBefore,
     sendTestNotification,
     getUpcomingVaccines,
-  } = usePushNotifications(children);
+  } = usePushNotifications(children, userId);
 
   const upcomingCount = getUpcomingVaccines().length;
 
@@ -122,15 +124,20 @@ export function NotificationSettings({ children }: NotificationSettingsProps) {
             </div>
           )}
 
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={sendTestNotification}
-            className="w-full"
-          >
-            <TestTube className="w-4 h-4 mr-2" />
-            Send Test Notification
-          </Button>
+          <div className="flex items-center gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={sendTestNotification}
+              className="flex-1"
+            >
+              <TestTube className="w-4 h-4 mr-2" />
+              Send Test
+            </Button>
+            {fcmInitialized && settings.fcmToken && (
+              <span className="text-xs text-success">FCM Connected</span>
+            )}
+          </div>
         </>
       )}
     </div>
