@@ -1,9 +1,10 @@
 import { useState } from "react";
-import { Menu, LogOut, Home, UserPlus, List, AlertTriangle, LayoutDashboard, BarChart3, Settings, X, Wifi, WifiOff, Calendar, Mail, RefreshCw } from "lucide-react";
+import { Menu, LogOut, Home, UserPlus, List, AlertTriangle, LayoutDashboard, BarChart3, Settings, X, Wifi, WifiOff, Calendar, Mail, RefreshCw, Users, Archive, Activity } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { resendVerificationEmail } from "@/lib/firebase";
 import { toast } from "sonner";
+import { AppRole, ROLE_PERMISSIONS } from "@/types/facility";
 
 interface HeaderProps {
   facilityName: string;
@@ -14,20 +15,39 @@ interface HeaderProps {
   onSectionChange: (section: string) => void;
   onLogout: () => void;
   onRefreshAuth: () => void;
+  userRole?: AppRole;
 }
 
-const navItems = [
-  { id: 'home', label: 'Home', icon: Home },
-  { id: 'registration', label: 'Register', icon: UserPlus },
-  { id: 'register', label: 'Children', icon: List },
-  { id: 'defaulters', label: 'Defaulters', icon: AlertTriangle },
-  { id: 'schedule', label: 'Schedule', icon: Calendar },
-  { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
-  { id: 'reporting', label: 'Reports', icon: BarChart3 },
-  { id: 'settings', label: 'Settings', icon: Settings },
-];
+const getNavItems = (userRole?: AppRole) => {
+  const permissions = userRole ? ROLE_PERMISSIONS[userRole] : ROLE_PERMISSIONS.read_only;
+  
+  const items = [
+    { id: 'home', label: 'Home', icon: Home },
+    { id: 'registration', label: 'Register', icon: UserPlus },
+    { id: 'register', label: 'Children', icon: List },
+    { id: 'defaulters', label: 'Defaulters', icon: AlertTriangle },
+    { id: 'schedule', label: 'Schedule', icon: Calendar },
+    { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
+    { id: 'reporting', label: 'Reports', icon: BarChart3 },
+    { id: 'settings', label: 'Settings', icon: Settings },
+  ];
 
-export function Header({ facilityName, userName, userEmail, emailVerified, currentSection, onSectionChange, onLogout, onRefreshAuth }: HeaderProps) {
+  // Add admin-only items
+  if (permissions.canViewArchive) {
+    items.push({ id: 'archive', label: 'Archive', icon: Archive });
+  }
+  if (permissions.canManageUsers) {
+    items.push({ id: 'users', label: 'Users', icon: Users });
+  }
+  if (permissions.canViewActivityLog) {
+    items.push({ id: 'activity', label: 'Activity', icon: Activity });
+  }
+
+  return items;
+};
+
+export function Header({ facilityName, userName, userEmail, emailVerified, currentSection, onSectionChange, onLogout, onRefreshAuth, userRole }: HeaderProps) {
+  const navItems = getNavItems(userRole);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [isSendingVerification, setIsSendingVerification] = useState(false);
   const isOnline = navigator.onLine;

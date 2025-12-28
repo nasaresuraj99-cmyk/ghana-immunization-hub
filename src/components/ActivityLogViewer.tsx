@@ -1,23 +1,21 @@
 import { useState } from 'react';
-import { Activity, ChevronDown, ChevronUp, Filter, User, Calendar, FileEdit, Trash2, RotateCcw, Plus } from 'lucide-react';
+import { Activity, ChevronDown, ChevronUp, Filter, Calendar, FileEdit, Trash2, RotateCcw, Plus, RefreshCw } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { ActivityLog } from '@/types/facility';
+import { useActivityLog } from '@/hooks/useActivityLog';
 import { cn } from '@/lib/utils';
 
 interface ActivityLogViewerProps {
-  logs: ActivityLog[];
-  isLoading?: boolean;
-  onRefresh?: () => void;
+  facilityId: string;
   className?: string;
 }
 
-export function ActivityLogViewer({ logs, isLoading, onRefresh, className }: ActivityLogViewerProps) {
-  const [isOpen, setIsOpen] = useState(false);
+export function ActivityLogViewer({ facilityId, className }: ActivityLogViewerProps) {
+  const { logs, isLoading, refreshLogs } = useActivityLog(facilityId);
   const [filterAction, setFilterAction] = useState<string>('all');
 
   const filteredLogs = filterAction === 'all' 
@@ -76,96 +74,94 @@ export function ActivityLogViewer({ logs, isLoading, onRefresh, className }: Act
 
   return (
     <Card className={cn('border shadow-elevation-1', className)}>
-      <Collapsible open={isOpen} onOpenChange={setIsOpen}>
-        <CollapsibleTrigger asChild>
-          <CardHeader className="cursor-pointer hover:bg-muted/30 transition-colors py-3">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <Activity className="w-5 h-5 text-primary" />
-                <CardTitle className="text-base font-medium">Activity Log</CardTitle>
-                <Badge variant="outline" className="ml-2">
-                  {logs.length} entries
-                </Badge>
-              </div>
-              {isOpen ? (
-                <ChevronUp className="w-5 h-5 text-muted-foreground" />
-              ) : (
-                <ChevronDown className="w-5 h-5 text-muted-foreground" />
-              )}
-            </div>
-          </CardHeader>
-        </CollapsibleTrigger>
+      <CardHeader className="pb-3">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <Activity className="w-5 h-5 text-primary" />
+            <CardTitle className="text-base font-medium">Activity Log</CardTitle>
+            <Badge variant="outline" className="ml-2">
+              {logs.length} entries
+            </Badge>
+          </div>
+          <Button
+            variant="ghost"
+            size="icon"
+            className="h-8 w-8"
+            onClick={refreshLogs}
+            disabled={isLoading}
+          >
+            <RefreshCw className={cn('w-4 h-4', isLoading && 'animate-spin')} />
+          </Button>
+        </div>
+      </CardHeader>
 
-        <CollapsibleContent>
-          <CardContent className="pt-0">
-            <div className="flex items-center gap-2 mb-4">
-              <Filter className="w-4 h-4 text-muted-foreground" />
-              <Select value={filterAction} onValueChange={setFilterAction}>
-                <SelectTrigger className="w-[150px] h-8 text-xs">
-                  <SelectValue placeholder="Filter by action" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">All Actions</SelectItem>
-                  <SelectItem value="create">Created</SelectItem>
-                  <SelectItem value="update">Updated</SelectItem>
-                  <SelectItem value="soft_delete">Archived</SelectItem>
-                  <SelectItem value="restore">Restored</SelectItem>
-                  <SelectItem value="permanent_delete">Deleted</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
+      <CardContent>
+        <div className="flex items-center gap-2 mb-4">
+          <Filter className="w-4 h-4 text-muted-foreground" />
+          <Select value={filterAction} onValueChange={setFilterAction}>
+            <SelectTrigger className="w-[150px] h-8 text-xs">
+              <SelectValue placeholder="Filter by action" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All Actions</SelectItem>
+              <SelectItem value="create">Created</SelectItem>
+              <SelectItem value="update">Updated</SelectItem>
+              <SelectItem value="soft_delete">Archived</SelectItem>
+              <SelectItem value="restore">Restored</SelectItem>
+              <SelectItem value="permanent_delete">Deleted</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
 
-            {filteredLogs.length === 0 ? (
-              <div className="text-center py-8 text-muted-foreground">
-                <Activity className="w-8 h-8 mx-auto mb-2 opacity-50" />
-                <p className="text-sm">No activity logs yet</p>
-              </div>
-            ) : (
-              <ScrollArea className="h-[350px]">
-                <div className="space-y-3">
-                  {filteredLogs.map((log) => (
-                    <div
-                      key={log.id}
-                      className="flex items-start gap-3 p-3 rounded-lg border bg-card hover:bg-muted/30 transition-colors"
-                    >
-                      <div className="mt-0.5 p-1.5 rounded-full bg-muted">
-                        {getActionIcon(log.action)}
+        {filteredLogs.length === 0 ? (
+          <div className="text-center py-8 text-muted-foreground">
+            <Activity className="w-8 h-8 mx-auto mb-2 opacity-50" />
+            <p className="text-sm">No activity logs yet</p>
+          </div>
+        ) : (
+          <ScrollArea className="h-[400px]">
+            <div className="space-y-3">
+              {filteredLogs.map((log) => (
+                <div
+                  key={log.id}
+                  className="flex items-start gap-3 p-3 rounded-lg border bg-card hover:bg-muted/30 transition-colors"
+                >
+                  <div className="mt-0.5 p-1.5 rounded-full bg-muted">
+                    {getActionIcon(log.action)}
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center justify-between gap-2 mb-1">
+                      <div className="flex items-center gap-2">
+                        {getActionBadge(log.action)}
+                        <Badge variant="outline" className="text-xs">
+                          {log.entityType}
+                        </Badge>
                       </div>
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center justify-between gap-2 mb-1">
-                          <div className="flex items-center gap-2">
-                            {getActionBadge(log.action)}
-                            <Badge variant="outline" className="text-xs">
-                              {log.entityType}
-                            </Badge>
-                          </div>
-                          <span className="text-xs text-muted-foreground flex items-center gap-1">
-                            <Calendar className="w-3 h-3" />
-                            {formatTime(log.createdAt)}
-                          </span>
-                        </div>
-                        {log.description && (
-                          <p className="text-sm mt-1">{log.description}</p>
-                        )}
-                        {log.entityName && (
-                          <p className="text-xs text-muted-foreground mt-1 truncate">
-                            Record: {log.entityName}
-                          </p>
-                        )}
-                        {log.userName && (
-                          <p className="text-xs text-muted-foreground mt-1">
-                            By: {log.userName}
-                          </p>
-                        )}
-                      </div>
+                      <span className="text-xs text-muted-foreground flex items-center gap-1">
+                        <Calendar className="w-3 h-3" />
+                        {formatTime(log.createdAt)}
+                      </span>
                     </div>
-                  ))}
+                    {log.description && (
+                      <p className="text-sm mt-1">{log.description}</p>
+                    )}
+                    {log.entityName && (
+                      <p className="text-xs text-muted-foreground mt-1 truncate">
+                        Record: {log.entityName}
+                      </p>
+                    )}
+                    {log.userName && (
+                      <p className="text-xs text-muted-foreground mt-1">
+                        By: {log.userName}
+                      </p>
+                    )}
+                  </div>
                 </div>
-              </ScrollArea>
-            )}
-          </CardContent>
-        </CollapsibleContent>
-      </Collapsible>
+              ))}
+            </div>
+          </ScrollArea>
+        )}
+      </CardContent>
     </Card>
   );
 }

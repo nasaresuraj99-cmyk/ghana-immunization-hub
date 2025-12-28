@@ -12,9 +12,11 @@ interface ChildRegisterSectionProps {
   onEdit: (child: Child) => void;
   onDelete: (childId: string) => void;
   onViewVaccines: (child: Child) => void;
+  canEdit?: boolean;
+  canDelete?: boolean;
 }
 
-export function ChildRegisterSection({ children, onEdit, onDelete, onViewVaccines }: ChildRegisterSectionProps) {
+export function ChildRegisterSection({ children, onEdit, onDelete, onViewVaccines, canEdit = true, canDelete = true }: ChildRegisterSectionProps) {
   const [searchTerm, setSearchTerm] = useState("");
 
   const filteredChildren = useMemo(() => {
@@ -158,24 +160,28 @@ export function ChildRegisterSection({ children, onEdit, onDelete, onViewVaccine
                           >
                             <CreditCard className="w-4 h-4" />
                           </Button>
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            className="h-8 w-8"
-                            onClick={() => onEdit(child)}
-                            title="Edit"
-                          >
-                            <Edit className="w-4 h-4" />
-                          </Button>
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            className="h-8 w-8 text-destructive hover:text-destructive"
-                            onClick={() => onDelete(child.id)}
-                            title="Delete"
-                          >
-                            <Trash2 className="w-4 h-4" />
-                          </Button>
+                          {canEdit && (
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="h-8 w-8"
+                              onClick={() => onEdit(child)}
+                              title="Edit"
+                            >
+                              <Edit className="w-4 h-4" />
+                            </Button>
+                          )}
+                          {canDelete && (
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="h-8 w-8 text-destructive hover:text-destructive"
+                              onClick={() => onDelete(child.id)}
+                              title="Archive"
+                            >
+                              <Trash2 className="w-4 h-4" />
+                            </Button>
+                          )}
                         </div>
                       </td>
                     </tr>

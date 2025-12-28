@@ -18,16 +18,21 @@ import { OfflineIndicator } from "@/components/OfflineIndicator";
 import { SyncProgressBar } from "@/components/SyncProgressBar";
 import { PendingChangesQueue } from "@/components/PendingChangesQueue";
 import { ConflictResolutionModal } from "@/components/ConflictResolutionModal";
+import { FacilityOnboarding } from "@/components/FacilityOnboarding";
+import { UserManagementPanel } from "@/components/UserManagementPanel";
+import { ArchiveSection } from "@/components/ArchiveSection";
+import { ActivityLogViewer } from "@/components/ActivityLogViewer";
 import { useChildren } from "@/hooks/useChildren";
 import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
 import { Child } from "@/types/child";
+import { ROLE_PERMISSIONS } from "@/types/facility";
 import { Loader2 } from "lucide-react";
 
-type Section = 'home' | 'registration' | 'register' | 'defaulters' | 'dashboard' | 'reporting' | 'settings' | 'schedule';
+type Section = 'home' | 'registration' | 'register' | 'defaulters' | 'dashboard' | 'reporting' | 'settings' | 'schedule' | 'archive' | 'users' | 'activity';
 
 export default function Index() {
-  const { user, loading: authLoading, login, signup, logout, forgotPassword, updateFacility, isAuthenticated, refreshUser } = useAuth();
+  const { user, loading: authLoading, login, signup, logout, forgotPassword, updateFacility, isAuthenticated, refreshUser, needsOnboarding, completeOnboarding } = useAuth();
   const emailVerified = user?.emailVerified ?? true;
   const refreshAuth = refreshUser;
   const [currentSection, setCurrentSection] = useState<Section>('home');
@@ -36,8 +41,37 @@ export default function Index() {
   const [profileModalChild, setProfileModalChild] = useState<Child | null>(null);
   const [showPendingQueue, setShowPendingQueue] = useState(false);
   
-  const { children, stats, addChild, updateChild, deleteChild, updateVaccine, importChildren, isSyncing, isLoading, syncProgress, conflicts, isConflictModalOpen, setIsConflictModalOpen, handleConflictResolution, getConflictDiffs } = useChildren(user?.uid);
+  // Pass both userId and facilityId to useChildren
+  const { 
+    children, 
+    archivedChildren,
+    stats, 
+    addChild, 
+    updateChild, 
+    deleteChild,
+    softDeleteChild,
+    restoreChild,
+    permanentDeleteChild,
+    updateVaccine, 
+    importChildren, 
+    isSyncing, 
+    isLoading, 
+    syncProgress, 
+    conflicts, 
+    isConflictModalOpen, 
+    setIsConflictModalOpen, 
+    handleConflictResolution, 
+    getConflictDiffs 
+  } = useChildren({ 
+    userId: user?.uid, 
+    facilityId: user?.facilityId 
+  });
+  
   const { toast } = useToast();
+  
+  // Get user permissions based on role
+  const userRole = user?.role || 'read_only';
+  const permissions = ROLE_PERMISSIONS[userRole];
 
   const handleLogin = async (email: string, password: string) => {
     try {
@@ -105,15 +139,33 @@ export default function Index() {
   };
 
   const handleSaveChild = (childData: Omit<Child, 'id' | 'userId' | 'registeredAt' | 'vaccines'>) => {
+    if (!permissions.canAdd && !editingChild) {
+      toast({
+        title: "Permission Denied",
+        description: "You don't have permission to add children.",
+        variant: "destructive",
+      });
+      return;
+    }
+    
+    if (!permissions.canEdit && editingChild) {
+      toast({
+        title: "Permission Denied",
+        description: "You don't have permission to edit children.",
+        variant: "destructive",
+      });
+      return;
+    }
+    
     if (editingChild) {
-      updateChild(editingChild.id, childData);
+      updateChild(editingChild.id, childData, user?.name);
       setEditingChild(null);
       toast({
         title: "Updated",
         description: "Child record has been updated.",
       });
     } else {
-      addChild(childData);
+      addChild(childData, user?.name);
       toast({
         title: "Registered",
         description: "Child has been registered successfully.",
@@ -123,18 +175,69 @@ export default function Index() {
   };
 
   const handleEditChild = (child: Child) => {
+    if (!permissions.canEdit) {
+      toast({
+        title: "Permission Denied",
+        description: "You don't have permission to edit children.",
+        variant: "destructive",
+      });
+      return;
+    }
     setEditingChild(child);
     setCurrentSection('registration');
   };
 
   const handleDeleteChild = (childId: string) => {
-    if (confirm('Are you sure you want to delete this child record?')) {
-      deleteChild(childId);
+    if (!permissions.canSoftDelete) {
       toast({
-        title: "Deleted",
-        description: "Child record has been deleted.",
+        title: "Permission Denied",
+        description: "You don't have permission to delete children.",
+        variant: "destructive",
+      });
+      return;
+    }
+    
+    if (confirm('Are you sure you want to archive this child record? It can be restored later.')) {
+      softDeleteChild(childId, user?.uid || '', user?.name);
+      toast({
+        title: "Archived",
+        description: "Child record has been archived.",
       });
     }
+  };
+
+  const handleRestoreChild = (childId: string) => {
+    if (!permissions.canRestoreArchived) {
+      toast({
+        title: "Permission Denied",
+        description: "You don't have permission to restore archived records.",
+        variant: "destructive",
+      });
+      return;
+    }
+    
+    restoreChild(childId, user?.uid || '', user?.name);
+    toast({
+      title: "Restored",
+      description: "Child record has been restored.",
+    });
+  };
+
+  const handlePermanentDelete = (childId: string) => {
+    if (!permissions.canPermanentDelete) {
+      toast({
+        title: "Permission Denied",
+        description: "You don't have permission to permanently delete records.",
+        variant: "destructive",
+      });
+      return;
+    }
+    
+    permanentDeleteChild(childId, user?.uid || '', user?.name);
+    toast({
+      title: "Permanently Deleted",
+      description: "Child record has been permanently deleted.",
+    });
   };
 
   const handleViewVaccines = (child: Child) => {
@@ -146,7 +249,16 @@ export default function Index() {
   };
 
   const handleAdministerVaccine = (childId: string, vaccineName: string, givenDate: string, batchNumber: string) => {
-    updateVaccine(childId, vaccineName, givenDate, batchNumber);
+    if (!permissions.canEdit) {
+      toast({
+        title: "Permission Denied",
+        description: "You don't have permission to administer vaccines.",
+        variant: "destructive",
+      });
+      return;
+    }
+    
+    updateVaccine(childId, vaccineName, givenDate, batchNumber, user?.name);
     toast({
       title: "Vaccine Administered",
       description: `${vaccineName} has been recorded successfully.`,
@@ -155,6 +267,15 @@ export default function Index() {
     if (updatedChild) {
       setVaccineModalChild({ ...updatedChild });
     }
+  };
+
+  const handleOnboardingComplete = async (facilityId: string, facilityName: string, role: 'facility_admin' | 'staff') => {
+    await updateFacility(facilityId, facilityName, role);
+    completeOnboarding();
+    toast({
+      title: "Setup Complete",
+      description: `Welcome to ${facilityName}!`,
+    });
   };
 
   // Show loading screen while checking auth
@@ -179,6 +300,17 @@ export default function Index() {
     );
   }
 
+  // Show facility onboarding if user needs it
+  if (needsOnboarding) {
+    return (
+      <FacilityOnboarding
+        userId={user?.uid || ''}
+        userName={user?.name || ''}
+        onComplete={handleOnboardingComplete}
+      />
+    );
+  }
+
   return (
     <div className="min-h-screen bg-background">
       <Header
@@ -188,11 +320,37 @@ export default function Index() {
         emailVerified={emailVerified}
         currentSection={currentSection}
         onSectionChange={(section) => {
+          // Check permissions for protected sections
+          if (section === 'users' && !permissions.canManageUsers) {
+            toast({
+              title: "Access Denied",
+              description: "You don't have permission to manage users.",
+              variant: "destructive",
+            });
+            return;
+          }
+          if (section === 'archive' && !permissions.canViewArchive) {
+            toast({
+              title: "Access Denied",
+              description: "You don't have permission to view archived records.",
+              variant: "destructive",
+            });
+            return;
+          }
+          if (section === 'activity' && !permissions.canViewActivityLog) {
+            toast({
+              title: "Access Denied",
+              description: "You don't have permission to view activity logs.",
+              variant: "destructive",
+            });
+            return;
+          }
           setCurrentSection(section as Section);
           setEditingChild(null);
         }}
         onLogout={handleLogout}
         onRefreshAuth={refreshAuth}
+        userRole={userRole}
       />
 
       <div className="bg-card border-b px-4 py-3 shadow-elevation-1">
@@ -229,7 +387,7 @@ export default function Index() {
           />
         )}
 
-        {currentSection === 'registration' && (
+        {currentSection === 'registration' && permissions.canAdd && (
           <RegistrationSection
             editingChild={editingChild}
             existingChildren={children}
@@ -248,6 +406,8 @@ export default function Index() {
             onEdit={handleEditChild}
             onDelete={handleDeleteChild}
             onViewVaccines={handleViewVaccines}
+            canEdit={permissions.canEdit}
+            canDelete={permissions.canSoftDelete}
           />
         )}
 
@@ -282,6 +442,29 @@ export default function Index() {
           <ImmunizationScheduleSection />
         )}
 
+        {currentSection === 'archive' && permissions.canViewArchive && (
+          <ArchiveSection
+            archivedChildren={archivedChildren}
+            userRole={userRole}
+            onRestore={handleRestoreChild}
+            onPermanentDelete={handlePermanentDelete}
+          />
+        )}
+
+        {currentSection === 'users' && permissions.canManageUsers && user?.facilityId && (
+          <UserManagementPanel
+            facilityId={user.facilityId}
+            currentUserId={user.uid}
+            currentUserRole={userRole}
+          />
+        )}
+
+        {currentSection === 'activity' && permissions.canViewActivityLog && user?.facilityId && (
+          <ActivityLogViewer
+            facilityId={user.facilityId}
+          />
+        )}
+
         {currentSection === 'settings' && (
           <SettingsSection
             userName={user?.name || ""}
@@ -290,8 +473,8 @@ export default function Index() {
             facilityName={user?.facility || ""}
             children={children}
             stats={stats}
+            userRole={userRole}
             onUpdateProfile={(name, facility) => {
-              // Note: Full facility update requires facilityId
               toast({
                 title: "Profile Updated",
                 description: "Your profile has been updated successfully.",
@@ -309,6 +492,9 @@ export default function Index() {
               }
             }}
             onImportChildren={importChildren}
+            onNavigateToArchive={() => setCurrentSection('archive')}
+            onNavigateToUsers={() => setCurrentSection('users')}
+            onNavigateToActivity={() => setCurrentSection('activity')}
           />
         )}
       </main>
