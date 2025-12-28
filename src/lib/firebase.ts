@@ -7,10 +7,7 @@ import {
   doc,
   getDocs,
   setDoc,
-  deleteDoc,
-  onSnapshot,
-  writeBatch,
-  Timestamp
+  deleteDoc
 } from "firebase/firestore";
 
 const firebaseConfig = {
@@ -32,6 +29,8 @@ isSupported().then(supported => {
   if (supported) {
     analytics = getAnalytics(app);
   }
+}).catch(() => {
+  // Analytics not supported
 });
 
 // Initialize Firestore with offline persistence
@@ -54,8 +53,5 @@ export {
   doc, 
   getDocs, 
   setDoc, 
-  deleteDoc, 
-  onSnapshot,
-  writeBatch,
-  Timestamp
+  deleteDoc
 };
