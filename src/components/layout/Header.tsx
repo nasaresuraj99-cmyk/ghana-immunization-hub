@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Menu, LogOut, Home, UserPlus, List, AlertTriangle, LayoutDashboard, BarChart3, Settings, X, Wifi, WifiOff } from "lucide-react";
+import { Menu, LogOut, Home, UserPlus, List, AlertTriangle, LayoutDashboard, BarChart3, Settings, X, Wifi, WifiOff, Calendar } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
@@ -17,6 +17,7 @@ const navItems = [
   { id: 'registration', label: 'Register', icon: UserPlus },
   { id: 'register', label: 'Children', icon: List },
   { id: 'defaulters', label: 'Defaulters', icon: AlertTriangle },
+  { id: 'schedule', label: 'Schedule', icon: Calendar },
   { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
   { id: 'reporting', label: 'Reports', icon: BarChart3 },
   { id: 'settings', label: 'Settings', icon: Settings },

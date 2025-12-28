@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { AuthScreen } from "@/components/auth/AuthScreen";
 import { Header } from "@/components/layout/Header";
 import { HomeSection } from "@/components/sections/HomeSection";
@@ -8,81 +8,105 @@ import { DefaultersSection } from "@/components/sections/DefaultersSection";
 import { DashboardSection } from "@/components/sections/DashboardSection";
 import { ReportingSection } from "@/components/sections/ReportingSection";
 import { SettingsSection } from "@/components/sections/SettingsSection";
+import { ImmunizationScheduleSection } from "@/components/sections/ImmunizationScheduleSection";
 import { VaccineAdministrationModal } from "@/components/modals/VaccineAdministrationModal";
 import { DeveloperCredits } from "@/components/DeveloperCredits";
 import { useChildren } from "@/hooks/useChildren";
+import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
 import { Child } from "@/types/child";
+import { Loader2, Wifi, WifiOff, RefreshCw } from "lucide-react";
 
-type Section = 'home' | 'registration' | 'register' | 'defaulters' | 'dashboard' | 'reporting' | 'settings';
-
-interface User {
-  name: string;
-  email: string;
-  facility: string;
-}
+type Section = 'home' | 'registration' | 'register' | 'defaulters' | 'dashboard' | 'reporting' | 'settings' | 'schedule';
 
 export default function Index() {
-  const [isAuthenticated, setIsAuthenticated] = useState(false);
-  const [user, setUser] = useState<User | null>(null);
+  const { user, loading: authLoading, login, signup, logout, forgotPassword, updateFacility, isAuthenticated } = useAuth();
   const [currentSection, setCurrentSection] = useState<Section>('home');
   const [editingChild, setEditingChild] = useState<Child | null>(null);
-  
   const [vaccineModalChild, setVaccineModalChild] = useState<Child | null>(null);
   
-  const { children, stats, addChild, updateChild, deleteChild, updateVaccine } = useChildren();
+  const { children, stats, addChild, updateChild, deleteChild, updateVaccine, isOnline, isSyncing } = useChildren();
   const { toast } = useToast();
 
-  const handleLogin = (email: string, password: string) => {
-    // Demo login - in production, this would authenticate against a backend
-    setUser({
-      name: "Health Worker",
-      email: email,
-      facility: "Korle Bu Teaching Hospital",
-    });
-    setIsAuthenticated(true);
-    toast({
-      title: "Welcome!",
-      description: "You have successfully logged in.",
-    });
+  const handleLogin = async (email: string, password: string) => {
+    try {
+      await login(email, password);
+      toast({
+        title: "Welcome back!",
+        description: "You have successfully logged in.",
+      });
+    } catch (error: any) {
+      toast({
+        title: "Login Failed",
+        description: error.message,
+        variant: "destructive",
+      });
+    }
   };
 
-  const handleSignup = (name: string, facility: string, email: string, password: string) => {
-    setUser({
-      name,
-      email,
-      facility,
-    });
-    setIsAuthenticated(true);
-    toast({
-      title: "Account Created",
-      description: "Your facility account has been created successfully.",
-    });
+  const handleSignup = async (name: string, facility: string, email: string, password: string) => {
+    try {
+      await signup(name, facility, email, password);
+      toast({
+        title: "Account Created",
+        description: "Your facility account has been created successfully.",
+      });
+    } catch (error: any) {
+      toast({
+        title: "Signup Failed",
+        description: error.message,
+        variant: "destructive",
+      });
+    }
   };
 
-  const handleForgotPassword = (email: string) => {
-    toast({
-      title: "Password Reset",
-      description: `Password reset instructions sent to ${email}`,
-    });
+  const handleForgotPassword = async (email: string) => {
+    try {
+      await forgotPassword(email);
+      toast({
+        title: "Password Reset Email Sent",
+        description: `Check ${email} for reset instructions.`,
+      });
+    } catch (error: any) {
+      toast({
+        title: "Error",
+        description: error.message,
+        variant: "destructive",
+      });
+    }
   };
 
-  const handleLogout = () => {
-    setIsAuthenticated(false);
-    setUser(null);
-    setCurrentSection('home');
-    toast({
-      title: "Logged Out",
-      description: "You have been logged out successfully.",
-    });
+  const handleLogout = async () => {
+    try {
+      await logout();
+      setCurrentSection('home');
+      toast({
+        title: "Logged Out",
+        description: "You have been logged out successfully.",
+      });
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: "Failed to logout. Please try again.",
+        variant: "destructive",
+      });
+    }
   };
 
   const handleSaveChild = (childData: Omit<Child, 'id' | 'registeredAt' | 'vaccines'>) => {
     if (editingChild) {
       updateChild(editingChild.id, childData);
       setEditingChild(null);
+      toast({
+        title: "Updated",
+        description: "Child record has been updated.",
+      });
     } else {
       addChild(childData);
+      toast({
+        title: "Registered",
+        description: "Child has been registered successfully.",
+      });
     }
     setCurrentSection('register');
   };
@@ -112,12 +136,23 @@ export default function Index() {
       title: "Vaccine Administered",
       description: `${vaccineName} has been recorded successfully.`,
     });
-    // Update the modal child reference to reflect changes
     const updatedChild = children.find(c => c.id === childId);
     if (updatedChild) {
       setVaccineModalChild({ ...updatedChild });
     }
   };
+
+  // Show loading screen while checking auth
+  if (authLoading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-primary/5 via-background to-secondary/5">
+        <div className="text-center space-y-4">
+          <Loader2 className="w-12 h-12 animate-spin text-primary mx-auto" />
+          <p className="text-muted-foreground">Loading...</p>
+        </div>
+      </div>
+    );
+  }
 
   if (!isAuthenticated) {
     return (
@@ -142,6 +177,28 @@ export default function Index() {
         }}
         onLogout={handleLogout}
       />
+
+      {/* Sync Status Bar */}
+      <div className="bg-card border-b px-4 py-2">
+        <div className="max-w-7xl mx-auto flex items-center justify-between text-sm">
+          <div className="flex items-center gap-2">
+            {isOnline ? (
+              <Wifi className="w-4 h-4 text-success" />
+            ) : (
+              <WifiOff className="w-4 h-4 text-warning" />
+            )}
+            <span className={isOnline ? "text-success" : "text-warning"}>
+              {isOnline ? "Online" : "Offline"}
+            </span>
+          </div>
+          {isSyncing && (
+            <div className="flex items-center gap-2 text-primary">
+              <RefreshCw className="w-4 h-4 animate-spin" />
+              <span>Syncing...</span>
+            </div>
+          )}
+        </div>
+      </div>
 
       <main className="max-w-7xl mx-auto px-4 py-6">
         {currentSection === 'home' && (
@@ -199,16 +256,27 @@ export default function Index() {
           />
         )}
 
+        {currentSection === 'schedule' && (
+          <ImmunizationScheduleSection />
+        )}
+
         {currentSection === 'settings' && (
           <SettingsSection
             userName={user?.name || ""}
             userEmail={user?.email || ""}
             facilityName={user?.facility || ""}
             onUpdateProfile={(name, facility) => {
-              setUser(prev => prev ? { ...prev, name, facility } : null);
+              updateFacility(facility);
+              toast({
+                title: "Profile Updated",
+                description: "Your profile has been updated successfully.",
+              });
             }}
             onChangePassword={(current, newPass) => {
-              console.log("Password change requested");
+              toast({
+                title: "Password Change",
+                description: "Please use the forgot password feature to change your password.",
+              });
             }}
             onDeleteAccount={() => {
               if (confirm('Are you sure you want to delete your account? This cannot be undone.')) {
@@ -225,7 +293,6 @@ export default function Index() {
         © {new Date().getFullYear()} Ghana Health Service - Immunization Tracker
       </footer>
 
-      {/* Vaccine Administration Modal */}
       <VaccineAdministrationModal
         child={vaccineModalChild}
         isOpen={!!vaccineModalChild}
