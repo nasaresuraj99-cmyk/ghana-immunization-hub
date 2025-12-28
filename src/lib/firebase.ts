@@ -16,6 +16,7 @@ import {
   createUserWithEmailAndPassword,
   signOut,
   sendPasswordResetEmail,
+  sendEmailVerification,
   onAuthStateChanged,
   updateProfile,
   User
@@ -59,8 +60,17 @@ export const signupWithEmail = async (email: string, password: string, displayNa
   const result = await createUserWithEmailAndPassword(auth, email, password);
   if (result.user) {
     await updateProfile(result.user, { displayName });
+    // Send email verification
+    await sendEmailVerification(result.user);
   }
   return result;
+};
+
+export const resendVerificationEmail = async () => {
+  const user = auth.currentUser;
+  if (user && !user.emailVerified) {
+    await sendEmailVerification(user);
+  }
 };
 
 export const logout = async () => {

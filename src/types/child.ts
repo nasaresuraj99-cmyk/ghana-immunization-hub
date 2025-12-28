@@ -1,5 +1,6 @@
 export interface Child {
   id: string;
+  userId: string; // Owner's Firebase UID for data isolation
   regNo: string;
   name: string;
   dateOfBirth: string;
