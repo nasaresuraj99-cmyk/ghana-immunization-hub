@@ -5,18 +5,24 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
+import { useSyncHistory } from '@/hooks/useSyncHistory';
 import { SyncHistoryRecord } from '@/types/facility';
 import { cn } from '@/lib/utils';
 
 interface SyncHistoryLogProps {
-  history: SyncHistoryRecord[];
+  history?: SyncHistoryRecord[];
   isLoading?: boolean;
   onRefresh?: () => void;
   className?: string;
 }
 
-export function SyncHistoryLog({ history, isLoading, onRefresh, className }: SyncHistoryLogProps) {
+export function SyncHistoryLog({ history: externalHistory, isLoading: externalLoading, onRefresh, className }: SyncHistoryLogProps) {
   const [isOpen, setIsOpen] = useState(false);
+  const { history: internalHistory, isLoading: internalLoading, refreshHistory } = useSyncHistory();
+  
+  const history = externalHistory ?? internalHistory;
+  const isLoading = externalLoading ?? internalLoading;
+  const handleRefresh = onRefresh ?? refreshHistory;
 
   const getStatusIcon = (status: SyncHistoryRecord['status']) => {
     switch (status) {
@@ -83,20 +89,18 @@ export function SyncHistoryLog({ history, isLoading, onRefresh, className }: Syn
                 </div>
               </div>
               <div className="flex items-center gap-2">
-                {onRefresh && (
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    className="h-8 w-8"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      onRefresh();
-                    }}
-                    disabled={isLoading}
-                  >
-                    <RefreshCw className={cn('w-4 h-4', isLoading && 'animate-spin')} />
-                  </Button>
-                )}
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-8 w-8"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    handleRefresh();
+                  }}
+                  disabled={isLoading}
+                >
+                  <RefreshCw className={cn('w-4 h-4', isLoading && 'animate-spin')} />
+                </Button>
                 {isOpen ? (
                   <ChevronUp className="w-5 h-5 text-muted-foreground" />
                 ) : (
