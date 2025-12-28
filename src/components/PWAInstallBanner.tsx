@@ -4,17 +4,17 @@ import { usePWAInstall } from '@/hooks/usePWAInstall';
 import { IOSInstallModal } from '@/components/IOSInstallModal';
 
 export const PWAInstallBanner = () => {
-  const { showBanner, installApp, dismissBanner, isInstalled, isIOS, showIOSModal, closeIOSModal } = usePWAInstall();
+  const { showBanner, installApp, dismissBanner, isInstalled, isIOS, showIOSModal, closeIOSModal, isInstallable } = usePWAInstall();
 
-  if (isInstalled) {
+  if (isInstalled || (!showBanner && !isInstallable)) {
     return null;
   }
 
   return (
     <>
-      {showBanner && (
-        <div className="fixed bottom-0 left-0 right-0 z-50 p-4 bg-primary text-primary-foreground shadow-lg animate-slide-up md:hidden">
-          <div className="flex items-center gap-3">
+      {(showBanner || isInstallable) && (
+        <div className="fixed bottom-0 left-0 right-0 z-50 p-4 bg-primary text-primary-foreground shadow-lg animate-slide-up">
+          <div className="max-w-7xl mx-auto flex items-center gap-3">
             <div className="flex-shrink-0 p-2 bg-primary-foreground/20 rounded-full">
               <Smartphone className="h-6 w-6" />
             </div>
