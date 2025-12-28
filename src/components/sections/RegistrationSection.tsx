@@ -6,6 +6,7 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
 import { Child } from "@/types/child";
+import { generateRegistrationId } from "@/lib/registrationId";
 
 interface RegistrationSectionProps {
   editingChild?: Child | null;
@@ -40,15 +41,14 @@ export function RegistrationSection({ editingChild, onSave, onCancel, onBack, ex
         community: editingChild.community,
       });
     } else {
-      // Generate new registration number
-      const year = new Date().getFullYear();
-      const count = existingChildren.length + 1;
+      // Generate new unique registration number
+      const newRegNo = generateRegistrationId(existingChildren);
       setFormData(prev => ({
         ...prev,
-        regNo: `GHS-${year}-${String(count).padStart(4, '0')}`
+        regNo: newRegNo
       }));
     }
-  }, [editingChild, existingChildren.length]);
+  }, [editingChild, existingChildren]);
 
   const validateAge = (dob: string) => {
     if (!dob) return;
