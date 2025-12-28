@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Menu, LogOut, Home, UserPlus, List, AlertTriangle, LayoutDashboard, BarChart3, Settings, User } from "lucide-react";
+import { Menu, LogOut, Home, UserPlus, List, AlertTriangle, LayoutDashboard, BarChart3, Settings, X, Wifi, WifiOff } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
@@ -14,8 +14,8 @@ interface HeaderProps {
 
 const navItems = [
   { id: 'home', label: 'Home', icon: Home },
-  { id: 'registration', label: 'Register Child', icon: UserPlus },
-  { id: 'register', label: 'Child Register', icon: List },
+  { id: 'registration', label: 'Register', icon: UserPlus },
+  { id: 'register', label: 'Children', icon: List },
   { id: 'defaulters', label: 'Defaulters', icon: AlertTriangle },
   { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
   { id: 'reporting', label: 'Reports', icon: BarChart3 },
@@ -24,32 +24,42 @@ const navItems = [
 
 export function Header({ facilityName, userName, userEmail, currentSection, onSectionChange, onLogout }: HeaderProps) {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const isOnline = navigator.onLine;
 
   return (
     <>
-      <header className="gradient-ghs text-primary-foreground sticky top-0 z-50 shadow-elevation-2">
+      <header className="gradient-ghs text-primary-foreground sticky top-0 z-50 shadow-elevation-3">
         <div className="max-w-7xl mx-auto px-4 py-4">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
-              <span className="text-3xl">🏥</span>
+              <div className="text-3xl animate-float">🏥</div>
               <div>
-                <h1 className="text-lg md:text-xl font-bold">Immunization Tracker</h1>
-                <div className="text-xs md:text-sm opacity-90 bg-primary-foreground/10 px-2 py-0.5 rounded inline-block">
-                  {facilityName}
+                <h1 className="text-lg md:text-xl font-bold tracking-tight">Immunization Tracker</h1>
+                <div className="flex items-center gap-2">
+                  <span className="text-xs md:text-sm opacity-90 bg-primary-foreground/10 px-2 py-0.5 rounded-full">
+                    {facilityName}
+                  </span>
+                  <span className={cn(
+                    "flex items-center gap-1 text-xs px-2 py-0.5 rounded-full",
+                    isOnline ? "bg-success/20" : "bg-warning/20"
+                  )}>
+                    {isOnline ? <Wifi className="w-3 h-3" /> : <WifiOff className="w-3 h-3" />}
+                    <span className="hidden sm:inline">{isOnline ? 'Online' : 'Offline'}</span>
+                  </span>
                 </div>
               </div>
             </div>
 
             {/* Desktop Navigation */}
-            <nav className="hidden lg:flex items-center gap-1">
+            <nav className="hidden lg:flex items-center gap-1 bg-primary-foreground/5 rounded-full p-1">
               {navItems.map((item) => (
                 <button
                   key={item.id}
                   onClick={() => onSectionChange(item.id)}
                   className={cn(
-                    "flex items-center gap-2 px-3 py-2 rounded-md text-sm font-medium transition-all",
+                    "flex items-center gap-2 px-4 py-2 rounded-full text-sm font-medium transition-all",
                     currentSection === item.id
-                      ? "bg-primary-foreground/20"
+                      ? "bg-primary-foreground text-primary shadow-sm"
                       : "hover:bg-primary-foreground/10"
                   )}
                 >
@@ -61,8 +71,8 @@ export function Header({ facilityName, userName, userEmail, currentSection, onSe
 
             <div className="flex items-center gap-4">
               <div className="hidden md:flex flex-col items-end">
-                <span className="text-sm font-medium">{userName}</span>
-                <span className="text-xs opacity-80">{userEmail}</span>
+                <span className="text-sm font-semibold">{userName}</span>
+                <span className="text-xs opacity-70">{userEmail}</span>
               </div>
               
               <Button
@@ -77,7 +87,7 @@ export function Header({ facilityName, userName, userEmail, currentSection, onSe
               <Button
                 variant="outline"
                 size="sm"
-                className="hidden sm:flex items-center gap-2 bg-primary-foreground/10 border-primary-foreground/30 text-primary-foreground hover:bg-primary-foreground/20"
+                className="hidden sm:flex items-center gap-2 bg-primary-foreground/10 border-primary-foreground/20 text-primary-foreground hover:bg-primary-foreground hover:text-primary rounded-full"
                 onClick={onLogout}
               >
                 <LogOut className="w-4 h-4" />
@@ -90,16 +100,21 @@ export function Header({ facilityName, userName, userEmail, currentSection, onSe
 
       {/* Mobile Menu */}
       {mobileMenuOpen && (
-        <div className="fixed inset-0 z-50 bg-foreground/80 backdrop-blur-sm animate-fade-in lg:hidden">
-          <div className="fixed inset-y-0 right-0 w-full max-w-sm bg-card animate-slide-in-right">
-            <div className="flex items-center justify-between p-4 border-b">
-              <h2 className="text-lg font-semibold">Menu</h2>
+        <div className="fixed inset-0 z-50 lg:hidden">
+          <div 
+            className="absolute inset-0 bg-foreground/60 backdrop-blur-sm animate-fade-in"
+            onClick={() => setMobileMenuOpen(false)}
+          />
+          <div className="absolute inset-y-0 right-0 w-full max-w-sm bg-card shadow-2xl animate-slide-in-right">
+            <div className="flex items-center justify-between p-4 border-b gradient-ghs text-primary-foreground">
+              <h2 className="text-lg font-bold">Menu</h2>
               <Button
                 variant="ghost"
                 size="icon"
+                className="text-primary-foreground hover:bg-primary-foreground/10"
                 onClick={() => setMobileMenuOpen(false)}
               >
-                ×
+                <X className="w-5 h-5" />
               </Button>
             </div>
             
@@ -112,9 +127,9 @@ export function Header({ facilityName, userName, userEmail, currentSection, onSe
                     setMobileMenuOpen(false);
                   }}
                   className={cn(
-                    "flex items-center gap-3 w-full px-4 py-3 rounded-lg text-left font-medium transition-all",
+                    "flex items-center gap-3 w-full px-4 py-3.5 rounded-xl text-left font-medium transition-all",
                     currentSection === item.id
-                      ? "bg-primary text-primary-foreground"
+                      ? "bg-primary text-primary-foreground shadow-md"
                       : "hover:bg-muted"
                   )}
                 >
@@ -124,14 +139,14 @@ export function Header({ facilityName, userName, userEmail, currentSection, onSe
               ))}
             </nav>
 
-            <div className="absolute bottom-0 left-0 right-0 p-4 border-t">
+            <div className="absolute bottom-0 left-0 right-0 p-4 border-t bg-muted/50">
               <div className="mb-4 text-center">
-                <p className="font-medium">{userName}</p>
+                <p className="font-semibold text-foreground">{userName}</p>
                 <p className="text-sm text-muted-foreground">{userEmail}</p>
               </div>
               <Button
                 variant="destructive"
-                className="w-full"
+                className="w-full rounded-xl"
                 onClick={() => {
                   onLogout();
                   setMobileMenuOpen(false);

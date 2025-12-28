@@ -2,7 +2,6 @@ import { initializeApp } from "firebase/app";
 import { getAnalytics, isSupported } from "firebase/analytics";
 import { 
   getFirestore, 
-  enableIndexedDbPersistence,
   collection,
   doc,
   getDocs,
@@ -33,17 +32,8 @@ isSupported().then(supported => {
   // Analytics not supported
 });
 
-// Initialize Firestore with offline persistence
+// Initialize Firestore
 const db = getFirestore(app);
-
-// Enable offline persistence
-enableIndexedDbPersistence(db).catch((err) => {
-  if (err.code === 'failed-precondition') {
-    console.warn('Firestore persistence failed: Multiple tabs open');
-  } else if (err.code === 'unimplemented') {
-    console.warn('Firestore persistence not supported in this browser');
-  }
-});
 
 export { 
   app, 
