@@ -23,6 +23,7 @@ import {
 import { Child } from "@/types/child";
 import { exportImmunizationCard } from "@/lib/pdfExport";
 import { toast } from "sonner";
+import { calculateExactAge } from "@/lib/ageCalculator";
 
 interface ChildProfileModalProps {
   child: Child | null;
@@ -38,21 +39,6 @@ export function ChildProfileModal({
   onAdministerVaccine 
 }: ChildProfileModalProps) {
   if (!child) return null;
-
-  const calculateAge = (dob: string) => {
-    const birthDate = new Date(dob);
-    const today = new Date();
-    const months = (today.getFullYear() - birthDate.getFullYear()) * 12 + 
-                   (today.getMonth() - birthDate.getMonth());
-    
-    if (months < 12) {
-      return `${months} months`;
-    } else {
-      const years = Math.floor(months / 12);
-      const remainingMonths = months % 12;
-      return remainingMonths > 0 ? `${years} years ${remainingMonths} months` : `${years} years`;
-    }
-  };
 
   const vaccineStats = useMemo(() => {
     const completed = child.vaccines.filter(v => v.status === 'completed').length;
@@ -112,7 +98,7 @@ export function ChildProfileModal({
                 <div className="flex flex-wrap gap-4 mt-2 text-sm">
                   <span className="flex items-center gap-1">
                     <Calendar className="w-4 h-4 text-muted-foreground" />
-                    {calculateAge(child.dateOfBirth)}
+                    {calculateExactAge(child.dateOfBirth)}
                   </span>
                   <span className="flex items-center gap-1">
                     <Users className="w-4 h-4 text-muted-foreground" />

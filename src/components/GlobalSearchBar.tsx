@@ -4,6 +4,7 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Child } from "@/types/child";
+import { calculateExactAge } from "@/lib/ageCalculator";
 
 interface GlobalSearchBarProps {
   children: Child[];
@@ -29,19 +30,6 @@ export function GlobalSearchBar({ children, onSelectChild, onViewVaccines }: Glo
     ).slice(0, 8);
   }, [children, searchTerm]);
 
-  const calculateAge = (dob: string) => {
-    const birthDate = new Date(dob);
-    const today = new Date();
-    const months = (today.getFullYear() - birthDate.getFullYear()) * 12 + 
-                   (today.getMonth() - birthDate.getMonth());
-    
-    if (months < 12) {
-      return `${months}m`;
-    } else {
-      const years = Math.floor(months / 12);
-      return `${years}y`;
-    }
-  };
 
   const getStatus = (child: Child) => {
     const hasOverdue = child.vaccines.some(v => v.status === 'overdue');
@@ -115,7 +103,7 @@ export function GlobalSearchBar({ children, onSelectChild, onViewVaccines }: Glo
                     <div className="flex flex-wrap items-center gap-3 mt-1 text-xs text-muted-foreground">
                       <span className="flex items-center gap-1">
                         <Calendar className="w-3 h-3" />
-                        {calculateAge(child.dateOfBirth)}
+                        {calculateExactAge(child.dateOfBirth)}
                       </span>
                       <span className="flex items-center gap-1">
                         <Phone className="w-3 h-3" />
