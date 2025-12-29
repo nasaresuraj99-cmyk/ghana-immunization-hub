@@ -136,7 +136,7 @@ const savePendingSyncs = (syncs: PendingSync[]) => {
   }
 };
 
-// Activity log helper
+// Activity log helper - filters out undefined values for Firebase compatibility
 const logActivity = async (
   facilityId: string,
   userId: string,
@@ -161,10 +161,17 @@ const logActivity = async (
       entityType,
       entityId,
       entityName,
-      oldData,
-      newData,
       createdAt: new Date().toISOString(),
     };
+    
+    // Only add oldData and newData if they are defined (Firebase doesn't accept undefined)
+    if (oldData !== undefined) {
+      log.oldData = oldData;
+    }
+    if (newData !== undefined) {
+      log.newData = newData;
+    }
+    
     await setDoc(logRef, log);
   } catch (error) {
     console.error('Error logging activity:', error);
@@ -382,10 +389,31 @@ export function useChildren(options: UseChildrenOptions = {}) {
     savePendingSyncs(filtered);
   }, []);
 
+// Helper function to remove undefined values from objects for Firebase compatibility
+  const sanitizeForFirebase = (obj: any): any => {
+    if (obj === null || obj === undefined) return null;
+    if (Array.isArray(obj)) {
+      return obj.map(item => sanitizeForFirebase(item));
+    }
+    if (typeof obj === 'object') {
+      const sanitized: any = {};
+      for (const [key, value] of Object.entries(obj)) {
+        if (value !== undefined) {
+          sanitized[key] = sanitizeForFirebase(value);
+        }
+      }
+      return sanitized;
+    }
+    return obj;
+  };
+
   const syncToFirebase = useCallback(async (childId: string, data: Child | null, action: PendingSync['action']) => {
+    // Sanitize data to remove undefined values
+    const sanitizedData = data ? sanitizeForFirebase(data) : null;
+    
     // Always add to pending first for reliability
-    if (data) {
-      addPendingSync({ action, childId, data, timestamp: Date.now() });
+    if (sanitizedData) {
+      addPendingSync({ action, childId, data: sanitizedData, timestamp: Date.now() });
     } else {
       addPendingSync({ action, childId, timestamp: Date.now() });
     }
@@ -396,8 +424,8 @@ export function useChildren(options: UseChildrenOptions = {}) {
         const childRef = doc(db, 'children', childId);
         if (action === 'delete') {
           await deleteDoc(childRef);
-        } else if (data) {
-          await setDoc(childRef, data);
+        } else if (sanitizedData) {
+          await setDoc(childRef, sanitizedData);
         }
         
         // Remove from pending on success
