@@ -42,7 +42,7 @@ export interface ActivityLog {
   facilityId: string;
   userId: string;
   userName?: string;
-  action: 'create' | 'update' | 'soft_delete' | 'restore' | 'permanent_delete';
+  action: 'create' | 'update' | 'soft_delete' | 'restore' | 'permanent_delete' | 'bulk_administer';
   entityType: 'child' | 'vaccine' | 'user';
   entityId?: string;
   entityName?: string;

@@ -24,10 +24,11 @@ import {
   ChevronDown,
   ChevronRight,
   Eye,
+  Download,
 } from "lucide-react";
 import { Child, VaccineRecord } from "@/types/child";
 import { VaccineEditModal } from "./VaccineEditModal";
-import { exportImmunizationCard } from "@/lib/pdfExport";
+import { exportImmunizationCard, exportVaccineHistory } from "@/lib/pdfExport";
 import { toast } from "sonner";
 import { calculateExactAge } from "@/lib/ageCalculator";
 import { cn } from "@/lib/utils";
@@ -144,6 +145,13 @@ export function ImmunizationStatusView({
     await exportImmunizationCard(child);
     toast.dismiss();
     toast.success("Immunization card downloaded!");
+  };
+
+  const handleExportHistory = () => {
+    toast.loading("Generating vaccine history...");
+    exportVaccineHistory(child);
+    toast.dismiss();
+    toast.success("Vaccine history PDF downloaded!");
   };
 
   const handleSaveVaccine = (updatedVaccine: VaccineRecord) => {
@@ -369,7 +377,11 @@ export function ImmunizationStatusView({
                 <Syringe className="w-4 h-4 mr-2" />
                 Administer Vaccine
               </Button>
-              <Button variant="outline" onClick={handlePrintCard} className="flex-1">
+              <Button variant="outline" onClick={handleExportHistory} className="flex-1">
+                <Download className="w-4 h-4 mr-2" />
+                Export History
+              </Button>
+              <Button variant="secondary" onClick={handlePrintCard}>
                 <FileText className="w-4 h-4 mr-2" />
                 Print Card
               </Button>

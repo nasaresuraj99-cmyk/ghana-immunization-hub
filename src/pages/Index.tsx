@@ -12,6 +12,7 @@ import { ImmunizationScheduleSection } from "@/components/sections/ImmunizationS
 import { VaccineAdministrationModal } from "@/components/modals/VaccineAdministrationModal";
 import { ChildProfileModal } from "@/components/modals/ChildProfileModal";
 import { ImmunizationStatusView } from "@/components/modals/ImmunizationStatusView";
+import { BulkVaccinationModal } from "@/components/modals/BulkVaccinationModal";
 import { GlobalSearchBar } from "@/components/GlobalSearchBar";
 import { DeveloperCredits } from "@/components/DeveloperCredits";
 import { PWAInstallBanner } from "@/components/PWAInstallBanner";
@@ -43,6 +44,7 @@ export default function Index() {
   const [profileModalChild, setProfileModalChild] = useState<Child | null>(null);
   const [immunizationStatusChild, setImmunizationStatusChild] = useState<Child | null>(null);
   const [showPendingQueue, setShowPendingQueue] = useState(false);
+  const [showBulkVaccination, setShowBulkVaccination] = useState(false);
   
   // Pass both userId and facilityId to useChildren
   const { 
@@ -56,7 +58,8 @@ export default function Index() {
     restoreChild,
     permanentDeleteChild,
     updateVaccine,
-    updateVaccineRecord, 
+    updateVaccineRecord,
+    bulkAdministerVaccine, 
     importChildren, 
     isSyncing, 
     isLoading, 
@@ -311,6 +314,28 @@ export default function Index() {
     setImmunizationStatusChild(child);
   };
 
+  const handleBulkVaccination = async (
+    childIds: string[],
+    vaccineName: string,
+    date: string,
+    batchNumber: string
+  ) => {
+    if (!permissions.canAdministerVaccines) {
+      toast({
+        title: "Permission Denied",
+        description: "You don't have permission to administer vaccines.",
+        variant: "destructive",
+      });
+      return;
+    }
+    
+    await bulkAdministerVaccine(childIds, vaccineName, date, batchNumber, user?.name);
+    toast({
+      title: "Bulk Vaccination Complete",
+      description: `${vaccineName} administered to ${childIds.length} children.`,
+    });
+  };
+
   const handleOnboardingComplete = async (facilityId: string, facilityName: string, role: 'facility_admin' | 'staff') => {
     await updateFacility(facilityId, facilityName, role);
     completeOnboarding();
@@ -448,8 +473,10 @@ export default function Index() {
             onEdit={handleEditChild}
             onDelete={handleDeleteChild}
             onViewVaccines={handleViewVaccines}
+            onBulkVaccination={() => setShowBulkVaccination(true)}
             canEdit={permissions.canEdit}
             canDelete={permissions.canSoftDelete}
+            canAdministerVaccines={permissions.canAdministerVaccines}
           />
         )}
 
@@ -589,6 +616,13 @@ export default function Index() {
         }}
         onUpdateVaccine={handleUpdateVaccineRecord}
         canEdit={permissions.canEdit}
+      />
+
+      <BulkVaccinationModal
+        children={children}
+        isOpen={showBulkVaccination}
+        onClose={() => setShowBulkVaccination(false)}
+        onAdminister={handleBulkVaccination}
       />
 
       <ConflictResolutionModal
