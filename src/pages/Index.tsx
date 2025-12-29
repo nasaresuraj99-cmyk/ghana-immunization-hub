@@ -22,6 +22,7 @@ import { FacilityOnboarding } from "@/components/FacilityOnboarding";
 import { UserManagementPanel } from "@/components/UserManagementPanel";
 import { ArchiveSection } from "@/components/ArchiveSection";
 import { ActivityLogViewer } from "@/components/ActivityLogViewer";
+import { AdminDashboard } from "@/components/AdminDashboard";
 import { useChildren } from "@/hooks/useChildren";
 import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
@@ -29,7 +30,7 @@ import { Child } from "@/types/child";
 import { ROLE_PERMISSIONS } from "@/types/facility";
 import { Loader2 } from "lucide-react";
 
-type Section = 'home' | 'registration' | 'register' | 'defaulters' | 'dashboard' | 'reporting' | 'settings' | 'schedule' | 'archive' | 'users' | 'activity';
+type Section = 'home' | 'registration' | 'register' | 'defaulters' | 'dashboard' | 'reporting' | 'settings' | 'schedule' | 'archive' | 'users' | 'activity' | 'admin';
 
 export default function Index() {
   const { user, loading: authLoading, login, signup, logout, forgotPassword, updateFacility, isAuthenticated, refreshUser, needsOnboarding, completeOnboarding } = useAuth();
@@ -467,6 +468,16 @@ export default function Index() {
           />
         )}
 
+        {currentSection === 'admin' && permissions.canManageUsers && user?.facilityId && (
+          <AdminDashboard
+            facilityId={user.facilityId}
+            currentUserId={user.uid}
+            currentUserRole={userRole}
+            facilityUsers={[]}
+            facilityName={user.facility || 'Facility'}
+          />
+        )}
+
         {currentSection === 'settings' && (
           <SettingsSection
             userName={user?.name || ""}
@@ -497,6 +508,7 @@ export default function Index() {
             onNavigateToArchive={() => setCurrentSection('archive')}
             onNavigateToUsers={() => setCurrentSection('users')}
             onNavigateToActivity={() => setCurrentSection('activity')}
+            onNavigateToAdmin={() => setCurrentSection('admin')}
           />
         )}
       </main>
