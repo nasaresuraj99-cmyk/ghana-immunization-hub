@@ -772,6 +772,58 @@ export function useChildren(options: UseChildrenOptions = {}) {
     });
   }, [syncToFirebase]);
 
+  // Bulk vaccine administration for outreach sessions
+  const bulkAdministerVaccine = useCallback(async (
+    childIds: string[],
+    vaccineName: string,
+    givenDate: string,
+    batchNumber: string,
+    userName?: string
+  ) => {
+    setChildren(prev => {
+      const updated = prev.map(child => {
+        if (!childIds.includes(child.id)) return child;
+        
+        const updatedChild = {
+          ...child,
+          updatedAt: new Date().toISOString(),
+          vaccines: child.vaccines.map(vaccine => 
+            vaccine.name === vaccineName && vaccine.status !== 'completed'
+              ? { 
+                  ...vaccine, 
+                  status: 'completed' as const, 
+                  givenDate,
+                  batchNumber,
+                  administeredBy: userName || 'Current User',
+                  administeredByUserId: currentUserIdRef.current,
+                }
+              : vaccine
+          ),
+        };
+        
+        // Sync each updated child to Firebase
+        syncToFirebase(child.id, updatedChild, 'update');
+        
+        return updatedChild;
+      });
+
+      return updated;
+    });
+
+    // Log bulk administration activity
+    if (currentFacilityIdRef.current && currentUserIdRef.current) {
+      logActivity(
+        currentFacilityIdRef.current,
+        currentUserIdRef.current,
+        userName || 'Unknown',
+        'bulk_administer',
+        'vaccine',
+        vaccineName,
+        `Administered ${vaccineName} to ${childIds.length} children`
+      );
+    }
+  }, [syncToFirebase]);
+
   return {
     children,
     archivedChildren,
@@ -784,6 +836,7 @@ export function useChildren(options: UseChildrenOptions = {}) {
     permanentDeleteChild,
     updateVaccine,
     updateVaccineRecord,
+    bulkAdministerVaccine,
     importChildren,
     isOnline,
     isSyncing,

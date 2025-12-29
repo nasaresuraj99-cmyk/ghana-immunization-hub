@@ -431,6 +431,139 @@ export function exportChildrenRegister(
   doc.save(`GHS_Children_Register_${new Date().toISOString().split("T")[0]}.pdf`);
 }
 
+// Export individual child's vaccine history with administered vaccines
+export function exportVaccineHistory(
+  child: Child,
+  options: PDFOptions = {}
+) {
+  const doc = new jsPDF();
+  let yPos = addHeader(doc, "Vaccination History Report", options);
+
+  // Child info
+  doc.setFontSize(12);
+  doc.setFont("helvetica", "bold");
+  doc.setTextColor(...GHS_DARK);
+  doc.text("Child Information", 14, yPos);
+  yPos += 8;
+
+  doc.setFontSize(10);
+  doc.setFont("helvetica", "normal");
+  const birthDate = new Date(child.dateOfBirth);
+  const today = new Date();
+  const months = (today.getFullYear() - birthDate.getFullYear()) * 12 + (today.getMonth() - birthDate.getMonth());
+  
+  const childInfo = [
+    ["Registration No:", child.regNo],
+    ["Name:", child.name],
+    ["Date of Birth:", new Date(child.dateOfBirth).toLocaleDateString()],
+    ["Age:", `${months} months`],
+    ["Sex:", child.sex],
+    ["Mother's Name:", child.motherName],
+    ["Contact:", child.telephoneAddress || "N/A"],
+    ["Community:", child.community || "N/A"],
+  ];
+
+  childInfo.forEach(([label, value]) => {
+    doc.setFont("helvetica", "bold");
+    doc.text(label, 14, yPos);
+    doc.setFont("helvetica", "normal");
+    doc.text(value, 55, yPos);
+    yPos += 6;
+  });
+
+  yPos += 10;
+
+  // Filter administered vaccines
+  const administeredVaccines = child.vaccines.filter(v => v.status === "completed" && v.givenDate);
+  
+  doc.setFontSize(12);
+  doc.setFont("helvetica", "bold");
+  doc.text(`Administered Vaccines (${administeredVaccines.length})`, 14, yPos);
+  yPos += 8;
+
+  if (administeredVaccines.length === 0) {
+    doc.setFontSize(10);
+    doc.setFont("helvetica", "italic");
+    doc.setTextColor(150, 150, 150);
+    doc.text("No vaccines have been administered yet.", 14, yPos);
+  } else {
+    autoTable(doc, {
+      startY: yPos,
+      head: [["#", "Vaccine", "Date Given", "Batch Number", "Administered By"]],
+      body: administeredVaccines.map((v, idx) => [
+        (idx + 1).toString(),
+        v.name,
+        v.givenDate ? new Date(v.givenDate).toLocaleDateString() : "N/A",
+        v.batchNumber || "N/A",
+        v.administeredBy || "N/A",
+      ]),
+      headStyles: {
+        fillColor: GHS_GREEN,
+        textColor: [255, 255, 255],
+        fontStyle: "bold",
+        fontSize: 9,
+      },
+      alternateRowStyles: {
+        fillColor: [232, 245, 232],
+      },
+      styles: {
+        fontSize: 8,
+        cellPadding: 4,
+      },
+      columnStyles: {
+        0: { cellWidth: 10, halign: "center" },
+        1: { cellWidth: 70 },
+        2: { cellWidth: 30 },
+        3: { cellWidth: 30 },
+        4: { cellWidth: 40 },
+      },
+      margin: { left: 14, right: 14 },
+    });
+
+    yPos = (doc as jsPDF & { lastAutoTable?: { finalY: number } }).lastAutoTable?.finalY || yPos + 50;
+  }
+
+  // Summary stats
+  yPos += 15;
+  const completed = child.vaccines.filter(v => v.status === "completed").length;
+  const pending = child.vaccines.filter(v => v.status === "pending").length;
+  const overdue = child.vaccines.filter(v => v.status === "overdue").length;
+  const total = child.vaccines.length;
+  const progress = total > 0 ? Math.round((completed / total) * 100) : 0;
+
+  doc.setFontSize(11);
+  doc.setFont("helvetica", "bold");
+  doc.text("Vaccination Summary", 14, yPos);
+  yPos += 8;
+
+  // Progress bar
+  doc.setFillColor(230, 230, 230);
+  doc.roundedRect(14, yPos, 100, 8, 2, 2, "F");
+  doc.setFillColor(...GHS_GREEN);
+  doc.roundedRect(14, yPos, progress, 8, 2, 2, "F");
+  doc.setFontSize(9);
+  doc.setTextColor(...GHS_DARK);
+  doc.text(`${progress}% Complete`, 120, yPos + 6);
+  yPos += 15;
+
+  doc.setFontSize(10);
+  doc.setFont("helvetica", "normal");
+  doc.setFillColor(...GHS_GREEN);
+  doc.circle(18, yPos - 1, 2, "F");
+  doc.text(`Completed: ${completed}`, 24, yPos);
+  
+  doc.setFillColor(245, 158, 11);
+  doc.circle(70, yPos - 1, 2, "F");
+  doc.text(`Pending: ${pending}`, 76, yPos);
+  
+  doc.setFillColor(...GHS_RED);
+  doc.circle(120, yPos - 1, 2, "F");
+  doc.text(`Overdue: ${overdue}`, 126, yPos);
+
+  addFooter(doc, 1);
+  doc.save(`GHS_Vaccine_History_${child.regNo}_${new Date().toISOString().split("T")[0]}.pdf`);
+}
+
 export async function exportImmunizationCard(
   child: Child,
   options: PDFOptions = {}

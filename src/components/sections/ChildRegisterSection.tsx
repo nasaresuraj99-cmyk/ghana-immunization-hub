@@ -1,5 +1,5 @@
 import { useState, useMemo } from "react";
-import { Search, Download, FileText, Edit, Trash2, Syringe, CreditCard } from "lucide-react";
+import { Search, Download, FileText, Edit, Trash2, Syringe, CreditCard, Users } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
@@ -7,16 +7,28 @@ import { Child } from "@/types/child";
 import { exportImmunizationCard } from "@/lib/pdfExport";
 import { toast } from "sonner";
 import { calculateExactAge } from "@/lib/ageCalculator";
+
 interface ChildRegisterSectionProps {
   children: Child[];
   onEdit: (child: Child) => void;
   onDelete: (childId: string) => void;
   onViewVaccines: (child: Child) => void;
+  onBulkVaccination?: () => void;
   canEdit?: boolean;
   canDelete?: boolean;
+  canAdministerVaccines?: boolean;
 }
 
-export function ChildRegisterSection({ children, onEdit, onDelete, onViewVaccines, canEdit = true, canDelete = true }: ChildRegisterSectionProps) {
+export function ChildRegisterSection({ 
+  children, 
+  onEdit, 
+  onDelete, 
+  onViewVaccines, 
+  onBulkVaccination,
+  canEdit = true, 
+  canDelete = true,
+  canAdministerVaccines = true 
+}: ChildRegisterSectionProps) {
   const [searchTerm, setSearchTerm] = useState("");
 
   const filteredChildren = useMemo(() => {
@@ -69,25 +81,35 @@ export function ChildRegisterSection({ children, onEdit, onDelete, onViewVaccine
             📋 Child Health Register (0-59 months)
           </h2>
           
-          <div className="flex flex-wrap items-center gap-3">
-            <div className="relative">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-              <Input
-                placeholder="Search by name, reg no, phone..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className="pl-10 w-64"
-              />
+            <div className="flex flex-wrap items-center gap-3">
+              <div className="relative">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                <Input
+                  placeholder="Search by name, reg no, phone..."
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  className="pl-10 w-64"
+                />
+              </div>
+              {canAdministerVaccines && onBulkVaccination && (
+                <Button 
+                  onClick={onBulkVaccination}
+                  className="gradient-ghs text-primary-foreground"
+                  size="sm"
+                >
+                  <Users className="w-4 h-4 mr-2" />
+                  Outreach Session
+                </Button>
+              )}
+              <Button variant="secondary" size="sm">
+                <Download className="w-4 h-4 mr-2" />
+                Excel
+              </Button>
+              <Button size="sm">
+                <FileText className="w-4 h-4 mr-2" />
+                PDF
+              </Button>
             </div>
-            <Button variant="secondary" size="sm">
-              <Download className="w-4 h-4 mr-2" />
-              Excel
-            </Button>
-            <Button size="sm">
-              <FileText className="w-4 h-4 mr-2" />
-              PDF
-            </Button>
-          </div>
         </div>
 
         <div className="overflow-x-auto">
