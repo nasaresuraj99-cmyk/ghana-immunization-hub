@@ -584,7 +584,7 @@ export default function Index() {
       <DeveloperCredits />
       
       <footer className="text-center py-4 text-xs text-muted-foreground border-t bg-card">
-        © {new Date().getFullYear()} Ghana Health Service - Immunization Tracker
+        © 2026 Ghana Health Service - Immunization Tracker
       </footer>
 
       <VaccineAdministrationModal
@@ -623,6 +623,7 @@ export default function Index() {
         isOpen={showBulkVaccination}
         onClose={() => setShowBulkVaccination(false)}
         onAdminister={handleBulkVaccination}
+        facilityName={user?.facility || "Health Facility"}
       />
 
       <ConflictResolutionModal

@@ -748,3 +748,130 @@ export async function exportImmunizationCard(
 
   doc.save(`GHS_Immunization_Card_${child.regNo}_${child.name.replace(/\s+/g, "_")}.pdf`);
 }
+
+// Export outreach session report for bulk vaccination
+export interface OutreachVaccinationRecord {
+  childId: string;
+  childName: string;
+  regNo: string;
+  motherName: string;
+  community?: string;
+  vaccine: string;
+  dateGiven: string;
+  batchNumber: string;
+}
+
+export function exportOutreachSessionReport(
+  records: OutreachVaccinationRecord[],
+  sessionDetails: {
+    vaccineName: string;
+    sessionDate: string;
+    batchNumber: string;
+    totalChildren: number;
+  },
+  options: PDFOptions = {}
+) {
+  const doc = new jsPDF();
+  let yPos = addHeader(doc, "Outreach Session Report", options);
+
+  // Session Summary
+  doc.setFontSize(12);
+  doc.setFont("helvetica", "bold");
+  doc.setTextColor(...GHS_DARK);
+  doc.text("Session Summary", 14, yPos);
+  yPos += 8;
+
+  doc.setFontSize(10);
+  doc.setFont("helvetica", "normal");
+  
+  const sessionInfo = [
+    ["Vaccine Administered:", sessionDetails.vaccineName],
+    ["Session Date:", new Date(sessionDetails.sessionDate).toLocaleDateString()],
+    ["Batch Number:", sessionDetails.batchNumber],
+    ["Total Children Vaccinated:", sessionDetails.totalChildren.toString()],
+  ];
+
+  sessionInfo.forEach(([label, value]) => {
+    doc.setFont("helvetica", "bold");
+    doc.text(label, 14, yPos);
+    doc.setFont("helvetica", "normal");
+    doc.text(value, 65, yPos);
+    yPos += 6;
+  });
+
+  yPos += 10;
+
+  // Vaccination Records Table
+  doc.setFontSize(12);
+  doc.setFont("helvetica", "bold");
+  doc.text("Vaccinated Children", 14, yPos);
+  yPos += 8;
+
+  autoTable(doc, {
+    startY: yPos,
+    head: [["#", "Reg No.", "Child Name", "Mother's Name", "Community", "Date Given", "Batch No."]],
+    body: records.map((r, idx) => [
+      (idx + 1).toString(),
+      r.regNo,
+      r.childName,
+      r.motherName,
+      r.community || "N/A",
+      new Date(r.dateGiven).toLocaleDateString(),
+      r.batchNumber,
+    ]),
+    headStyles: {
+      fillColor: GHS_GREEN,
+      textColor: [255, 255, 255],
+      fontStyle: "bold",
+      fontSize: 9,
+    },
+    alternateRowStyles: {
+      fillColor: [232, 245, 232],
+    },
+    styles: {
+      fontSize: 8,
+      cellPadding: 4,
+    },
+    columnStyles: {
+      0: { cellWidth: 10, halign: "center" },
+      1: { cellWidth: 28 },
+      2: { cellWidth: 35 },
+      3: { cellWidth: 35 },
+      4: { cellWidth: 30 },
+      5: { cellWidth: 25 },
+      6: { cellWidth: 25 },
+    },
+    margin: { left: 14, right: 14 },
+    didDrawPage: (data) => {
+      addFooter(doc, data.pageNumber);
+    },
+  });
+
+  yPos = (doc as jsPDF & { lastAutoTable?: { finalY: number } }).lastAutoTable?.finalY || yPos + 80;
+  yPos += 15;
+
+  // Signature section
+  if (yPos < doc.internal.pageSize.getHeight() - 60) {
+    doc.setFontSize(10);
+    doc.setFont("helvetica", "normal");
+    doc.setTextColor(...GHS_DARK);
+    
+    doc.text("Prepared By:", 14, yPos);
+    doc.line(45, yPos, 100, yPos);
+    
+    doc.text("Signature:", 110, yPos);
+    doc.line(135, yPos, 180, yPos);
+    
+    yPos += 10;
+    
+    doc.text("Date:", 14, yPos);
+    doc.line(30, yPos, 70, yPos);
+    
+    doc.text("Facility Stamp:", 110, yPos);
+    doc.setDrawColor(...GHS_DARK);
+    doc.setLineDashPattern([1, 1], 0);
+    doc.rect(150, yPos - 15, 35, 25, "S");
+  }
+
+  doc.save(`GHS_Outreach_Session_${sessionDetails.vaccineName.replace(/\s+/g, "_")}_${new Date(sessionDetails.sessionDate).toISOString().split("T")[0]}.pdf`);
+}

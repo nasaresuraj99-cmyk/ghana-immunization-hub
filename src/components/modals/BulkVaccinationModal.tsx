@@ -21,11 +21,12 @@ import {
   CheckCircle,
   Users,
   AlertTriangle,
-  X,
+  FileText,
 } from "lucide-react";
 import { format } from "date-fns";
 import { Child, VaccineRecord } from "@/types/child";
 import { cn } from "@/lib/utils";
+import { exportOutreachSessionReport, OutreachVaccinationRecord } from "@/lib/pdfExport";
 
 interface BulkVaccinationModalProps {
   children: Child[];
@@ -37,6 +38,7 @@ interface BulkVaccinationModalProps {
     date: string,
     batchNumber: string
   ) => Promise<void>;
+  facilityName?: string;
 }
 
 // Common vaccines for bulk administration
@@ -68,6 +70,7 @@ export function BulkVaccinationModal({
   isOpen,
   onClose,
   onAdminister,
+  facilityName = "Health Facility",
 }: BulkVaccinationModalProps) {
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedVaccine, setSelectedVaccine] = useState("");
@@ -76,6 +79,15 @@ export function BulkVaccinationModal({
   const [batchNumber, setBatchNumber] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [showCalendar, setShowCalendar] = useState(false);
+  const [lastSessionData, setLastSessionData] = useState<{
+    records: OutreachVaccinationRecord[];
+    sessionDetails: {
+      vaccineName: string;
+      sessionDate: string;
+      batchNumber: string;
+      totalChildren: number;
+    };
+  } | null>(null);
 
   // Filter children who are eligible for selected vaccine
   const eligibleChildren = useMemo(() => {
@@ -125,16 +137,50 @@ export function BulkVaccinationModal({
 
     setIsSubmitting(true);
     try {
+      const selectedChildrenList = children.filter(c => selectedChildren.has(c.id));
+      
       await onAdminister(
         Array.from(selectedChildren),
         selectedVaccine,
         date.toISOString(),
         batchNumber
       );
-      onClose();
+      
+      // Store session data for report generation
+      const records: OutreachVaccinationRecord[] = selectedChildrenList.map(child => ({
+        childId: child.id,
+        childName: child.name,
+        regNo: child.regNo,
+        motherName: child.motherName,
+        community: child.community,
+        vaccine: selectedVaccine,
+        dateGiven: date.toISOString(),
+        batchNumber: batchNumber,
+      }));
+      
+      setLastSessionData({
+        records,
+        sessionDetails: {
+          vaccineName: selectedVaccine,
+          sessionDate: date.toISOString(),
+          batchNumber: batchNumber,
+          totalChildren: selectedChildren.size,
+        },
+      });
+      
       resetForm();
     } finally {
       setIsSubmitting(false);
+    }
+  };
+
+  const handleExportReport = () => {
+    if (lastSessionData) {
+      exportOutreachSessionReport(
+        lastSessionData.records,
+        lastSessionData.sessionDetails,
+        { facilityName }
+      );
     }
   };
 
@@ -148,8 +194,55 @@ export function BulkVaccinationModal({
 
   const handleClose = () => {
     resetForm();
+    setLastSessionData(null);
     onClose();
   };
+
+  // Show success state after administration
+  if (lastSessionData) {
+    return (
+      <Dialog open={isOpen} onOpenChange={handleClose}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-lg">
+              <div className="p-2 rounded-lg bg-green-500">
+                <CheckCircle className="w-5 h-5 text-white" />
+              </div>
+              Session Complete
+            </DialogTitle>
+          </DialogHeader>
+
+          <div className="space-y-4 py-4">
+            <div className="p-4 rounded-lg bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800">
+              <p className="text-sm font-medium text-green-800 dark:text-green-200">
+                Successfully vaccinated {lastSessionData.sessionDetails.totalChildren} children
+              </p>
+              <p className="text-xs text-green-600 dark:text-green-400 mt-1">
+                Vaccine: {lastSessionData.sessionDetails.vaccineName}
+              </p>
+              <p className="text-xs text-green-600 dark:text-green-400">
+                Batch: {lastSessionData.sessionDetails.batchNumber}
+              </p>
+            </div>
+
+            <div className="flex flex-col gap-2">
+              <Button onClick={handleExportReport} className="w-full gradient-ghs text-primary-foreground">
+                <FileText className="w-4 h-4 mr-2" />
+                Export Outreach Report (PDF)
+              </Button>
+              <Button variant="outline" onClick={() => setLastSessionData(null)} className="w-full">
+                <Syringe className="w-4 h-4 mr-2" />
+                Start New Session
+              </Button>
+              <Button variant="ghost" onClick={handleClose} className="w-full">
+                Close
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+    );
+  }
 
   return (
     <Dialog open={isOpen} onOpenChange={handleClose}>
