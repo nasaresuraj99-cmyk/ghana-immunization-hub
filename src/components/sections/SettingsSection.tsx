@@ -26,6 +26,7 @@ interface SettingsSectionProps {
   onNavigateToArchive?: () => void;
   onNavigateToUsers?: () => void;
   onNavigateToActivity?: () => void;
+  onNavigateToAdmin?: () => void;
 }
 
 export function SettingsSection({
@@ -43,6 +44,7 @@ export function SettingsSection({
   onNavigateToArchive,
   onNavigateToUsers,
   onNavigateToActivity,
+  onNavigateToAdmin,
 }: SettingsSectionProps) {
   const permissions = ROLE_PERMISSIONS[userRole];
   const { toast } = useToast();
@@ -228,6 +230,12 @@ export function SettingsSection({
                 <Button variant="outline" onClick={onNavigateToActivity} className="justify-start gap-2">
                   <Activity className="w-4 h-4" />
                   Activity Log
+                </Button>
+              )}
+              {permissions.canManageUsers && onNavigateToAdmin && (
+                <Button variant="default" onClick={onNavigateToAdmin} className="justify-start gap-2 gradient-ghs text-primary-foreground">
+                  <Activity className="w-4 h-4" />
+                  Admin Dashboard
                 </Button>
               )}
             </div>
