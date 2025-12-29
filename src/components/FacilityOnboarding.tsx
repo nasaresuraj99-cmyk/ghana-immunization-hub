@@ -258,7 +258,7 @@ export function FacilityOnboarding({ userId, userName, pendingFacilityName, onCo
         </Card>
 
         <p className="text-center text-primary-foreground/60 text-xs mt-6">
-          © {new Date().getFullYear()} Ghana Health Service
+          © 2026 Ghana Health Service
         </p>
       </div>
     </div>
