@@ -663,6 +663,50 @@ export function useChildren(options: UseChildrenOptions = {}) {
     });
   }, [syncToFirebase]);
 
+  // Update a full vaccine record (for editing completed vaccines)
+  const updateVaccineRecord = useCallback((childId: string, updatedVaccine: VaccineRecord, userName?: string) => {
+    setChildren(prev => {
+      const oldChild = prev.find(c => c.id === childId);
+      const oldVaccine = oldChild?.vaccines.find(v => v.name === updatedVaccine.name);
+      
+      const updated = prev.map(child => {
+        if (child.id !== childId) return child;
+        
+        return {
+          ...child,
+          updatedAt: new Date().toISOString(),
+          vaccines: child.vaccines.map(vaccine => 
+            vaccine.name === updatedVaccine.name
+              ? { ...updatedVaccine }
+              : vaccine
+          ),
+        };
+      });
+
+      const updatedChild = updated.find(c => c.id === childId);
+      if (updatedChild) {
+        syncToFirebase(childId, updatedChild, 'update');
+        
+        // Log activity with old and new data
+        if (currentFacilityIdRef.current && currentUserIdRef.current) {
+          logActivity(
+            currentFacilityIdRef.current,
+            currentUserIdRef.current,
+            userName || 'Unknown',
+            'update',
+            'vaccine',
+            childId,
+            `${updatedVaccine.name} for ${updatedChild.name}`,
+            oldVaccine,
+            updatedVaccine
+          );
+        }
+      }
+
+      return updated;
+    });
+  }, [syncToFirebase]);
+
   const stats = useMemo((): DashboardStats => {
     const today = new Date();
     const sevenDaysFromNow = new Date();
@@ -739,6 +783,7 @@ export function useChildren(options: UseChildrenOptions = {}) {
     restoreChild,
     permanentDeleteChild,
     updateVaccine,
+    updateVaccineRecord,
     importChildren,
     isOnline,
     isSyncing,

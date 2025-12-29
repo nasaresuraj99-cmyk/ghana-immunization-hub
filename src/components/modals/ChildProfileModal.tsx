@@ -18,7 +18,8 @@ import {
   Clock, 
   AlertTriangle,
   Syringe,
-  FileText
+  FileText,
+  Eye
 } from "lucide-react";
 import { Child } from "@/types/child";
 import { exportImmunizationCard } from "@/lib/pdfExport";
@@ -30,13 +31,15 @@ interface ChildProfileModalProps {
   isOpen: boolean;
   onClose: () => void;
   onAdministerVaccine: (child: Child) => void;
+  onViewImmunizationStatus?: (child: Child) => void;
 }
 
 export function ChildProfileModal({ 
   child, 
   isOpen, 
   onClose, 
-  onAdministerVaccine 
+  onAdministerVaccine,
+  onViewImmunizationStatus
 }: ChildProfileModalProps) {
   if (!child) return null;
 
@@ -206,6 +209,16 @@ export function ChildProfileModal({
 
           {/* Actions */}
           <div className="flex flex-wrap gap-3 pt-4 border-t">
+            {onViewImmunizationStatus && (
+              <Button 
+                onClick={() => onViewImmunizationStatus(child)} 
+                variant="outline"
+                className="flex-1 border-ghs-green text-ghs-green hover:bg-ghs-green hover:text-white"
+              >
+                <Eye className="w-4 h-4 mr-2" />
+                View Status & Edit
+              </Button>
+            )}
             <Button onClick={() => onAdministerVaccine(child)} className="flex-1">
               <Syringe className="w-4 h-4 mr-2" />
               Administer Vaccine

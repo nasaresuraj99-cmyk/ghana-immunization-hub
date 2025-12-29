@@ -11,6 +11,7 @@ import { SettingsSection } from "@/components/sections/SettingsSection";
 import { ImmunizationScheduleSection } from "@/components/sections/ImmunizationScheduleSection";
 import { VaccineAdministrationModal } from "@/components/modals/VaccineAdministrationModal";
 import { ChildProfileModal } from "@/components/modals/ChildProfileModal";
+import { ImmunizationStatusView } from "@/components/modals/ImmunizationStatusView";
 import { GlobalSearchBar } from "@/components/GlobalSearchBar";
 import { DeveloperCredits } from "@/components/DeveloperCredits";
 import { PWAInstallBanner } from "@/components/PWAInstallBanner";
@@ -26,7 +27,7 @@ import { AdminDashboard } from "@/components/AdminDashboard";
 import { useChildren } from "@/hooks/useChildren";
 import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
-import { Child } from "@/types/child";
+import { Child, VaccineRecord } from "@/types/child";
 import { ROLE_PERMISSIONS } from "@/types/facility";
 import { Loader2 } from "lucide-react";
 
@@ -40,6 +41,7 @@ export default function Index() {
   const [editingChild, setEditingChild] = useState<Child | null>(null);
   const [vaccineModalChild, setVaccineModalChild] = useState<Child | null>(null);
   const [profileModalChild, setProfileModalChild] = useState<Child | null>(null);
+  const [immunizationStatusChild, setImmunizationStatusChild] = useState<Child | null>(null);
   const [showPendingQueue, setShowPendingQueue] = useState(false);
   
   // Pass both userId and facilityId to useChildren
@@ -53,7 +55,8 @@ export default function Index() {
     softDeleteChild,
     restoreChild,
     permanentDeleteChild,
-    updateVaccine, 
+    updateVaccine,
+    updateVaccineRecord, 
     importChildren, 
     isSyncing, 
     isLoading, 
@@ -264,10 +267,48 @@ export default function Index() {
       title: "Vaccine Administered",
       description: `${vaccineName} has been recorded successfully.`,
     });
+    // Refresh the child in all modals that might be open
     const updatedChild = children.find(c => c.id === childId);
     if (updatedChild) {
-      setVaccineModalChild({ ...updatedChild });
+      if (vaccineModalChild?.id === childId) {
+        setVaccineModalChild({ ...updatedChild });
+      }
+      if (immunizationStatusChild?.id === childId) {
+        setImmunizationStatusChild({ ...updatedChild });
+      }
     }
+  };
+
+  const handleUpdateVaccineRecord = (childId: string, updatedVaccine: VaccineRecord) => {
+    if (!permissions.canEdit) {
+      toast({
+        title: "Permission Denied",
+        description: "You don't have permission to edit vaccine records.",
+        variant: "destructive",
+      });
+      return;
+    }
+    
+    updateVaccineRecord(childId, updatedVaccine, user?.name);
+    toast({
+      title: "Vaccine Record Updated",
+      description: `${updatedVaccine.name} has been updated.`,
+    });
+    
+    // Refresh the child in the immunization status view
+    const updatedChild = children.find(c => c.id === childId);
+    if (updatedChild) {
+      // Need to manually update since state update is async
+      const newVaccines = updatedChild.vaccines.map(v => 
+        v.name === updatedVaccine.name ? updatedVaccine : v
+      );
+      setImmunizationStatusChild({ ...updatedChild, vaccines: newVaccines });
+    }
+  };
+
+  const handleViewImmunizationStatus = (child: Child) => {
+    setProfileModalChild(null); // Close profile modal
+    setImmunizationStatusChild(child);
   };
 
   const handleOnboardingComplete = async (facilityId: string, facilityName: string, role: 'facility_admin' | 'staff') => {
@@ -535,6 +576,19 @@ export default function Index() {
           setProfileModalChild(null);
           setVaccineModalChild(child);
         }}
+        onViewImmunizationStatus={handleViewImmunizationStatus}
+      />
+
+      <ImmunizationStatusView
+        child={immunizationStatusChild}
+        isOpen={!!immunizationStatusChild}
+        onClose={() => setImmunizationStatusChild(null)}
+        onAdministerVaccine={(child) => {
+          setImmunizationStatusChild(null);
+          setVaccineModalChild(child);
+        }}
+        onUpdateVaccine={handleUpdateVaccineRecord}
+        canEdit={permissions.canEdit}
       />
 
       <ConflictResolutionModal
