@@ -152,19 +152,27 @@ export function VaccineAdministrationModal({
   const handleAdminister = () => {
     if (!child || selectedVaccines.size === 0 || !givenDate) return;
     
-    selectedVaccines.forEach(vaccineName => {
+    // Get the vaccines to administer as an array first
+    const vaccinesToAdminister = Array.from(selectedVaccines);
+    const formattedDate = format(givenDate, "yyyy-MM-dd");
+    const trimmedBatchNumber = batchNumber.trim();
+    
+    // Administer each selected vaccine
+    vaccinesToAdminister.forEach(vaccineName => {
       onAdminister(
         child.id,
         vaccineName,
-        format(givenDate, "yyyy-MM-dd"),
-        batchNumber.trim()
+        formattedDate,
+        trimmedBatchNumber
       );
     });
     
-    // Reset form
+    // Reset form and close modal after successful administration
     setSelectedVaccines(new Set());
     setGivenDate(new Date());
     setBatchNumber("");
+    setFilterCategory('all');
+    onClose();
   };
 
   const handleClose = () => {
