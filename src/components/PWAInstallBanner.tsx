@@ -6,13 +6,17 @@ import { IOSInstallModal } from '@/components/IOSInstallModal';
 export const PWAInstallBanner = () => {
   const { showBanner, installApp, dismissBanner, isInstalled, isIOS, showIOSModal, closeIOSModal, isInstallable } = usePWAInstall();
 
-  if (isInstalled || (!showBanner && !isInstallable)) {
+  // Don't show if already installed
+  if (isInstalled) {
     return null;
   }
+  
+  // Show banner if explicitly shown OR if installable and not dismissed
+  const shouldShowBanner = showBanner || isInstallable;
 
   return (
     <>
-      {(showBanner || isInstallable) && (
+      {shouldShowBanner && (
         <div className="fixed bottom-0 left-0 right-0 z-50 p-4 bg-primary text-primary-foreground shadow-lg animate-slide-up">
           <div className="max-w-7xl mx-auto flex items-center gap-3">
             <div className="flex-shrink-0 p-2 bg-primary-foreground/20 rounded-full">

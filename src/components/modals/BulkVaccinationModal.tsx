@@ -86,6 +86,8 @@ export function BulkVaccinationModal({
       sessionDate: string;
       batchNumber: string;
       totalChildren: number;
+      totalMales: number;
+      totalFemales: number;
     };
   } | null>(null);
 
@@ -139,6 +141,10 @@ export function BulkVaccinationModal({
     try {
       const selectedChildrenList = children.filter(c => selectedChildren.has(c.id));
       
+      // Count males and females
+      const totalMales = selectedChildrenList.filter(c => c.sex.toLowerCase() === "male" || c.sex.toLowerCase() === "m").length;
+      const totalFemales = selectedChildrenList.filter(c => c.sex.toLowerCase() === "female" || c.sex.toLowerCase() === "f").length;
+      
       await onAdminister(
         Array.from(selectedChildren),
         selectedVaccine,
@@ -165,6 +171,8 @@ export function BulkVaccinationModal({
           sessionDate: date.toISOString(),
           batchNumber: batchNumber,
           totalChildren: selectedChildren.size,
+          totalMales,
+          totalFemales,
         },
       });
       
@@ -216,6 +224,9 @@ export function BulkVaccinationModal({
             <div className="p-4 rounded-lg bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800">
               <p className="text-sm font-medium text-green-800 dark:text-green-200">
                 Successfully vaccinated {lastSessionData.sessionDetails.totalChildren} children
+              </p>
+              <p className="text-xs text-green-600 dark:text-green-400 mt-1">
+                Males: {lastSessionData.sessionDetails.totalMales} • Females: {lastSessionData.sessionDetails.totalFemales}
               </p>
               <p className="text-xs text-green-600 dark:text-green-400 mt-1">
                 Vaccine: {lastSessionData.sessionDetails.vaccineName}

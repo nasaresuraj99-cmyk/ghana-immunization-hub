@@ -35,6 +35,10 @@ export const usePWAInstall = () => {
       const now = new Date();
       const daysDiff = (now.getTime() - dismissedDate.getTime()) / (1000 * 60 * 60 * 24);
       if (daysDiff < 7) {
+        // Still mark as installable so the banner can be triggered manually
+        if (isIOSDevice && isSafari) {
+          setIsInstallable(true);
+        }
         return;
       }
     }
@@ -45,6 +49,11 @@ export const usePWAInstall = () => {
       setShowBanner(true);
       return;
     }
+    
+    // For non-iOS, always set installable to true initially to show banner
+    // The beforeinstallprompt will update this properly
+    setIsInstallable(true);
+    setShowBanner(true);
 
     const handleBeforeInstallPrompt = (e: Event) => {
       e.preventDefault();
