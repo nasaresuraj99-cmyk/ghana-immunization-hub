@@ -25,6 +25,7 @@ import { UserManagementPanel } from "@/components/UserManagementPanel";
 import { ArchiveSection } from "@/components/ArchiveSection";
 import { ActivityLogViewer } from "@/components/ActivityLogViewer";
 import { AdminDashboard } from "@/components/AdminDashboard";
+import { QRScannerVerification } from "@/components/QRScannerVerification";
 import { useChildren } from "@/hooks/useChildren";
 import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
@@ -45,7 +46,7 @@ export default function Index() {
   const [immunizationStatusChild, setImmunizationStatusChild] = useState<Child | null>(null);
   const [showPendingQueue, setShowPendingQueue] = useState(false);
   const [showBulkVaccination, setShowBulkVaccination] = useState(false);
-  
+  const [showQRScanner, setShowQRScanner] = useState(false);
   // Pass both userId and facilityId to useChildren
   const { 
     children, 
@@ -584,7 +585,7 @@ export default function Index() {
       <DeveloperCredits />
       
       <footer className="text-center py-4 text-xs text-muted-foreground border-t bg-card">
-        © 2026 Ghana Health Service - Immunization Tracker
+        © {new Date().getFullYear()} Ghana Health Service - Immunization Tracker
       </footer>
 
       <VaccineAdministrationModal
@@ -633,6 +634,11 @@ export default function Index() {
         conflicts={conflicts}
         onResolve={handleConflictResolution}
         getConflictDiffs={getConflictDiffs}
+      />
+
+      <QRScannerVerification
+        isOpen={showQRScanner}
+        onClose={() => setShowQRScanner(false)}
       />
 
       <PWAInstallBanner />

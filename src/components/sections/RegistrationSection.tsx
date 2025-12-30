@@ -23,9 +23,11 @@ export function RegistrationSection({ editingChild, onSave, onCancel, onBack, ex
     dateOfBirth: "",
     sex: "" as 'Male' | 'Female' | '',
     regNo: "",
-    motherName: "",
+    motherName: "", // Caregiver/Parent
     telephoneAddress: "",
     community: "",
+    healthFacilityName: "",
+    regionDistrict: "",
   });
   const [ageValidation, setAgeValidation] = useState<{ valid: boolean; message: string }>({ valid: true, message: "" });
 
@@ -39,6 +41,8 @@ export function RegistrationSection({ editingChild, onSave, onCancel, onBack, ex
         motherName: editingChild.motherName,
         telephoneAddress: editingChild.telephoneAddress,
         community: editingChild.community,
+        healthFacilityName: editingChild.healthFacilityName || '',
+        regionDistrict: editingChild.regionDistrict || '',
       });
     } else {
       // Generate new unique registration number
@@ -102,7 +106,7 @@ export function RegistrationSection({ editingChild, onSave, onCancel, onBack, ex
     if (checkDuplicate()) {
       toast({
         title: "Duplicate Entry",
-        description: "A child with the same name, mother's name, and date of birth already exists",
+        description: "A child with the same name, caregiver/parent, and date of birth already exists",
         variant: "destructive",
       });
       return;
@@ -116,6 +120,8 @@ export function RegistrationSection({ editingChild, onSave, onCancel, onBack, ex
       motherName: formData.motherName,
       telephoneAddress: formData.telephoneAddress,
       community: formData.community,
+      healthFacilityName: formData.healthFacilityName,
+      regionDistrict: formData.regionDistrict,
     });
 
     toast({
@@ -194,10 +200,10 @@ export function RegistrationSection({ editingChild, onSave, onCancel, onBack, ex
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="motherName">Mother's Name *</Label>
+              <Label htmlFor="motherName">Caregiver/Parent Name *</Label>
               <Input
                 id="motherName"
-                placeholder="Enter mother's name"
+                placeholder="Enter caregiver/parent name"
                 value={formData.motherName}
                 onChange={(e) => setFormData(prev => ({ ...prev, motherName: e.target.value }))}
                 required
@@ -222,6 +228,26 @@ export function RegistrationSection({ editingChild, onSave, onCancel, onBack, ex
                 placeholder="Enter community"
                 value={formData.community}
                 onChange={(e) => setFormData(prev => ({ ...prev, community: e.target.value }))}
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="healthFacilityName">Health Facility Name</Label>
+              <Input
+                id="healthFacilityName"
+                placeholder="Enter health facility name"
+                value={formData.healthFacilityName}
+                onChange={(e) => setFormData(prev => ({ ...prev, healthFacilityName: e.target.value }))}
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="regionDistrict">Region/District</Label>
+              <Input
+                id="regionDistrict"
+                placeholder="Enter region/district"
+                value={formData.regionDistrict}
+                onChange={(e) => setFormData(prev => ({ ...prev, regionDistrict: e.target.value }))}
               />
             </div>
           </div>
