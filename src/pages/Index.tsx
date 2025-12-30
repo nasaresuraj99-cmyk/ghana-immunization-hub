@@ -604,6 +604,7 @@ export default function Index() {
           setVaccineModalChild(child);
         }}
         onViewImmunizationStatus={handleViewImmunizationStatus}
+        facilityName={user?.facility || "Health Facility"}
       />
 
       <ImmunizationStatusView
