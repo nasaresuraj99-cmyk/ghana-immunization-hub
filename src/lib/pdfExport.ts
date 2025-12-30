@@ -768,11 +768,21 @@ export function exportOutreachSessionReport(
     sessionDate: string;
     batchNumber: string;
     totalChildren: number;
+    totalMales?: number;
+    totalFemales?: number;
   },
   options: PDFOptions = {}
 ) {
   const doc = new jsPDF();
+  const { facilityName = "Health Facility" } = options;
   let yPos = addHeader(doc, "Outreach Session Report", options);
+
+  // Facility Name
+  doc.setFontSize(14);
+  doc.setFont("helvetica", "bold");
+  doc.setTextColor(...GHS_GREEN);
+  doc.text(facilityName, 14, yPos);
+  yPos += 10;
 
   // Session Summary
   doc.setFontSize(12);
@@ -784,12 +794,18 @@ export function exportOutreachSessionReport(
   doc.setFontSize(10);
   doc.setFont("helvetica", "normal");
   
-  const sessionInfo = [
+  const sessionInfo: [string, string][] = [
     ["Vaccine Administered:", sessionDetails.vaccineName],
     ["Session Date:", new Date(sessionDetails.sessionDate).toLocaleDateString()],
     ["Batch Number:", sessionDetails.batchNumber],
     ["Total Children Vaccinated:", sessionDetails.totalChildren.toString()],
   ];
+
+  // Add gender breakdown if available
+  if (sessionDetails.totalMales !== undefined && sessionDetails.totalFemales !== undefined) {
+    sessionInfo.push(["Total Males:", sessionDetails.totalMales.toString()]);
+    sessionInfo.push(["Total Females:", sessionDetails.totalFemales.toString()]);
+  }
 
   sessionInfo.forEach(([label, value]) => {
     doc.setFont("helvetica", "bold");

@@ -87,7 +87,7 @@ export function AuthScreen({ onLogin, onSignup, onForgotPassword }: AuthScreenPr
         </div>
 
         <p className="text-center text-primary-foreground/60 text-xs mt-6">
-          © 2026 Ghana Health Service
+          © {new Date().getFullYear()} Ghana Health Service - Immunization Tracker
         </p>
       </div>
     </div>
