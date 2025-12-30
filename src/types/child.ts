@@ -7,9 +7,11 @@ export interface Child {
   name: string;
   dateOfBirth: string;
   sex: 'Male' | 'Female';
-  motherName: string;
+  motherName: string; // Now represents caregiver/parent
   telephoneAddress: string;
   community: string;
+  healthFacilityName?: string; // Health facility name
+  regionDistrict?: string; // Region/District
   registeredAt: string;
   updatedAt?: string;
   vaccines: VaccineRecord[];

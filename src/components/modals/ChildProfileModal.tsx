@@ -1,4 +1,4 @@
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import { 
   Dialog, 
   DialogContent, 
@@ -8,6 +8,12 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { 
   User, 
   Calendar, 
@@ -19,10 +25,13 @@ import {
   AlertTriangle,
   Syringe,
   FileText,
-  Eye
+  Eye,
+  Image,
+  ChevronDown
 } from "lucide-react";
 import { Child } from "@/types/child";
 import { exportImmunizationCard } from "@/lib/pdfExport";
+import { exportImmunizationCardAsImage } from "@/lib/imageExport";
 import { toast } from "sonner";
 import { calculateExactAge } from "@/lib/ageCalculator";
 
@@ -73,11 +82,23 @@ export function ChildProfileModal({
       .slice(0, 5);
   }, [child]);
 
-  const handlePrintCard = async () => {
-    toast.loading("Generating immunization card...");
-    await exportImmunizationCard(child, { facilityName: facilityName || "Health Facility" });
+  const handlePrintCardPDF = async () => {
+    toast.loading("Generating PDF card...");
+    await exportImmunizationCard(child, { facilityName: facilityName || child.healthFacilityName || "Health Facility" });
     toast.dismiss();
-    toast.success("Immunization card downloaded!");
+    toast.success("PDF immunization card downloaded!");
+  };
+
+  const handlePrintCardImage = async () => {
+    toast.loading("Generating image card...");
+    try {
+      await exportImmunizationCardAsImage(child, { facilityName: facilityName || child.healthFacilityName || "Health Facility" });
+      toast.dismiss();
+      toast.success("Image immunization card downloaded!");
+    } catch (error) {
+      toast.dismiss();
+      toast.error("Failed to generate image card");
+    }
   };
 
   return (
@@ -225,10 +246,25 @@ export function ChildProfileModal({
               <Syringe className="w-4 h-4 mr-2" />
               Administer Vaccine
             </Button>
-            <Button variant="outline" onClick={handlePrintCard} className="flex-1">
-              <FileText className="w-4 h-4 mr-2" />
-              Print Card
-            </Button>
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="outline" className="flex-1">
+                  <FileText className="w-4 h-4 mr-2" />
+                  Print Card
+                  <ChevronDown className="w-4 h-4 ml-2" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent>
+                <DropdownMenuItem onClick={handlePrintCardPDF}>
+                  <FileText className="w-4 h-4 mr-2" />
+                  Download as PDF
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={handlePrintCardImage}>
+                  <Image className="w-4 h-4 mr-2" />
+                  Download as Image
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
           </div>
         </div>
       </DialogContent>

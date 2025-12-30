@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Menu, LogOut, Home, UserPlus, List, AlertTriangle, LayoutDashboard, BarChart3, Settings, X, Wifi, WifiOff, Calendar, Mail, RefreshCw, Users, Archive, Activity } from "lucide-react";
+import { Menu, LogOut, Home, UserPlus, List, AlertTriangle, LayoutDashboard, BarChart3, Settings, X, Wifi, WifiOff, Calendar, Mail, RefreshCw, Users, Archive, Activity, QrCode } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { resendVerificationEmail } from "@/lib/firebase";
@@ -16,6 +16,7 @@ interface HeaderProps {
   onLogout: () => void;
   onRefreshAuth: () => void;
   userRole?: AppRole;
+  onOpenQRScanner?: () => void;
 }
 
 const getNavItems = (userRole?: AppRole) => {
@@ -46,7 +47,7 @@ const getNavItems = (userRole?: AppRole) => {
   return items;
 };
 
-export function Header({ facilityName, userName, userEmail, emailVerified, currentSection, onSectionChange, onLogout, onRefreshAuth, userRole }: HeaderProps) {
+export function Header({ facilityName, userName, userEmail, emailVerified, currentSection, onSectionChange, onLogout, onRefreshAuth, userRole, onOpenQRScanner }: HeaderProps) {
   const navItems = getNavItems(userRole);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [isSendingVerification, setIsSendingVerification] = useState(false);

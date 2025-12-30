@@ -672,9 +672,10 @@ export async function exportImmunizationCard(
     ["Name:", child.name],
     ["DOB:", new Date(child.dateOfBirth).toLocaleDateString()],
     ["Sex:", child.sex],
-    ["Mother:", child.motherName],
+    ["Caregiver/Parent:", child.motherName],
     ["Contact:", child.telephoneAddress || "N/A"],
     ["Community:", child.community || "N/A"],
+    ...(child.regionDistrict ? [["Region/District:", child.regionDistrict] as [string, string]] : []),
   ];
 
   details.forEach(([label, value]) => {
