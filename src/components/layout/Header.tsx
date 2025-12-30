@@ -150,7 +150,19 @@ export function Header({ facilityName, userName, userEmail, emailVerified, curre
               ))}
             </nav>
 
-            <div className="flex items-center gap-4">
+            <div className="flex items-center gap-2 sm:gap-4">
+              {/* QR Scanner Button */}
+              <Button
+                variant="outline"
+                size="sm"
+                className="flex items-center gap-2 bg-primary-foreground/10 border-primary-foreground/20 text-primary-foreground hover:bg-primary-foreground hover:text-primary rounded-full"
+                onClick={onOpenQRScanner}
+                title="Scan QR Code"
+              >
+                <QrCode className="w-4 h-4" />
+                <span className="hidden md:inline">Verify QR</span>
+              </Button>
+
               <div className="hidden md:flex flex-col items-end">
                 <span className="text-sm font-semibold">{userName}</span>
                 <span className="text-xs opacity-70">{userEmail}</span>

@@ -419,6 +419,7 @@ export default function Index() {
         onLogout={handleLogout}
         onRefreshAuth={refreshAuth}
         userRole={userRole}
+        onOpenQRScanner={() => setShowQRScanner(true)}
       />
 
       <div className="bg-card border-b px-4 py-3 shadow-elevation-1">
