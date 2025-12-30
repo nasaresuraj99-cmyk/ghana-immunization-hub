@@ -2,6 +2,7 @@ import { Download, X, Smartphone } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { usePWAInstall } from '@/hooks/usePWAInstall';
 import { IOSInstallModal } from '@/components/IOSInstallModal';
+import { toast } from 'sonner';
 
 export const PWAInstallBanner = () => {
   const { showBanner, installApp, dismissBanner, isInstalled, isIOS, showIOSModal, closeIOSModal, isInstallable } = usePWAInstall();
@@ -13,6 +14,21 @@ export const PWAInstallBanner = () => {
   
   // Show banner if explicitly shown OR if installable and not dismissed
   const shouldShowBanner = showBanner || isInstallable;
+
+  const handleInstall = async () => {
+    const result = await installApp();
+    
+    if (result === 'no-prompt') {
+      // Show instructions for manual installation when native prompt isn't available
+      toast.info(
+        "To install: Open browser menu (⋮ or ⋯) → 'Add to Home screen' or 'Install app'",
+        { duration: 8000 }
+      );
+    } else if (result === true) {
+      toast.success("App installed successfully!");
+      dismissBanner();
+    }
+  };
 
   return (
     <>
@@ -44,7 +60,7 @@ export const PWAInstallBanner = () => {
                 variant="secondary"
                 size="sm"
                 className="gap-1.5 font-medium"
-                onClick={installApp}
+                onClick={handleInstall}
               >
                 <Download className="h-4 w-4" />
                 {isIOS ? 'How to Install' : 'Install'}

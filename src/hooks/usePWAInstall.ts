@@ -78,14 +78,18 @@ export const usePWAInstall = () => {
     };
   }, []);
 
-  const installApp = async () => {
+  const installApp = async (): Promise<boolean | 'no-prompt'> => {
     // For iOS, show the modal with instructions
     if (isIOS) {
       setShowIOSModal(true);
       return true;
     }
 
-    if (!deferredPrompt) return false;
+    // If no deferred prompt available, browser doesn't support or app already installed
+    if (!deferredPrompt) {
+      // Return special value to indicate no native prompt available
+      return 'no-prompt';
+    }
 
     try {
       await deferredPrompt.prompt();
