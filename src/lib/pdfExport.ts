@@ -633,19 +633,19 @@ export async function exportImmunizationCard(
   doc.setFontSize(8);
   doc.text("Child Health Record Card", pageWidth / 2, 32, { align: "center" });
 
-  // Facility name section
+  // Facility name section - BOLD and prominent
   let yPos = 42;
-  doc.setFillColor(245, 250, 245);
-  doc.rect(10, yPos - 3, pageWidth - 20, 10, "F");
-  doc.setTextColor(...GHS_GREEN);
-  doc.setFontSize(11);
+  doc.setFillColor(...GHS_GREEN);
+  doc.rect(10, yPos - 4, pageWidth - 20, 12, "F");
+  doc.setTextColor(255, 255, 255);
+  doc.setFontSize(14);
   doc.setFont("helvetica", "bold");
-  doc.text(facilityName.toUpperCase(), pageWidth / 2, yPos + 3, { align: "center" });
+  doc.text(facilityName.toUpperCase(), pageWidth / 2, yPos + 4, { align: "center" });
 
   // Child info section with professional layout
-  yPos = 56;
+  yPos = 58;
   doc.setTextColor(...GHS_DARK);
-  doc.setFontSize(9);
+  doc.setFontSize(8);
   doc.setFont("helvetica", "bold");
   doc.text("CHILD INFORMATION", 12, yPos);
   
@@ -653,7 +653,7 @@ export async function exportImmunizationCard(
   doc.setDrawColor(...GHS_GREEN);
   doc.setLineWidth(0.3);
   doc.line(12, yPos + 2, 100, yPos + 2);
-  yPos += 8;
+  yPos += 6;
 
   // QR Code on the right with border
   doc.setDrawColor(...GHS_GREEN);
@@ -664,29 +664,28 @@ export async function exportImmunizationCard(
   doc.setTextColor(100, 100, 100);
   doc.text("Scan to Verify", pageWidth - 25, 92, { align: "center" });
 
-  // Child details in two columns
-  doc.setFontSize(8);
+  // Child details in compact two-column layout
+  doc.setFontSize(7);
   doc.setTextColor(...GHS_DARK);
   const details: [string, string][] = [
-    ["Registration No:", child.regNo],
-    ["Child's Name:", child.name],
-    ["Date of Birth:", new Date(child.dateOfBirth).toLocaleDateString()],
+    ["Reg No:", child.regNo],
+    ["Name:", child.name],
+    ["DOB:", new Date(child.dateOfBirth).toLocaleDateString()],
     ["Sex:", child.sex],
-    ["Mother's Name:", child.motherName],
+    ["Mother:", child.motherName],
     ["Contact:", child.telephoneAddress || "N/A"],
     ["Community:", child.community || "N/A"],
   ];
 
-  details.forEach(([label, value], idx) => {
+  details.forEach(([label, value]) => {
     doc.setFont("helvetica", "bold");
     doc.text(label, 12, yPos);
     doc.setFont("helvetica", "normal");
-    const valueX = 40;
-    doc.text(String(value).substring(0, 30), valueX, yPos);
-    yPos += 5;
+    doc.text(String(value).substring(0, 28), 32, yPos);
+    yPos += 4;
   });
 
-  yPos += 4;
+  yPos += 2;
 
   // Vaccination schedule header with professional styling
   doc.setFillColor(...GHS_GREEN);
@@ -704,37 +703,37 @@ export async function exportImmunizationCard(
   const total = child.vaccines.length;
   const progress = total > 0 ? Math.round((completed / total) * 100) : 0;
 
-  // Vaccination table with improved styling
+  // Vaccination table - compact for single page
   autoTable(doc, {
     startY: yPos,
-    head: [["Vaccine", "Due Date", "Date Given", "Batch No.", "Status"]],
-    body: child.vaccines.slice(0, 18).map((v) => [
-      v.name.split(" at")[0],
-      new Date(v.dueDate).toLocaleDateString(),
-      v.givenDate ? new Date(v.givenDate).toLocaleDateString() : "-",
-      v.batchNumber || "-",
+    head: [["Vaccine", "Due", "Given", "Batch", "✓"]],
+    body: child.vaccines.slice(0, 16).map((v) => [
+      v.name.split(" at")[0].substring(0, 18),
+      new Date(v.dueDate).toLocaleDateString('en-GB', { day: '2-digit', month: '2-digit', year: '2-digit' }),
+      v.givenDate ? new Date(v.givenDate).toLocaleDateString('en-GB', { day: '2-digit', month: '2-digit', year: '2-digit' }) : "-",
+      v.batchNumber?.substring(0, 8) || "-",
       v.status === "completed" ? "✓" : v.status === "overdue" ? "!" : "○",
     ]),
     headStyles: {
       fillColor: GHS_GREEN,
       textColor: [255, 255, 255],
-      fontSize: 6.5,
-      cellPadding: 1.5,
+      fontSize: 5.5,
+      cellPadding: 1,
       fontStyle: "bold",
     },
     bodyStyles: {
-      fontSize: 6,
-      cellPadding: 1.2,
+      fontSize: 5,
+      cellPadding: 0.8,
     },
     alternateRowStyles: {
       fillColor: [245, 250, 245],
     },
     columnStyles: {
-      0: { cellWidth: 32 },
-      1: { cellWidth: 22 },
-      2: { cellWidth: 22 },
-      3: { cellWidth: 18 },
-      4: { cellWidth: 12, halign: "center", fontStyle: "bold" },
+      0: { cellWidth: 28 },
+      1: { cellWidth: 18 },
+      2: { cellWidth: 18 },
+      3: { cellWidth: 16 },
+      4: { cellWidth: 8, halign: "center", fontStyle: "bold" },
     },
     margin: { left: 10, right: 10 },
     tableWidth: pageWidth - 20,
@@ -754,41 +753,41 @@ export async function exportImmunizationCard(
   yPos = (doc as jsPDF & { lastAutoTable?: { finalY: number } }).lastAutoTable?.finalY || yPos + 80;
   yPos += 5;
 
-  // Progress summary box
+  // Compact progress summary
   doc.setFillColor(245, 250, 245);
-  doc.roundedRect(10, yPos, pageWidth - 20, 16, 2, 2, "F");
+  doc.roundedRect(10, yPos, pageWidth - 20, 12, 2, 2, "F");
   
-  doc.setFontSize(7);
+  doc.setFontSize(6);
   doc.setTextColor(...GHS_DARK);
   doc.setFont("helvetica", "bold");
-  doc.text("IMMUNIZATION PROGRESS", 14, yPos + 5);
+  doc.text("PROGRESS", 14, yPos + 4);
   
   // Progress bar
   doc.setFillColor(230, 230, 230);
-  doc.roundedRect(14, yPos + 8, 60, 4, 1, 1, "F");
+  doc.roundedRect(14, yPos + 6, 40, 3, 1, 1, "F");
   doc.setFillColor(...GHS_GREEN);
-  doc.roundedRect(14, yPos + 8, (progress / 100) * 60, 4, 1, 1, "F");
+  doc.roundedRect(14, yPos + 6, (progress / 100) * 40, 3, 1, 1, "F");
   
-  doc.setFontSize(8);
+  doc.setFontSize(7);
   doc.setFont("helvetica", "bold");
-  doc.text(`${progress}%`, 78, yPos + 11);
+  doc.text(`${progress}%`, 56, yPos + 8);
   
-  // Status counts
-  doc.setFontSize(6);
+  // Status counts inline
+  doc.setFontSize(5);
   doc.setFont("helvetica", "normal");
   doc.setFillColor(...GHS_GREEN);
-  doc.circle(95, yPos + 6, 1.5, "F");
-  doc.text(`${completed} Given`, 98, yPos + 7);
+  doc.circle(70, yPos + 7, 1, "F");
+  doc.text(`${completed}`, 72, yPos + 8);
   
   doc.setFillColor(245, 158, 11);
-  doc.circle(95, yPos + 11, 1.5, "F");
-  doc.text(`${pending} Pending`, 98, yPos + 12);
+  doc.circle(80, yPos + 7, 1, "F");
+  doc.text(`${pending}`, 82, yPos + 8);
   
   doc.setFillColor(...GHS_RED);
-  doc.circle(120, yPos + 6, 1.5, "F");
-  doc.text(`${overdue} Overdue`, 123, yPos + 7);
+  doc.circle(90, yPos + 7, 1, "F");
+  doc.text(`${overdue}`, 92, yPos + 8);
 
-  yPos += 20;
+  yPos += 14;
 
   // Footer section
   if (yPos < pageHeight - 35) {
