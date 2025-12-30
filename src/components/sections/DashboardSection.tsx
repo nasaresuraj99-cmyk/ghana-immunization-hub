@@ -1,5 +1,5 @@
 import { useMemo } from "react";
-import { BarChart3, TrendingUp, AlertTriangle, CheckCircle, TrendingDown, Activity, Users as UsersIcon } from "lucide-react";
+import { BarChart3, TrendingUp, AlertTriangle, CheckCircle, TrendingDown, Activity, Users as UsersIcon, UserCircle } from "lucide-react";
 import { StatCard } from "@/components/ui/stat-card";
 import { DashboardStats, Child } from "@/types/child";
 import { VaccinationCoverageChart } from "@/components/charts/VaccinationCoverageChart";
@@ -106,6 +106,13 @@ export function DashboardSection({ stats, children, onViewChild }: DashboardSect
     const sum = validRates.reduce((acc, r) => acc + r.dropoutRate, 0);
     return Math.round(sum / validRates.length);
   }, [dropoutRates]);
+
+  // Gender statistics
+  const genderStats = useMemo(() => {
+    const males = children.filter(c => c.sex?.toLowerCase() === 'male' || c.sex?.toLowerCase() === 'm').length;
+    const females = children.filter(c => c.sex?.toLowerCase() === 'female' || c.sex?.toLowerCase() === 'f').length;
+    return { males, females, total: children.length };
+  }, [children]);
 
   const total = vaccinationStatusData.completed + vaccinationStatusData.pending + vaccinationStatusData.overdue;
 
@@ -294,10 +301,18 @@ export function DashboardSection({ stats, children, onViewChild }: DashboardSect
               <h3 className="font-semibold text-sm">Quick Summary</h3>
             </div>
             
-            <div className="grid grid-cols-3 gap-3 text-center">
+            <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 text-center">
               <div className="bg-card rounded-lg p-3">
-                <div className="text-xl font-bold text-primary">{children.length}</div>
-                <div className="text-xs text-muted-foreground">Total Children</div>
+                <div className="text-xl font-bold text-primary">{genderStats.total}</div>
+                <div className="text-xs text-muted-foreground">Total Registered</div>
+              </div>
+              <div className="bg-card rounded-lg p-3">
+                <div className="text-xl font-bold text-blue-500">{genderStats.males}</div>
+                <div className="text-xs text-muted-foreground">Males</div>
+              </div>
+              <div className="bg-card rounded-lg p-3">
+                <div className="text-xl font-bold text-pink-500">{genderStats.females}</div>
+                <div className="text-xs text-muted-foreground">Females</div>
               </div>
               <div className="bg-card rounded-lg p-3">
                 <div className="text-xl font-bold text-success">{stats.vaccinatedToday}</div>
@@ -306,6 +321,10 @@ export function DashboardSection({ stats, children, onViewChild }: DashboardSect
               <div className="bg-card rounded-lg p-3">
                 <div className="text-xl font-bold text-warning">{stats.dueSoon}</div>
                 <div className="text-xs text-muted-foreground">Due Soon</div>
+              </div>
+              <div className="bg-card rounded-lg p-3">
+                <div className="text-xl font-bold text-success">{stats.fullyImmunized}</div>
+                <div className="text-xs text-muted-foreground">Fully Immunized</div>
               </div>
             </div>
           </div>

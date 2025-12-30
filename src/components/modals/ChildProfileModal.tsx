@@ -32,6 +32,7 @@ interface ChildProfileModalProps {
   onClose: () => void;
   onAdministerVaccine: (child: Child) => void;
   onViewImmunizationStatus?: (child: Child) => void;
+  facilityName?: string;
 }
 
 export function ChildProfileModal({ 
@@ -39,7 +40,8 @@ export function ChildProfileModal({
   isOpen, 
   onClose, 
   onAdministerVaccine,
-  onViewImmunizationStatus
+  onViewImmunizationStatus,
+  facilityName
 }: ChildProfileModalProps) {
   if (!child) return null;
 
@@ -73,7 +75,7 @@ export function ChildProfileModal({
 
   const handlePrintCard = async () => {
     toast.loading("Generating immunization card...");
-    await exportImmunizationCard(child);
+    await exportImmunizationCard(child, { facilityName: facilityName || "Health Facility" });
     toast.dismiss();
     toast.success("Immunization card downloaded!");
   };
