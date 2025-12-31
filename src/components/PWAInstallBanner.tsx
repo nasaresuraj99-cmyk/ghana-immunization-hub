@@ -18,14 +18,22 @@ export const PWAInstallBanner = () => {
   const handleInstall = async () => {
     const result = await installApp();
     
+    if (result === 'ios') {
+      // iOS modal will be shown automatically
+      return;
+    }
+    
     if (result === 'no-prompt') {
       // Show instructions for manual installation when native prompt isn't available
       toast.info(
-        "To install: Open browser menu (⋮ or ⋯) → 'Add to Home screen' or 'Install app'",
+        "To install: Click the browser menu (⋮) → 'Install app' or 'Add to Home screen'",
         { duration: 8000 }
       );
     } else if (result === true) {
       toast.success("App installed successfully!");
+      dismissBanner();
+    } else if (result === false) {
+      // User dismissed the install prompt
       dismissBanner();
     }
   };

@@ -16,7 +16,7 @@ import { BulkVaccinationModal } from "@/components/modals/BulkVaccinationModal";
 import { GlobalSearchBar } from "@/components/GlobalSearchBar";
 import { DeveloperCredits } from "@/components/DeveloperCredits";
 import { PWAInstallBanner } from "@/components/PWAInstallBanner";
-import { OfflineIndicator } from "@/components/OfflineIndicator";
+import { OfflineSyncIndicator } from "@/components/OfflineSyncIndicator";
 import { SyncProgressBar } from "@/components/SyncProgressBar";
 import { PendingChangesQueue } from "@/components/PendingChangesQueue";
 import { ConflictResolutionModal } from "@/components/ConflictResolutionModal";
@@ -422,6 +422,8 @@ export default function Index() {
         onRefreshAuth={refreshAuth}
         userRole={userRole}
         onOpenQRScanner={() => setShowQRScanner(true)}
+        pendingCount={syncProgress.pendingCount}
+        isSyncing={isSyncing}
       />
 
       <div className="bg-card border-b px-4 py-3 shadow-elevation-1">
@@ -661,7 +663,10 @@ export default function Index() {
       />
 
       <PWAInstallBanner />
-      <OfflineIndicator isSyncing={isSyncing} />
+      <OfflineSyncIndicator 
+        pendingCount={syncProgress.pendingCount} 
+        isSyncing={isSyncing}
+      />
     </div>
   );
 }

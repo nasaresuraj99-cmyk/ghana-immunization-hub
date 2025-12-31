@@ -78,36 +78,37 @@ export const usePWAInstall = () => {
     };
   }, []);
 
-  const installApp = async (): Promise<boolean | 'no-prompt'> => {
+  const installApp = async (): Promise<boolean | 'no-prompt' | 'ios'> => {
     // For iOS, show the modal with instructions
     if (isIOS) {
       setShowIOSModal(true);
-      return true;
+      return 'ios';
     }
 
-    // If no deferred prompt available, browser doesn't support or app already installed
-    if (!deferredPrompt) {
-      // Return special value to indicate no native prompt available
-      return 'no-prompt';
-    }
-
-    try {
-      await deferredPrompt.prompt();
-      const { outcome } = await deferredPrompt.userChoice;
-      
-      if (outcome === 'accepted') {
-        setIsInstalled(true);
-        setShowBanner(false);
+    // If we have a deferred prompt, use it immediately
+    if (deferredPrompt) {
+      try {
+        // Trigger the install prompt immediately
+        await deferredPrompt.prompt();
+        const { outcome } = await deferredPrompt.userChoice;
+        
+        if (outcome === 'accepted') {
+          setIsInstalled(true);
+          setShowBanner(false);
+        }
+        
+        setDeferredPrompt(null);
+        setIsInstallable(false);
+        
+        return outcome === 'accepted';
+      } catch (error) {
+        console.error('Error installing PWA:', error);
+        return false;
       }
-      
-      setDeferredPrompt(null);
-      setIsInstallable(false);
-      
-      return outcome === 'accepted';
-    } catch (error) {
-      console.error('Error installing PWA:', error);
-      return false;
     }
+
+    // No deferred prompt - browser may not support PWA install or already installed
+    return 'no-prompt';
   };
 
   const dismissBanner = () => {
