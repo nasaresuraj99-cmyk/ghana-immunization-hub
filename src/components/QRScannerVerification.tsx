@@ -37,9 +37,10 @@ interface QRVerificationData {
 interface QRScannerVerificationProps {
   isOpen: boolean;
   onClose: () => void;
+  onFindChild?: (regNo: string) => void;
 }
 
-export function QRScannerVerification({ isOpen, onClose }: QRScannerVerificationProps) {
+export function QRScannerVerification({ isOpen, onClose, onFindChild }: QRScannerVerificationProps) {
   const [scanResult, setScanResult] = useState<QRVerificationData | null>(null);
   const [scanError, setScanError] = useState<string | null>(null);
   const [isScanning, setIsScanning] = useState(true);
@@ -237,12 +238,26 @@ export function QRScannerVerification({ isOpen, onClose }: QRScannerVerification
 
           <div className="flex gap-3">
             {scanResult && (
-              <Button onClick={handleScanAgain} variant="outline" className="flex-1">
-                <QrCode className="w-4 h-4 mr-2" />
-                Scan Another
-              </Button>
+              <>
+                <Button onClick={handleScanAgain} variant="outline" className="flex-1">
+                  <QrCode className="w-4 h-4 mr-2" />
+                  Scan Another
+                </Button>
+                {onFindChild && (
+                  <Button 
+                    onClick={() => {
+                      onFindChild(scanResult.regNo);
+                      handleClose();
+                    }} 
+                    className="flex-1 bg-primary"
+                  >
+                    <User className="w-4 h-4 mr-2" />
+                    Find in Register
+                  </Button>
+                )}
+              </>
             )}
-            <Button onClick={handleClose} variant={scanResult ? "default" : "outline"} className="flex-1">
+            <Button onClick={handleClose} variant={scanResult ? "outline" : "default"} className={!scanResult ? "flex-1" : ""}>
               Close
             </Button>
           </div>
