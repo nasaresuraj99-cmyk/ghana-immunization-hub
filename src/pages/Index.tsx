@@ -26,6 +26,7 @@ import { ArchiveSection } from "@/components/ArchiveSection";
 import { ActivityLogViewer } from "@/components/ActivityLogViewer";
 import { AdminDashboard } from "@/components/AdminDashboard";
 import { QRScannerVerification } from "@/components/QRScannerVerification";
+import { MobileBottomNav } from "@/components/MobileBottomNav";
 import { useChildren } from "@/hooks/useChildren";
 import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
@@ -47,6 +48,7 @@ export default function Index() {
   const [showPendingQueue, setShowPendingQueue] = useState(false);
   const [showBulkVaccination, setShowBulkVaccination] = useState(false);
   const [showQRScanner, setShowQRScanner] = useState(false);
+  const [highlightedChildRegNo, setHighlightedChildRegNo] = useState<string | undefined>(undefined);
   // Pass both userId and facilityId to useChildren
   const { 
     children, 
@@ -479,6 +481,7 @@ export default function Index() {
             canEdit={permissions.canEdit}
             canDelete={permissions.canSoftDelete}
             canAdministerVaccines={permissions.canAdministerVaccines}
+            highlightedRegNo={highlightedChildRegNo}
           />
         )}
 
@@ -585,9 +588,16 @@ export default function Index() {
 
       <DeveloperCredits />
       
-      <footer className="text-center py-4 text-xs text-muted-foreground border-t bg-card">
+      <footer className="text-center py-4 text-xs text-muted-foreground border-t bg-card pb-20 md:pb-4">
         © {new Date().getFullYear()} Ghana Health Service - Immunization Tracker
       </footer>
+
+      {/* Mobile Bottom Navigation */}
+      <MobileBottomNav
+        currentSection={currentSection}
+        onSectionChange={(section) => setCurrentSection(section as Section)}
+        onOpenQRScanner={() => setShowQRScanner(true)}
+      />
 
       <VaccineAdministrationModal
         child={vaccineModalChild}
@@ -640,6 +650,14 @@ export default function Index() {
       <QRScannerVerification
         isOpen={showQRScanner}
         onClose={() => setShowQRScanner(false)}
+        onFindChild={(regNo) => {
+          setHighlightedChildRegNo(regNo);
+          setCurrentSection('register');
+          toast({
+            title: "Child Found",
+            description: `Showing record for ${regNo}`,
+          });
+        }}
       />
 
       <PWAInstallBanner />

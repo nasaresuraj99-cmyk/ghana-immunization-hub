@@ -589,7 +589,6 @@ export async function exportImmunizationCard(
     vaccinesCompleted: child.vaccines.filter(v => v.status === "completed").length,
     totalVaccines: child.vaccines.length,
     generatedAt: new Date().toISOString(),
-    verifyUrl: `https://ghs.gov.gh/verify/${child.regNo}`,
   };
   
   const qrCodeDataUrl = await QRCode.toDataURL(JSON.stringify(verificationData), {
@@ -602,69 +601,62 @@ export async function exportImmunizationCard(
     },
   });
 
-  // Decorative border with double line effect
+  // Border
   doc.setDrawColor(...GHS_GREEN);
-  doc.setLineWidth(2);
-  doc.rect(3, 3, pageWidth - 6, pageHeight - 6, "S");
-  doc.setLineWidth(0.5);
-  doc.rect(6, 6, pageWidth - 12, pageHeight - 12, "S");
+  doc.setLineWidth(1.5);
+  doc.rect(4, 4, pageWidth - 8, pageHeight - 8, "S");
 
-  // Header with Ghana coat of arms styling
+  // Header
   doc.setFillColor(...GHS_GREEN);
-  doc.rect(6, 6, pageWidth - 12, 28, "F");
+  doc.rect(4, 4, pageWidth - 8, 22, "F");
   
-  // Gold accent lines
+  // Gold accent line
   doc.setFillColor(...GHS_GOLD);
-  doc.rect(6, 34, pageWidth - 12, 3, "F");
+  doc.rect(4, 26, pageWidth - 8, 2, "F");
 
   // Header text
   doc.setTextColor(255, 255, 255);
-  doc.setFontSize(12);
-  doc.setFont("helvetica", "bold");
-  doc.text("REPUBLIC OF GHANA", pageWidth / 2, 13, { align: "center" });
-  
-  doc.setFontSize(14);
-  doc.text("GHANA HEALTH SERVICE", pageWidth / 2, 20, { align: "center" });
-  
   doc.setFontSize(10);
-  doc.setFont("helvetica", "normal");
-  doc.text("Expanded Programme on Immunization (EPI)", pageWidth / 2, 27, { align: "center" });
+  doc.setFont("helvetica", "bold");
+  doc.text("REPUBLIC OF GHANA", pageWidth / 2, 10, { align: "center" });
+  
+  doc.setFontSize(12);
+  doc.text("GHANA HEALTH SERVICE", pageWidth / 2, 16, { align: "center" });
   
   doc.setFontSize(8);
-  doc.text("Child Health Record Card", pageWidth / 2, 32, { align: "center" });
+  doc.setFont("helvetica", "normal");
+  doc.text("Child Immunization Record Card", pageWidth / 2, 22, { align: "center" });
 
-  // Facility name section - BOLD and prominent
-  let yPos = 42;
+  // Facility name - prominent
+  let yPos = 34;
   doc.setFillColor(...GHS_GREEN);
-  doc.rect(10, yPos - 4, pageWidth - 20, 12, "F");
+  doc.rect(8, yPos - 3, pageWidth - 16, 10, "F");
   doc.setTextColor(255, 255, 255);
-  doc.setFontSize(14);
+  doc.setFontSize(12);
   doc.setFont("helvetica", "bold");
   doc.text(facilityName.toUpperCase(), pageWidth / 2, yPos + 4, { align: "center" });
 
-  // Child info section with professional layout
-  yPos = 58;
+  // Child info section
+  yPos = 48;
   doc.setTextColor(...GHS_DARK);
   doc.setFontSize(8);
   doc.setFont("helvetica", "bold");
-  doc.text("CHILD INFORMATION", 12, yPos);
+  doc.text("CHILD DETAILS", 10, yPos);
   
-  // Divider line
   doc.setDrawColor(...GHS_GREEN);
   doc.setLineWidth(0.3);
-  doc.line(12, yPos + 2, 100, yPos + 2);
-  yPos += 6;
+  doc.line(10, yPos + 1, 80, yPos + 1);
+  yPos += 5;
 
-  // QR Code on the right with border
+  // QR Code
   doc.setDrawColor(...GHS_GREEN);
   doc.setLineWidth(0.5);
-  doc.rect(pageWidth - 44, 54, 36, 36, "S");
-  doc.addImage(qrCodeDataUrl, "PNG", pageWidth - 43, 55, 34, 34);
+  doc.addImage(qrCodeDataUrl, "PNG", pageWidth - 40, 44, 30, 30);
   doc.setFontSize(5);
   doc.setTextColor(100, 100, 100);
-  doc.text("Scan to Verify", pageWidth - 25, 92, { align: "center" });
+  doc.text("Scan to Verify", pageWidth - 25, 76, { align: "center" });
 
-  // Child details in compact two-column layout
+  // Child details
   doc.setFontSize(7);
   doc.setTextColor(...GHS_DARK);
   const details: [string, string][] = [
@@ -672,74 +664,68 @@ export async function exportImmunizationCard(
     ["Name:", child.name],
     ["DOB:", new Date(child.dateOfBirth).toLocaleDateString()],
     ["Sex:", child.sex],
-    ["Caregiver/Parent:", child.motherName],
+    ["Caregiver:", child.motherName],
     ["Contact:", child.telephoneAddress || "N/A"],
-    ["Community:", child.community || "N/A"],
-    ...(child.regionDistrict ? [["Region/District:", child.regionDistrict] as [string, string]] : []),
   ];
 
   details.forEach(([label, value]) => {
     doc.setFont("helvetica", "bold");
-    doc.text(label, 12, yPos);
+    doc.text(label, 10, yPos);
     doc.setFont("helvetica", "normal");
-    doc.text(String(value).substring(0, 28), 32, yPos);
+    doc.text(String(value).substring(0, 25), 28, yPos);
     yPos += 4;
   });
 
   yPos += 2;
 
-  // Vaccination schedule header with professional styling
+  // Immunization record header
   doc.setFillColor(...GHS_GREEN);
-  doc.rect(10, yPos, pageWidth - 20, 8, "F");
+  doc.rect(8, yPos, pageWidth - 16, 7, "F");
   doc.setTextColor(255, 255, 255);
   doc.setFont("helvetica", "bold");
-  doc.setFontSize(9);
-  doc.text("IMMUNIZATION RECORD", pageWidth / 2, yPos + 5.5, { align: "center" });
-  yPos += 12;
+  doc.setFontSize(8);
+  doc.text("IMMUNIZATION RECORD", pageWidth / 2, yPos + 5, { align: "center" });
+  yPos += 10;
 
   // Calculate statistics
   const completed = child.vaccines.filter(v => v.status === "completed").length;
-  const pending = child.vaccines.filter(v => v.status === "pending").length;
-  const overdue = child.vaccines.filter(v => v.status === "overdue").length;
   const total = child.vaccines.length;
   const progress = total > 0 ? Math.round((completed / total) * 100) : 0;
 
-  // Vaccination table - compact for single page
+  // Vaccination table - compact
   autoTable(doc, {
     startY: yPos,
-    head: [["Vaccine", "Due", "Given", "Batch", "✓"]],
-    body: child.vaccines.slice(0, 16).map((v) => [
-      v.name.split(" at")[0].substring(0, 18),
+    head: [["Vaccine", "Due", "Given", "✓"]],
+    body: child.vaccines.slice(0, 18).map((v) => [
+      v.name.split(" at")[0].substring(0, 20),
       new Date(v.dueDate).toLocaleDateString('en-GB', { day: '2-digit', month: '2-digit', year: '2-digit' }),
       v.givenDate ? new Date(v.givenDate).toLocaleDateString('en-GB', { day: '2-digit', month: '2-digit', year: '2-digit' }) : "-",
-      v.batchNumber?.substring(0, 8) || "-",
       v.status === "completed" ? "✓" : v.status === "overdue" ? "!" : "○",
     ]),
     headStyles: {
       fillColor: GHS_GREEN,
       textColor: [255, 255, 255],
-      fontSize: 5.5,
+      fontSize: 6,
       cellPadding: 1,
       fontStyle: "bold",
     },
     bodyStyles: {
-      fontSize: 5,
+      fontSize: 5.5,
       cellPadding: 0.8,
     },
     alternateRowStyles: {
       fillColor: [245, 250, 245],
     },
     columnStyles: {
-      0: { cellWidth: 28 },
-      1: { cellWidth: 18 },
-      2: { cellWidth: 18 },
-      3: { cellWidth: 16 },
-      4: { cellWidth: 8, halign: "center", fontStyle: "bold" },
+      0: { cellWidth: 35 },
+      1: { cellWidth: 22 },
+      2: { cellWidth: 22 },
+      3: { cellWidth: 10, halign: "center", fontStyle: "bold" },
     },
-    margin: { left: 10, right: 10 },
-    tableWidth: pageWidth - 20,
+    margin: { left: 8, right: 8 },
+    tableWidth: pageWidth - 16,
     didParseCell: (data) => {
-      if (data.section === "body" && data.column.index === 4) {
+      if (data.section === "body" && data.column.index === 3) {
         if (data.cell.raw === "✓") {
           data.cell.styles.textColor = [0, 100, 0];
         } else if (data.cell.raw === "!") {
@@ -752,89 +738,46 @@ export async function exportImmunizationCard(
   });
 
   yPos = (doc as jsPDF & { lastAutoTable?: { finalY: number } }).lastAutoTable?.finalY || yPos + 80;
-  yPos += 5;
+  yPos += 4;
 
-  // Compact progress summary
-  doc.setFillColor(245, 250, 245);
-  doc.roundedRect(10, yPos, pageWidth - 20, 12, 2, 2, "F");
-  
-  doc.setFontSize(6);
-  doc.setTextColor(...GHS_DARK);
-  doc.setFont("helvetica", "bold");
-  doc.text("PROGRESS", 14, yPos + 4);
-  
   // Progress bar
-  doc.setFillColor(230, 230, 230);
-  doc.roundedRect(14, yPos + 6, 40, 3, 1, 1, "F");
-  doc.setFillColor(...GHS_GREEN);
-  doc.roundedRect(14, yPos + 6, (progress / 100) * 40, 3, 1, 1, "F");
+  doc.setFillColor(245, 250, 245);
+  doc.roundedRect(8, yPos, pageWidth - 16, 10, 2, 2, "F");
   
-  doc.setFontSize(7);
-  doc.setFont("helvetica", "bold");
-  doc.text(`${progress}%`, 56, yPos + 8);
-  
-  // Status counts inline
-  doc.setFontSize(5);
-  doc.setFont("helvetica", "normal");
-  doc.setFillColor(...GHS_GREEN);
-  doc.circle(70, yPos + 7, 1, "F");
-  doc.text(`${completed}`, 72, yPos + 8);
-  
-  doc.setFillColor(245, 158, 11);
-  doc.circle(80, yPos + 7, 1, "F");
-  doc.text(`${pending}`, 82, yPos + 8);
-  
-  doc.setFillColor(...GHS_RED);
-  doc.circle(90, yPos + 7, 1, "F");
-  doc.text(`${overdue}`, 92, yPos + 8);
-
-  yPos += 14;
-
-  // Footer section
-  if (yPos < pageHeight - 35) {
-    yPos = pageHeight - 35;
-  }
-
-  // Decorative gold line
-  doc.setFillColor(...GHS_GOLD);
-  doc.rect(10, yPos, pageWidth - 20, 1, "F");
-  yPos += 5;
-
-  // Important notice
   doc.setFontSize(6);
   doc.setTextColor(...GHS_DARK);
-  doc.setFont("helvetica", "italic");
-  doc.text("IMPORTANT: This card is an official health document. Please bring it to every clinic visit.", pageWidth / 2, yPos, { align: "center" });
-  yPos += 3;
-  doc.text("If lost or damaged, report immediately to your nearest health facility for replacement.", pageWidth / 2, yPos, { align: "center" });
-  yPos += 5;
-
-  // Signature and stamp section
-  doc.setFont("helvetica", "normal");
-  doc.setFontSize(6);
+  doc.setFont("helvetica", "bold");
+  doc.text("PROGRESS:", 12, yPos + 4);
   
-  // Health worker signature
-  doc.text("Health Worker:", 12, yPos);
-  doc.setDrawColor(...GHS_DARK);
-  doc.line(32, yPos, 65, yPos);
-  
-  // Date
-  doc.text("Date:", 70, yPos);
-  doc.line(80, yPos, 100, yPos);
-  
-  // Facility stamp box
-  doc.text("Official Stamp:", 105, yPos - 8);
-  doc.setLineDashPattern([0.5, 0.5], 0);
-  doc.rect(105, yPos - 6, 30, 15, "S");
-  doc.setLineDashPattern([], 0);
-
-  // Bottom decoration
+  doc.setFillColor(230, 230, 230);
+  doc.roundedRect(35, yPos + 2, 50, 4, 1, 1, "F");
   doc.setFillColor(...GHS_GREEN);
-  doc.rect(6, pageHeight - 8, pageWidth - 12, 2, "F");
+  doc.roundedRect(35, yPos + 2, (progress / 100) * 50, 4, 1, 1, "F");
+  
+  doc.setFontSize(8);
+  doc.text(`${progress}%`, 88, yPos + 5);
   
   doc.setFontSize(5);
+  doc.setFont("helvetica", "normal");
+  doc.text(`${completed}/${total} vaccines completed`, 100, yPos + 5);
+
+  // Footer
+  yPos = pageHeight - 20;
+  doc.setFillColor(...GHS_GOLD);
+  doc.rect(8, yPos, pageWidth - 16, 1, "F");
+  yPos += 4;
+
+  doc.setFontSize(5);
+  doc.setTextColor(...GHS_DARK);
+  doc.text("This card is an official health document. Bring it to every clinic visit.", pageWidth / 2, yPos, { align: "center" });
+  
+  // Bottom bar
+  doc.setFillColor(...GHS_GREEN);
+  doc.rect(4, pageHeight - 6, pageWidth - 8, 2, "F");
+  
+  doc.setFontSize(4);
   doc.setTextColor(100, 100, 100);
-  doc.text(`Card ID: ${child.regNo} | Generated: ${new Date().toLocaleDateString()} | Ghana Health Service - 2030 EPI Agenda`, pageWidth / 2, pageHeight - 4, { align: "center" });
+  doc.text(`ID: ${child.regNo} | Generated: ${new Date().toLocaleDateString()} | Ghana Health Service`, pageWidth / 2, pageHeight - 3, { align: "center" });
 
   doc.save(`GHS_Immunization_Card_${child.regNo}_${child.name.replace(/\s+/g, "_")}.pdf`);
 }
