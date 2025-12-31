@@ -52,9 +52,9 @@ export function ChildProfileModal({
   onViewImmunizationStatus,
   facilityName
 }: ChildProfileModalProps) {
-  if (!child) return null;
-
+  // All hooks MUST be called before any conditional returns
   const vaccineStats = useMemo(() => {
+    if (!child) return { completed: 0, pending: 0, overdue: 0, total: 0, progress: 0 };
     const completed = child.vaccines.filter(v => v.status === 'completed').length;
     const pending = child.vaccines.filter(v => v.status === 'pending').length;
     const overdue = child.vaccines.filter(v => v.status === 'overdue').length;
@@ -64,7 +64,7 @@ export function ChildProfileModal({
   }, [child]);
 
   const nextVaccines = useMemo(() => {
-    const today = new Date();
+    if (!child) return [];
     return child.vaccines
       .filter(v => v.status === 'pending')
       .sort((a, b) => new Date(a.dueDate).getTime() - new Date(b.dueDate).getTime())
@@ -72,15 +72,20 @@ export function ChildProfileModal({
   }, [child]);
 
   const overdueVaccines = useMemo(() => {
+    if (!child) return [];
     return child.vaccines.filter(v => v.status === 'overdue');
   }, [child]);
 
   const recentVaccines = useMemo(() => {
+    if (!child) return [];
     return child.vaccines
       .filter(v => v.status === 'completed' && v.givenDate)
       .sort((a, b) => new Date(b.givenDate!).getTime() - new Date(a.givenDate!).getTime())
       .slice(0, 5);
   }, [child]);
+
+  // Early return AFTER all hooks
+  if (!child) return null;
 
   const handlePrintCardPDF = async () => {
     toast.loading("Generating PDF card...");

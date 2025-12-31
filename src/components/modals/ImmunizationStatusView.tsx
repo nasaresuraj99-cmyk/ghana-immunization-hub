@@ -85,9 +85,9 @@ export function ImmunizationStatusView({
   );
   const [activeTab, setActiveTab] = useState("all");
 
-  if (!child) return null;
-
+  // All hooks MUST be called before any conditional returns
   const vaccineStats = useMemo(() => {
+    if (!child) return { completed: 0, pending: 0, overdue: 0, total: 0, progress: 0 };
     const completed = child.vaccines.filter((v) => v.status === "completed").length;
     const pending = child.vaccines.filter((v) => v.status === "pending").length;
     const overdue = child.vaccines.filter((v) => v.status === "overdue").length;
@@ -98,35 +98,36 @@ export function ImmunizationStatusView({
 
   // Group vaccines by age category
   const groupedVaccines = useMemo(() => {
+    if (!child) return {};
     const groups: Record<string, VaccineRecord[]> = {};
-
     child.vaccines.forEach((vaccine) => {
       const category = getAgeCategory(vaccine.name);
       if (!groups[category]) groups[category] = [];
       groups[category].push(vaccine);
     });
-
     return groups;
   }, [child]);
 
   // Filter vaccines based on active tab
   const filteredVaccines = useMemo(() => {
+    if (!child) return [];
     if (activeTab === "all") return child.vaccines;
     return child.vaccines.filter((v) => v.status === activeTab);
-  }, [child.vaccines, activeTab]);
+  }, [child, activeTab]);
 
   // Group filtered vaccines by category
   const filteredGroupedVaccines = useMemo(() => {
     const groups: Record<string, VaccineRecord[]> = {};
-
     filteredVaccines.forEach((vaccine) => {
       const category = getAgeCategory(vaccine.name);
       if (!groups[category]) groups[category] = [];
       groups[category].push(vaccine);
     });
-
     return groups;
   }, [filteredVaccines]);
+
+  // Early return AFTER all hooks
+  if (!child) return null;
 
   const toggleCategory = (categoryKey: string) => {
     setExpandedCategories((prev) => {

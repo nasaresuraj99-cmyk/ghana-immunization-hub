@@ -1,5 +1,5 @@
-import { useState } from "react";
-import { Menu, LogOut, Home, UserPlus, List, AlertTriangle, LayoutDashboard, BarChart3, Settings, X, Wifi, WifiOff, Calendar, Mail, RefreshCw, Users, Archive, Activity, QrCode } from "lucide-react";
+import { useState, useEffect } from "react";
+import { Menu, LogOut, Home, UserPlus, List, AlertTriangle, LayoutDashboard, BarChart3, Settings, X, Wifi, WifiOff, Calendar, Mail, RefreshCw, Users, Archive, Activity, QrCode, CloudUpload, AlertCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { resendVerificationEmail } from "@/lib/firebase";
@@ -17,6 +17,8 @@ interface HeaderProps {
   onRefreshAuth: () => void;
   userRole?: AppRole;
   onOpenQRScanner?: () => void;
+  pendingCount?: number;
+  isSyncing?: boolean;
 }
 
 const getNavItems = (userRole?: AppRole) => {
@@ -47,11 +49,23 @@ const getNavItems = (userRole?: AppRole) => {
   return items;
 };
 
-export function Header({ facilityName, userName, userEmail, emailVerified, currentSection, onSectionChange, onLogout, onRefreshAuth, userRole, onOpenQRScanner }: HeaderProps) {
+export function Header({ facilityName, userName, userEmail, emailVerified, currentSection, onSectionChange, onLogout, onRefreshAuth, userRole, onOpenQRScanner, pendingCount = 0, isSyncing = false }: HeaderProps) {
   const navItems = getNavItems(userRole);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [isSendingVerification, setIsSendingVerification] = useState(false);
-  const isOnline = navigator.onLine;
+  const [isOnline, setIsOnline] = useState(navigator.onLine);
+
+  // Listen for online/offline events
+  useEffect(() => {
+    const handleOnline = () => setIsOnline(true);
+    const handleOffline = () => setIsOnline(false);
+    window.addEventListener('online', handleOnline);
+    window.addEventListener('offline', handleOffline);
+    return () => {
+      window.removeEventListener('online', handleOnline);
+      window.removeEventListener('offline', handleOffline);
+    };
+  }, []);
 
   const handleResendVerification = async () => {
     setIsSendingVerification(true);
@@ -127,6 +141,21 @@ export function Header({ facilityName, userName, userEmail, emailVerified, curre
                     {isOnline ? <Wifi className="w-3 h-3" /> : <WifiOff className="w-3 h-3" />}
                     <span className="hidden sm:inline">{isOnline ? 'Online' : 'Offline'}</span>
                   </span>
+                  {/* Sync status indicator */}
+                  {(pendingCount > 0 || isSyncing) && (
+                    <span className={cn(
+                      "flex items-center gap-1 text-xs px-2 py-0.5 rounded-full",
+                      isSyncing ? "bg-blue-400/30" : "bg-orange-400/30"
+                    )}>
+                      {isSyncing ? (
+                        <CloudUpload className="w-3 h-3 animate-pulse" />
+                      ) : (
+                        <AlertCircle className="w-3 h-3" />
+                      )}
+                      <span className="hidden sm:inline">{isSyncing ? 'Syncing' : `${pendingCount} pending`}</span>
+                      {!isSyncing && <span className="sm:hidden">{pendingCount}</span>}
+                    </span>
+                  )}
                 </div>
               </div>
             </div>
