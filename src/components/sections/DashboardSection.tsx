@@ -6,11 +6,18 @@ import { VaccinationCoverageChart } from "@/components/charts/VaccinationCoverag
 import { MonthlyTrendsChart } from "@/components/charts/MonthlyTrendsChart";
 import { AgeDistributionChart } from "@/components/charts/AgeDistributionChart";
 import { VaccineDueReminders } from "@/components/VaccineDueReminders";
+import { SyncStatusWidget } from "@/components/SyncStatusWidget";
+import { SyncProgress } from "@/hooks/useSyncStatus";
 
 interface DashboardSectionProps {
   stats: DashboardStats;
   children: Child[];
   onViewChild: (child: Child) => void;
+  syncProgress?: SyncProgress & {
+    isOnline: boolean;
+    statusMessage: string;
+    triggerManualSync: () => boolean;
+  };
 }
 
 // Dropout rate pairs for calculation
@@ -22,7 +29,7 @@ const DROPOUT_PAIRS = [
   { start: 'IPV1', end: 'IPV2', label: 'IPV1 → IPV2' },
 ];
 
-export function DashboardSection({ stats, children, onViewChild }: DashboardSectionProps) {
+export function DashboardSection({ stats, children, onViewChild, syncProgress }: DashboardSectionProps) {
   // Group vaccines by child and visit date (same date = same visit/session)
   const recentActivity = useMemo(() => {
     const visitMap = new Map<string, {
@@ -244,6 +251,13 @@ export function DashboardSection({ stats, children, onViewChild }: DashboardSect
           {/* Due Reminders */}
           <VaccineDueReminders children={children} onViewChild={onViewChild} />
         </div>
+
+        {/* Sync Status Widget */}
+        {syncProgress && (
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
+            <SyncStatusWidget syncProgress={syncProgress} />
+          </div>
+        )}
 
         {/* Vaccination Status & Summary */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">

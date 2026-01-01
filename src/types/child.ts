@@ -1,3 +1,14 @@
+export type TransferStatus = 'active' | 'traveled_out' | 'moved_out' | 'traveled_in' | 'moved_in';
+
+export interface TransferRecord {
+  type: 'in' | 'out';
+  date: string;
+  location: string; // source or destination
+  reason: string;
+  recordedAt: string;
+  recordedByUserId?: string;
+}
+
 export interface Child {
   id: string;
   userId: string; // Owner's Firebase UID for data isolation
@@ -19,6 +30,10 @@ export interface Child {
   isDeleted?: boolean;
   deletedAt?: string;
   deletedByUserId?: string;
+  // Transfer/Travel fields
+  transferStatus?: TransferStatus;
+  transferHistory?: TransferRecord[];
+  currentLocation?: string; // For traveled out children
 }
 
 export interface VaccineRecord {

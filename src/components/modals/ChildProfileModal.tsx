@@ -12,6 +12,7 @@ import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
+  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { 
@@ -27,7 +28,12 @@ import {
   FileText,
   Eye,
   Image,
-  ChevronDown
+  ChevronDown,
+  RotateCcw,
+  ArrowRightLeft,
+  MoreVertical,
+  Plane,
+  Home
 } from "lucide-react";
 import { Child } from "@/types/child";
 import { exportImmunizationCard } from "@/lib/pdfExport";
@@ -41,6 +47,9 @@ interface ChildProfileModalProps {
   onClose: () => void;
   onAdministerVaccine: (child: Child) => void;
   onViewImmunizationStatus?: (child: Child) => void;
+  onResetRecords?: (child: Child) => void;
+  onTransferOut?: (child: Child) => void;
+  onTransferIn?: (child: Child) => void;
   facilityName?: string;
 }
 
@@ -50,6 +59,9 @@ export function ChildProfileModal({
   onClose, 
   onAdministerVaccine,
   onViewImmunizationStatus,
+  onResetRecords,
+  onTransferOut,
+  onTransferIn,
   facilityName
 }: ChildProfileModalProps) {
   // All hooks MUST be called before any conditional returns
@@ -86,6 +98,8 @@ export function ChildProfileModal({
 
   // Early return AFTER all hooks
   if (!child) return null;
+
+  const isTransferredOut = child.transferStatus === 'traveled_out' || child.transferStatus === 'moved_out';
 
   const handlePrintCardPDF = async () => {
     toast.loading("Generating PDF card...");
@@ -235,6 +249,23 @@ export function ChildProfileModal({
             </div>
           )}
 
+          {/* Transfer Status Banner */}
+          {isTransferredOut && (
+            <div className="bg-amber-500/10 border border-amber-500/30 rounded-lg p-4">
+              <div className="flex items-center gap-2 mb-2">
+                <Plane className="w-4 h-4 text-amber-600" />
+                <span className="font-medium text-amber-600">
+                  {child.transferStatus === 'moved_out' ? 'Moved Out' : 'Traveled Out'}
+                </span>
+              </div>
+              {child.currentLocation && (
+                <p className="text-sm text-muted-foreground">
+                  Location: {child.currentLocation}
+                </p>
+              )}
+            </div>
+          )}
+
           {/* Actions */}
           <div className="flex flex-wrap gap-3 pt-4 border-t">
             {onViewImmunizationStatus && (
@@ -268,6 +299,46 @@ export function ChildProfileModal({
                   <Image className="w-4 h-4 mr-2" />
                   Download as Image
                 </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+            
+            {/* More Actions Dropdown */}
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="outline" size="icon">
+                  <MoreVertical className="w-4 h-4" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end">
+                {/* Transfer Actions */}
+                {isTransferredOut ? (
+                  onTransferIn && (
+                    <DropdownMenuItem onClick={() => onTransferIn(child)}>
+                      <Home className="w-4 h-4 mr-2" />
+                      Mark as Returned
+                    </DropdownMenuItem>
+                  )
+                ) : (
+                  onTransferOut && (
+                    <DropdownMenuItem onClick={() => onTransferOut(child)}>
+                      <Plane className="w-4 h-4 mr-2" />
+                      Traveled Out / Moved Out
+                    </DropdownMenuItem>
+                  )
+                )}
+                
+                <DropdownMenuSeparator />
+                
+                {/* Reset Records */}
+                {onResetRecords && (
+                  <DropdownMenuItem 
+                    onClick={() => onResetRecords(child)}
+                    className="text-destructive focus:text-destructive"
+                  >
+                    <RotateCcw className="w-4 h-4 mr-2" />
+                    Reset Vaccination Records
+                  </DropdownMenuItem>
+                )}
               </DropdownMenuContent>
             </DropdownMenu>
           </div>
