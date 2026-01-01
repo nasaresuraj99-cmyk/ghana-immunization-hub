@@ -1,5 +1,5 @@
 import { useState, useCallback, useMemo, useEffect, useRef } from "react";
-import { Child, VaccineRecord, DashboardStats } from "@/types/child";
+import { Child, VaccineRecord, DashboardStats, TransferRecord } from "@/types/child";
 import { ConflictRecord, ConflictResolution } from "@/types/conflict";
 import { ActivityLog } from "@/types/facility";
 import { 
@@ -824,6 +824,207 @@ export function useChildren(options: UseChildrenOptions = {}) {
     }
   }, [syncToFirebase]);
 
+  // Reset vaccination records for a single child
+  const resetChildVaccines = useCallback((childId: string, userName?: string) => {
+    setChildren(prev => {
+      const updated = prev.map(child => {
+        if (child.id !== childId) return child;
+        
+        const today = new Date();
+        const resetVaccines = child.vaccines.map(vaccine => {
+          const dueDate = new Date(vaccine.dueDate);
+          return {
+            name: vaccine.name,
+            dueDate: vaccine.dueDate,
+            status: (dueDate < today ? 'overdue' : 'pending') as 'pending' | 'overdue',
+            givenDate: undefined,
+            batchNumber: undefined,
+            administeredBy: undefined,
+            administeredByUserId: undefined,
+          };
+        });
+
+        return {
+          ...child,
+          vaccines: resetVaccines,
+          updatedAt: new Date().toISOString(),
+        };
+      });
+
+      const updatedChild = updated.find(c => c.id === childId);
+      if (updatedChild) {
+        syncToFirebase(childId, updatedChild, 'update');
+        
+        if (currentFacilityIdRef.current && currentUserIdRef.current) {
+          logActivity(
+            currentFacilityIdRef.current,
+            currentUserIdRef.current,
+            userName || 'Unknown',
+            'update',
+            'child',
+            childId,
+            `Reset vaccination records for ${updatedChild.name}`
+          );
+        }
+      }
+
+      return updated;
+    });
+  }, [syncToFirebase]);
+
+  // Reset vaccination records for all children
+  const resetAllVaccines = useCallback((userName?: string) => {
+    const today = new Date();
+    
+    setChildren(prev => {
+      const updated = prev.map(child => {
+        const resetVaccines = child.vaccines.map(vaccine => {
+          const dueDate = new Date(vaccine.dueDate);
+          return {
+            name: vaccine.name,
+            dueDate: vaccine.dueDate,
+            status: (dueDate < today ? 'overdue' : 'pending') as 'pending' | 'overdue',
+            givenDate: undefined,
+            batchNumber: undefined,
+            administeredBy: undefined,
+            administeredByUserId: undefined,
+          };
+        });
+
+        const updatedChild = {
+          ...child,
+          vaccines: resetVaccines,
+          updatedAt: new Date().toISOString(),
+        };
+
+        syncToFirebase(child.id, updatedChild, 'update');
+        return updatedChild;
+      });
+
+      if (currentFacilityIdRef.current && currentUserIdRef.current) {
+        logActivity(
+          currentFacilityIdRef.current,
+          currentUserIdRef.current,
+          userName || 'Unknown',
+          'update',
+          'child',
+          'all',
+          `Reset vaccination records for ${updated.length} children`
+        );
+      }
+
+      return updated;
+    });
+  }, [syncToFirebase]);
+
+  // Transfer child out (traveled out / moved out)
+  const transferChildOut = useCallback((
+    childId: string, 
+    destination: string, 
+    reason: string, 
+    transferDate: string,
+    userName?: string
+  ) => {
+    setChildren(prev => {
+      const updated = prev.map(child => {
+        if (child.id !== childId) return child;
+        
+        const transferRecord: TransferRecord = {
+          type: 'out',
+          date: transferDate,
+          location: destination,
+          reason,
+          recordedAt: new Date().toISOString(),
+          recordedByUserId: currentUserIdRef.current,
+        };
+
+        const transferStatus = reason.toLowerCase().includes('moved') ? 'moved_out' as const : 'traveled_out' as const;
+
+        const updatedChild: Child = {
+          ...child,
+          transferStatus,
+          currentLocation: destination,
+          transferHistory: [...(child.transferHistory || []), transferRecord],
+          updatedAt: new Date().toISOString(),
+        };
+        
+        return updatedChild;
+      });
+
+      const updatedChild = updated.find(c => c.id === childId);
+      if (updatedChild) {
+        syncToFirebase(childId, updatedChild, 'update');
+        
+        if (currentFacilityIdRef.current && currentUserIdRef.current) {
+          logActivity(
+            currentFacilityIdRef.current,
+            currentUserIdRef.current,
+            userName || 'Unknown',
+            'update',
+            'child',
+            childId,
+            `Transferred out ${updatedChild.name} to ${destination}`
+          );
+        }
+      }
+
+      return updated;
+    });
+  }, [syncToFirebase]);
+
+  // Transfer child in (traveled in / moved in) - marks as returned/active
+  const transferChildIn = useCallback((
+    childId: string, 
+    source: string, 
+    reason: string, 
+    transferDate: string,
+    userName?: string
+  ) => {
+    setChildren(prev => {
+      const updated = prev.map(child => {
+        if (child.id !== childId) return child;
+        
+        const transferRecord: TransferRecord = {
+          type: 'in',
+          date: transferDate,
+          location: source,
+          reason,
+          recordedAt: new Date().toISOString(),
+          recordedByUserId: currentUserIdRef.current,
+        };
+
+        const updatedChild: Child = {
+          ...child,
+          transferStatus: 'active' as const,
+          currentLocation: undefined,
+          transferHistory: [...(child.transferHistory || []), transferRecord],
+          updatedAt: new Date().toISOString(),
+        };
+        
+        return updatedChild;
+      });
+
+      const updatedChild = updated.find(c => c.id === childId);
+      if (updatedChild) {
+        syncToFirebase(childId, updatedChild, 'update');
+        
+        if (currentFacilityIdRef.current && currentUserIdRef.current) {
+          logActivity(
+            currentFacilityIdRef.current,
+            currentUserIdRef.current,
+            userName || 'Unknown',
+            'update',
+            'child',
+            childId,
+            `Transferred in ${updatedChild.name} from ${source}`
+          );
+        }
+      }
+
+      return updated;
+    });
+  }, [syncToFirebase]);
+
   return {
     children,
     archivedChildren,
@@ -838,6 +1039,10 @@ export function useChildren(options: UseChildrenOptions = {}) {
     updateVaccineRecord,
     bulkAdministerVaccine,
     importChildren,
+    resetChildVaccines,
+    resetAllVaccines,
+    transferChildOut,
+    transferChildIn,
     isOnline,
     isSyncing,
     isLoading,

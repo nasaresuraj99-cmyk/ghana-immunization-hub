@@ -63,7 +63,11 @@ export default function Index() {
     updateVaccine,
     updateVaccineRecord,
     bulkAdministerVaccine, 
-    importChildren, 
+    importChildren,
+    resetChildVaccines,
+    resetAllVaccines,
+    transferChildOut,
+    transferChildIn,
     isSyncing, 
     isLoading, 
     syncProgress, 
@@ -506,6 +510,7 @@ export default function Index() {
             stats={stats}
             children={children}
             onViewChild={handleViewProfile}
+            syncProgress={syncProgress}
           />
         )}
 
