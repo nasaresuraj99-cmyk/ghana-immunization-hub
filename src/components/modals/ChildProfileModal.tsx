@@ -8,6 +8,7 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -33,13 +34,15 @@ import {
   ArrowRightLeft,
   MoreVertical,
   Plane,
-  Home
+  Home,
+  History
 } from "lucide-react";
 import { Child } from "@/types/child";
 import { exportImmunizationCard } from "@/lib/pdfExport";
 import { exportImmunizationCardAsImage } from "@/lib/imageExport";
 import { toast } from "sonner";
 import { calculateExactAge } from "@/lib/ageCalculator";
+import { TransferHistoryTimeline } from "@/components/TransferHistoryTimeline";
 
 interface ChildProfileModalProps {
   child: Child | null;
@@ -162,109 +165,138 @@ export function ChildProfileModal({
             </div>
           </div>
 
-          {/* Vaccination Progress */}
-          <div>
-            <div className="flex items-center justify-between mb-2">
-              <span className="text-sm font-medium">Vaccination Progress</span>
-              <span className="text-sm font-bold text-primary">{vaccineStats.progress}%</span>
-            </div>
-            <Progress value={vaccineStats.progress} className="h-3" />
-            <div className="flex justify-between mt-2 text-xs">
-              <span className="flex items-center gap-1 text-success">
-                <CheckCircle className="w-3 h-3" />
-                {vaccineStats.completed} completed
-              </span>
-              <span className="flex items-center gap-1 text-info">
-                <Clock className="w-3 h-3" />
-                {vaccineStats.pending} pending
-              </span>
-              <span className="flex items-center gap-1 text-destructive">
-                <AlertTriangle className="w-3 h-3" />
-                {vaccineStats.overdue} overdue
-              </span>
-            </div>
-          </div>
-
-          {/* Overdue Vaccines Warning */}
-          {overdueVaccines.length > 0 && (
-            <div className="bg-destructive/10 border border-destructive/30 rounded-lg p-4">
-              <div className="flex items-center gap-2 mb-2">
-                <AlertTriangle className="w-4 h-4 text-destructive" />
-                <span className="font-medium text-destructive">Overdue Vaccines ({overdueVaccines.length})</span>
-              </div>
-              <div className="flex flex-wrap gap-2">
-                {overdueVaccines.map(v => (
-                  <Badge key={v.name} variant="destructive" className="text-xs">
-                    {v.name.split(' at ')[0]}
+          {/* Tabs for Profile and Transfer History */}
+          <Tabs defaultValue="profile" className="w-full">
+            <TabsList className="grid w-full grid-cols-2">
+              <TabsTrigger value="profile" className="flex items-center gap-2">
+                <Syringe className="w-4 h-4" />
+                Vaccination
+              </TabsTrigger>
+              <TabsTrigger value="transfer" className="flex items-center gap-2">
+                <History className="w-4 h-4" />
+                Transfer History
+                {(child.transferHistory?.length || 0) > 0 && (
+                  <Badge variant="secondary" className="ml-1 text-xs">
+                    {child.transferHistory?.length}
                   </Badge>
-                ))}
-              </div>
-            </div>
-          )}
+                )}
+              </TabsTrigger>
+            </TabsList>
 
-          {/* Next Due Vaccines */}
-          {nextVaccines.length > 0 && (
-            <div>
-              <h4 className="font-medium mb-3 flex items-center gap-2">
-                <Clock className="w-4 h-4 text-info" />
-                Next Due Vaccines
-              </h4>
-              <div className="space-y-2">
-                {nextVaccines.map(v => (
-                  <div key={v.name} className="flex items-center justify-between p-2 rounded-lg bg-muted/30">
-                    <span className="text-sm">{v.name}</span>
-                    <span className="text-xs text-muted-foreground">
-                      {new Date(v.dueDate).toLocaleDateString()}
+            <TabsContent value="profile" className="space-y-6 mt-4">
+              {/* Vaccination Progress */}
+              <div>
+                <div className="flex items-center justify-between mb-2">
+                  <span className="text-sm font-medium">Vaccination Progress</span>
+                  <span className="text-sm font-bold text-primary">{vaccineStats.progress}%</span>
+                </div>
+                <Progress value={vaccineStats.progress} className="h-3" />
+                <div className="flex justify-between mt-2 text-xs">
+                  <span className="flex items-center gap-1 text-success">
+                    <CheckCircle className="w-3 h-3" />
+                    {vaccineStats.completed} completed
+                  </span>
+                  <span className="flex items-center gap-1 text-info">
+                    <Clock className="w-3 h-3" />
+                    {vaccineStats.pending} pending
+                  </span>
+                  <span className="flex items-center gap-1 text-destructive">
+                    <AlertTriangle className="w-3 h-3" />
+                    {vaccineStats.overdue} overdue
+                  </span>
+                </div>
+              </div>
+
+              {/* Transfer Status Banner */}
+              {isTransferredOut && (
+                <div className="bg-amber-500/10 border border-amber-500/30 rounded-lg p-4">
+                  <div className="flex items-center gap-2 mb-2">
+                    <Plane className="w-4 h-4 text-amber-600" />
+                    <span className="font-medium text-amber-600">
+                      {child.transferStatus === 'moved_out' ? 'Moved Out' : 'Traveled Out'}
                     </span>
                   </div>
-                ))}
-              </div>
-            </div>
-          )}
-
-          {/* Recent Vaccinations */}
-          {recentVaccines.length > 0 && (
-            <div>
-              <h4 className="font-medium mb-3 flex items-center gap-2">
-                <CheckCircle className="w-4 h-4 text-success" />
-                Recent Vaccinations
-              </h4>
-              <div className="space-y-2">
-                {recentVaccines.map(v => (
-                  <div key={v.name} className="flex items-center justify-between p-2 rounded-lg bg-muted/30">
-                    <span className="text-sm">{v.name}</span>
-                    <div className="text-right">
-                      <span className="text-xs text-muted-foreground block">
-                        {new Date(v.givenDate!).toLocaleDateString()}
-                      </span>
-                      {v.batchNumber && (
-                        <span className="text-xs text-muted-foreground">
-                          Batch: {v.batchNumber}
-                        </span>
-                      )}
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
-
-          {/* Transfer Status Banner */}
-          {isTransferredOut && (
-            <div className="bg-amber-500/10 border border-amber-500/30 rounded-lg p-4">
-              <div className="flex items-center gap-2 mb-2">
-                <Plane className="w-4 h-4 text-amber-600" />
-                <span className="font-medium text-amber-600">
-                  {child.transferStatus === 'moved_out' ? 'Moved Out' : 'Traveled Out'}
-                </span>
-              </div>
-              {child.currentLocation && (
-                <p className="text-sm text-muted-foreground">
-                  Location: {child.currentLocation}
-                </p>
+                  {child.currentLocation && (
+                    <p className="text-sm text-muted-foreground">
+                      Location: {child.currentLocation}
+                    </p>
+                  )}
+                </div>
               )}
-            </div>
-          )}
+
+              {/* Overdue Vaccines Warning */}
+              {overdueVaccines.length > 0 && (
+                <div className="bg-destructive/10 border border-destructive/30 rounded-lg p-4">
+                  <div className="flex items-center gap-2 mb-2">
+                    <AlertTriangle className="w-4 h-4 text-destructive" />
+                    <span className="font-medium text-destructive">Overdue Vaccines ({overdueVaccines.length})</span>
+                  </div>
+                  <div className="flex flex-wrap gap-2">
+                    {overdueVaccines.map(v => (
+                      <Badge key={v.name} variant="destructive" className="text-xs">
+                        {v.name.split(' at ')[0]}
+                      </Badge>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Next Due Vaccines */}
+              {nextVaccines.length > 0 && (
+                <div>
+                  <h4 className="font-medium mb-3 flex items-center gap-2">
+                    <Clock className="w-4 h-4 text-info" />
+                    Next Due Vaccines
+                  </h4>
+                  <div className="space-y-2">
+                    {nextVaccines.map(v => (
+                      <div key={v.name} className="flex items-center justify-between p-2 rounded-lg bg-muted/30">
+                        <span className="text-sm">{v.name}</span>
+                        <span className="text-xs text-muted-foreground">
+                          {new Date(v.dueDate).toLocaleDateString()}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Recent Vaccinations */}
+              {recentVaccines.length > 0 && (
+                <div>
+                  <h4 className="font-medium mb-3 flex items-center gap-2">
+                    <CheckCircle className="w-4 h-4 text-success" />
+                    Recent Vaccinations
+                  </h4>
+                  <div className="space-y-2">
+                    {recentVaccines.map(v => (
+                      <div key={v.name} className="flex items-center justify-between p-2 rounded-lg bg-muted/30">
+                        <span className="text-sm">{v.name}</span>
+                        <div className="text-right">
+                          <span className="text-xs text-muted-foreground block">
+                            {new Date(v.givenDate!).toLocaleDateString()}
+                          </span>
+                          {v.batchNumber && (
+                            <span className="text-xs text-muted-foreground">
+                              Batch: {v.batchNumber}
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </TabsContent>
+
+            <TabsContent value="transfer" className="mt-4">
+              <TransferHistoryTimeline 
+                transferHistory={child.transferHistory}
+                currentStatus={child.transferStatus}
+                currentLocation={child.currentLocation}
+              />
+            </TabsContent>
+          </Tabs>
 
           {/* Actions */}
           <div className="flex flex-wrap gap-3 pt-4 border-t">
