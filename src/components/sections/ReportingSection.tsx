@@ -1,5 +1,5 @@
 import { useState, useMemo } from "react";
-import { FileText, Download, Printer, TrendingUp, PieChart, Users, Syringe, AlertTriangle } from "lucide-react";
+import { FileText, Download, Printer, TrendingUp, PieChart, Users, Syringe, AlertTriangle, CalendarDays } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Label } from "@/components/ui/label";
@@ -20,6 +20,7 @@ import {
   exportVaccineCoverageExcel,
   exportDefaultersExcel,
 } from "@/lib/excelExport";
+
 interface ReportingSectionProps {
   stats: DashboardStats;
   children: Child[];
@@ -27,22 +28,57 @@ interface ReportingSectionProps {
 
 type ReportTab = 'summary' | 'detailed' | 'vaccine' | 'defaulters';
 
-// EPI Immunization Schedule mapping
-const VACCINE_SCHEDULE = {
-  'At Birth': ['BCG', 'OPV 0', 'Hepatitis B'],
-  '6 weeks': ['OPV 1', 'Penta 1', 'PCV 1', 'Rotavirus 1'],
-  '10 weeks': ['OPV 2', 'Penta 2', 'PCV 2', 'Rotavirus 2'],
-  '14 weeks': ['OPV 3', 'Penta 3', 'PCV 3', 'Rotavirus 3', 'IPV'],
-  '6 months': ['Vitamin A 1'],
-  '9 months': ['Measles Rubella 1', 'Yellow Fever'],
-  '12 months': ['Vitamin A 2', 'Men A'],
-  '18 months': ['Measles Rubella 2'],
+// Ghana EPI Immunization Schedule - EXACT match with official schedule
+const VACCINE_SCHEDULE: Record<string, { vaccines: string[]; ageInWeeks?: number; ageInMonths?: number }> = {
+  'At Birth': { 
+    vaccines: ['BCG', 'OPV0', 'Hepatitis B'],
+    ageInWeeks: 0
+  },
+  '6 Weeks': { 
+    vaccines: ['OPV1', 'Penta1', 'PCV1', 'Rotavirus1'],
+    ageInWeeks: 6
+  },
+  '10 Weeks': { 
+    vaccines: ['OPV2', 'Penta2', 'PCV2', 'Rotavirus2'],
+    ageInWeeks: 10
+  },
+  '14 Weeks': { 
+    vaccines: ['OPV3', 'Penta3', 'PCV3', 'Rotavirus3', 'IPV1'],
+    ageInWeeks: 14
+  },
+  '6 Months': { 
+    vaccines: ['Malaria1 (RTS,S)', 'Vitamin A'],
+    ageInMonths: 6
+  },
+  '7 Months': { 
+    vaccines: ['Malaria2 (RTS,S)', 'IPV2'],
+    ageInMonths: 7
+  },
+  '9 Months': { 
+    vaccines: ['Malaria3 (RTS,S)', 'Measles Rubella 1'],
+    ageInMonths: 9
+  },
+  '12 Months': { 
+    vaccines: ['Vitamin A'],
+    ageInMonths: 12
+  },
+  '18 Months': { 
+    vaccines: ['Malaria4 (RTS,S)', 'Measles Rubella 2', 'Men A'],
+    ageInMonths: 18
+  },
 };
 
-// Normalized vaccine types for consistent matching
-const VACCINE_TYPES = [
-  'BCG', 'OPV', 'Hepatitis B', 'Penta', 'PCV', 'Rotavirus', 
-  'IPV', 'Vitamin A', 'Measles Rubella', 'Yellow Fever', 'Men A'
+// All unique vaccines from the schedule for coverage tracking
+const ALL_VACCINES = [
+  'BCG', 'OPV0', 'OPV1', 'OPV2', 'OPV3', 'Hepatitis B',
+  'Penta1', 'Penta2', 'Penta3', 
+  'PCV1', 'PCV2', 'PCV3',
+  'Rotavirus1', 'Rotavirus2', 'Rotavirus3',
+  'IPV1', 'IPV2',
+  'Malaria1 (RTS,S)', 'Malaria2 (RTS,S)', 'Malaria3 (RTS,S)', 'Malaria4 (RTS,S)',
+  'Vitamin A',
+  'Measles Rubella 1', 'Measles Rubella 2',
+  'Men A'
 ];
 
 // Normalize vaccine name for consistent matching
@@ -51,23 +87,48 @@ const normalizeVaccineName = (name: string): string => {
     .replace(/\s+/g, ' ')
     .replace(/at birth/i, '')
     .replace(/at \d+ (weeks?|months?)/i, '')
-    .trim();
+    .trim()
+    .toLowerCase();
 };
 
-// Get vaccine type from full name
-const getVaccineType = (vaccineName: string): string | null => {
-  const normalized = normalizeVaccineName(vaccineName).toLowerCase();
-  for (const type of VACCINE_TYPES) {
-    if (normalized.includes(type.toLowerCase())) {
-      return type;
+// Get schedule group for a vaccine
+const getVaccineScheduleGroup = (vaccineName: string): string | null => {
+  const normalized = normalizeVaccineName(vaccineName);
+  
+  for (const [schedule, data] of Object.entries(VACCINE_SCHEDULE)) {
+    for (const v of data.vaccines) {
+      if (normalizeVaccineName(v) === normalized || 
+          normalized.includes(normalizeVaccineName(v)) ||
+          normalizeVaccineName(v).includes(normalized)) {
+        return schedule;
+      }
     }
   }
   return null;
 };
 
+// Generate month options for the past 2 years
+const generateMonthOptions = () => {
+  const options: { value: string; label: string }[] = [];
+  const now = new Date();
+  
+  for (let i = 0; i < 24; i++) {
+    const date = new Date(now.getFullYear(), now.getMonth() - i, 1);
+    const value = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
+    const label = date.toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
+    options.push({ value, label });
+  }
+  
+  return options;
+};
+
+const MONTH_OPTIONS = generateMonthOptions();
+
 export function ReportingSection({ stats, children }: ReportingSectionProps) {
   const [activeTab, setActiveTab] = useState<ReportTab>('summary');
+  const [periodType, setPeriodType] = useState<'preset' | 'monthly'>('preset');
   const [period, setPeriod] = useState('month');
+  const [selectedMonth, setSelectedMonth] = useState(MONTH_OPTIONS[0]?.value || '');
 
   // Filter only active children (exclude transferred out)
   const activeChildren = useMemo(() => {
@@ -169,54 +230,77 @@ export function ReportingSection({ stats, children }: ReportingSectionProps) {
     return records.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
   }, [activeChildren]);
 
-  // Vaccine coverage statistics with proper schedule mapping
+  // Vaccine coverage statistics grouped by schedule
   const vaccineCoverage = useMemo(() => {
     const coverage: Record<string, { 
       given: number; 
       pending: number; 
       overdue: number;
       eligible: number;
-      scheduleGroup: string;
+      vaccines: string[];
     }> = {};
 
-    // Initialize coverage for each vaccine type
-    VACCINE_TYPES.forEach(type => {
-      coverage[type] = { given: 0, pending: 0, overdue: 0, eligible: 0, scheduleGroup: '' };
+    // Initialize coverage for each schedule group
+    Object.entries(VACCINE_SCHEDULE).forEach(([schedule, data]) => {
+      coverage[schedule] = { 
+        given: 0, 
+        pending: 0, 
+        overdue: 0, 
+        eligible: 0,
+        vaccines: data.vaccines
+      };
     });
 
-    // Map schedule groups to vaccine types
-    Object.entries(VACCINE_SCHEDULE).forEach(([schedule, vaccines]) => {
-      vaccines.forEach(vaccine => {
-        const type = getVaccineType(vaccine);
-        if (type && coverage[type]) {
-          coverage[type].scheduleGroup = schedule;
-        }
-      });
-    });
-
-    // Track unique children per vaccine type to avoid duplicates
-    const childVaccineTracker: Record<string, Set<string>> = {};
-    VACCINE_TYPES.forEach(type => {
-      childVaccineTracker[type] = new Set();
-    });
-
+    // Track which vaccines have been counted for each child per schedule
     activeChildren.forEach(child => {
-      child.vaccines.forEach(vaccine => {
-        const matchedType = getVaccineType(vaccine.name);
-        if (matchedType && coverage[matchedType]) {
-          // Only count each child once per vaccine type
-          if (!childVaccineTracker[matchedType].has(child.regNo)) {
-            childVaccineTracker[matchedType].add(child.regNo);
-            coverage[matchedType].eligible++;
-            
-            if (vaccine.status === 'completed') {
-              coverage[matchedType].given++;
-            } else if (vaccine.status === 'overdue') {
-              coverage[matchedType].overdue++;
-            } else {
-              coverage[matchedType].pending++;
+      Object.entries(VACCINE_SCHEDULE).forEach(([schedule, scheduleData]) => {
+        // Check if child is eligible based on age
+        const birthDate = new Date(child.dateOfBirth);
+        const today = new Date();
+        const ageInWeeks = Math.floor((today.getTime() - birthDate.getTime()) / (7 * 24 * 60 * 60 * 1000));
+        const ageInMonths = Math.floor((today.getTime() - birthDate.getTime()) / (30 * 24 * 60 * 60 * 1000));
+        
+        let isEligible = false;
+        if (scheduleData.ageInWeeks !== undefined && ageInWeeks >= scheduleData.ageInWeeks) {
+          isEligible = true;
+        } else if (scheduleData.ageInMonths !== undefined && ageInMonths >= scheduleData.ageInMonths) {
+          isEligible = true;
+        }
+        
+        if (!isEligible) return;
+        
+        coverage[schedule].eligible++;
+        
+        // Check vaccine status for this schedule group
+        const scheduleVaccines = scheduleData.vaccines;
+        let allCompleted = true;
+        let hasOverdue = false;
+        
+        scheduleVaccines.forEach(vaccineInSchedule => {
+          const matchingVaccine = child.vaccines.find(v => 
+            normalizeVaccineName(v.name) === normalizeVaccineName(vaccineInSchedule) ||
+            normalizeVaccineName(v.name).includes(normalizeVaccineName(vaccineInSchedule)) ||
+            normalizeVaccineName(vaccineInSchedule).includes(normalizeVaccineName(v.name))
+          );
+          
+          if (matchingVaccine) {
+            if (matchingVaccine.status !== 'completed') {
+              allCompleted = false;
+              if (matchingVaccine.status === 'overdue') {
+                hasOverdue = true;
+              }
             }
+          } else {
+            allCompleted = false;
           }
+        });
+        
+        if (allCompleted) {
+          coverage[schedule].given++;
+        } else if (hasOverdue) {
+          coverage[schedule].overdue++;
+        } else {
+          coverage[schedule].pending++;
         }
       });
     });
@@ -250,39 +334,56 @@ export function ReportingSection({ stats, children }: ReportingSectionProps) {
     return defaulters.sort((a, b) => b.daysOverdue - a.daysOverdue);
   }, [activeChildren]);
 
-  // Get period-filtered data
+  // Get period-filtered data with monthly support
   const getFilteredData = useMemo(() => {
     const now = new Date();
     let startDate: Date;
+    let endDate: Date = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 59);
 
-    switch (period) {
-      case 'today':
-        startDate = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-        break;
-      case 'week':
-        startDate = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
-        break;
-      case 'month':
-        startDate = new Date(now.getFullYear(), now.getMonth(), 1);
-        break;
-      case 'quarter':
-        startDate = new Date(now.getFullYear(), Math.floor(now.getMonth() / 3) * 3, 1);
-        break;
-      case 'year':
-        startDate = new Date(now.getFullYear(), 0, 1);
-        break;
-      default:
-        startDate = new Date(now.getFullYear(), now.getMonth(), 1);
+    if (periodType === 'monthly' && selectedMonth) {
+      const [year, month] = selectedMonth.split('-').map(Number);
+      startDate = new Date(year, month - 1, 1);
+      endDate = new Date(year, month, 0, 23, 59, 59); // Last day of month
+    } else {
+      switch (period) {
+        case 'today':
+          startDate = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+          break;
+        case 'week':
+          startDate = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+          break;
+        case 'month':
+          startDate = new Date(now.getFullYear(), now.getMonth(), 1);
+          break;
+        case 'quarter':
+          startDate = new Date(now.getFullYear(), Math.floor(now.getMonth() / 3) * 3, 1);
+          break;
+        case 'year':
+          startDate = new Date(now.getFullYear(), 0, 1);
+          break;
+        default:
+          startDate = new Date(now.getFullYear(), now.getMonth(), 1);
+      }
     }
 
-    const filteredRecords = groupedChildRecords.filter(r => new Date(r.mostRecentVisit) >= startDate);
+    const filteredRecords = groupedChildRecords.filter(r => {
+      const visitDate = new Date(r.mostRecentVisit);
+      return visitDate >= startDate && visitDate <= endDate;
+    });
     
     return {
       totalVaccinations: filteredRecords.reduce((sum, r) => sum + r.vaccines.length, 0),
       uniqueChildren: filteredRecords.length,
-      records: filteredRecords
+      records: filteredRecords,
+      periodLabel: periodType === 'monthly' && selectedMonth 
+        ? MONTH_OPTIONS.find(m => m.value === selectedMonth)?.label || selectedMonth
+        : period === 'today' ? 'Today' 
+        : period === 'week' ? 'This Week'
+        : period === 'month' ? 'This Month'
+        : period === 'quarter' ? 'This Quarter'
+        : 'This Year'
     };
-  }, [period, groupedChildRecords]);
+  }, [period, periodType, selectedMonth, groupedChildRecords]);
 
   const tabs: { id: ReportTab; label: string; icon: React.ReactNode }[] = [
     { id: 'summary', label: 'Summary', icon: <TrendingUp className="w-4 h-4" /> },
@@ -369,22 +470,66 @@ export function ReportingSection({ stats, children }: ReportingSectionProps) {
         {/* Summary Tab */}
         {activeTab === 'summary' && (
           <div className="space-y-6">
+            {/* Period Selection */}
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
               <div className="space-y-2">
-                <Label>Date Range</Label>
-                <Select value={period} onValueChange={setPeriod}>
+                <Label>Report Type</Label>
+                <Select value={periodType} onValueChange={(v: 'preset' | 'monthly') => setPeriodType(v)}>
                   <SelectTrigger>
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="today">Today</SelectItem>
-                    <SelectItem value="week">This Week</SelectItem>
-                    <SelectItem value="month">This Month</SelectItem>
-                    <SelectItem value="quarter">This Quarter</SelectItem>
-                    <SelectItem value="year">This Year</SelectItem>
+                    <SelectItem value="preset">Quick Range</SelectItem>
+                    <SelectItem value="monthly">Monthly Report</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
+              
+              {periodType === 'preset' ? (
+                <div className="space-y-2">
+                  <Label>Date Range</Label>
+                  <Select value={period} onValueChange={setPeriod}>
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="today">Today</SelectItem>
+                      <SelectItem value="week">This Week</SelectItem>
+                      <SelectItem value="month">This Month</SelectItem>
+                      <SelectItem value="quarter">This Quarter</SelectItem>
+                      <SelectItem value="year">This Year</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              ) : (
+                <div className="space-y-2">
+                  <Label className="flex items-center gap-2">
+                    <CalendarDays className="w-4 h-4" />
+                    Select Month
+                  </Label>
+                  <Select value={selectedMonth} onValueChange={setSelectedMonth}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select month..." />
+                    </SelectTrigger>
+                    <SelectContent className="max-h-64">
+                      {MONTH_OPTIONS.map(opt => (
+                        <SelectItem key={opt.value} value={opt.value}>
+                          {opt.label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              )}
+              
+              {periodType === 'monthly' && selectedMonth && (
+                <div className="sm:col-span-2 flex items-end">
+                  <Badge variant="secondary" className="text-sm py-2 px-4">
+                    <CalendarDays className="w-4 h-4 mr-2" />
+                    {getFilteredData.periodLabel}
+                  </Badge>
+                </div>
+              )}
             </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
@@ -584,31 +729,32 @@ export function ReportingSection({ stats, children }: ReportingSectionProps) {
 
             {/* Schedule-based grouping info */}
             <div className="bg-muted/30 rounded-lg p-4">
-              <h4 className="font-medium mb-3 text-sm">EPI Schedule Reference</h4>
-              <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-xs">
-                {Object.entries(VACCINE_SCHEDULE).map(([schedule, vaccines]) => (
+              <h4 className="font-medium mb-3 text-sm">Ghana EPI Schedule Reference</h4>
+              <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-2 text-xs">
+                {Object.entries(VACCINE_SCHEDULE).map(([schedule, data]) => (
                   <div key={schedule} className="p-2 bg-background rounded">
                     <span className="font-medium text-primary">{schedule}</span>
-                    <p className="text-muted-foreground mt-1">{vaccines.join(', ')}</p>
+                    <p className="text-muted-foreground mt-1">{data.vaccines.join(', ')}</p>
                   </div>
                 ))}
               </div>
             </div>
 
             <div className="grid gap-4">
-              {VACCINE_TYPES.map(type => {
-                const data = vaccineCoverage[type];
-                const eligible = data.eligible || activeChildren.length;
+              {Object.entries(VACCINE_SCHEDULE).map(([schedule, scheduleData]) => {
+                const data = vaccineCoverage[schedule];
+                if (!data) return null;
+                const eligible = data.eligible || 0;
                 const coveragePercent = eligible > 0 ? Math.round((data.given / eligible) * 100) : 0;
 
                 return (
-                  <div key={type} className="bg-muted/30 rounded-lg p-4">
+                  <div key={schedule} className="bg-muted/30 rounded-lg p-4">
                     <div className="flex items-center justify-between mb-2">
                       <div>
-                        <h4 className="font-medium">{type}</h4>
-                        {data.scheduleGroup && (
-                          <span className="text-xs text-muted-foreground">{data.scheduleGroup}</span>
-                        )}
+                        <h4 className="font-medium">{schedule}</h4>
+                        <span className="text-xs text-muted-foreground">
+                          {scheduleData.vaccines.join(', ')}
+                        </span>
                       </div>
                       <div className="text-right">
                         <span className="text-sm font-bold text-primary">{coveragePercent}%</span>
@@ -628,7 +774,7 @@ export function ReportingSection({ stats, children }: ReportingSectionProps) {
                     <div className="flex gap-4 text-xs flex-wrap">
                       <span className="flex items-center gap-1">
                         <span className="w-2 h-2 rounded-full bg-ghs-green" />
-                        Vaccinated: {data.given}
+                        Completed: {data.given}
                       </span>
                       <span className="flex items-center gap-1">
                         <span className="w-2 h-2 rounded-full bg-amber-500" />
@@ -694,16 +840,24 @@ export function ReportingSection({ stats, children }: ReportingSectionProps) {
               </div>
             </div>
 
-            {/* Defaulters by Vaccine Type */}
+            {/* Defaulters by Schedule Group */}
             <div className="bg-muted/30 rounded-lg p-4">
-              <h4 className="font-medium mb-3">Defaulters by Vaccine Type</h4>
+              <h4 className="font-medium mb-3">Defaulters by Schedule Group</h4>
               <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-                {VACCINE_TYPES.map(type => {
-                  const count = defaultersList.filter(d => d.missedVaccines.some(v => v.includes(type))).length;
+                {Object.keys(VACCINE_SCHEDULE).map(schedule => {
+                  const scheduleVaccines = VACCINE_SCHEDULE[schedule].vaccines;
+                  const count = defaultersList.filter(d => 
+                    d.missedVaccines.some(missed => 
+                      scheduleVaccines.some(sv => 
+                        normalizeVaccineName(missed).includes(normalizeVaccineName(sv)) ||
+                        normalizeVaccineName(sv).includes(normalizeVaccineName(missed))
+                      )
+                    )
+                  ).length;
                   if (count === 0) return null;
                   return (
-                    <div key={type} className="flex justify-between p-2 bg-background rounded">
-                      <span className="text-sm">{type}</span>
+                    <div key={schedule} className="flex justify-between p-2 bg-background rounded">
+                      <span className="text-sm">{schedule}</span>
                       <Badge variant="destructive" className="text-xs">{count}</Badge>
                     </div>
                   );
