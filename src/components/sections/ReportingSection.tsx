@@ -27,15 +27,55 @@ interface ReportingSectionProps {
 
 type ReportTab = 'summary' | 'detailed' | 'vaccine' | 'defaulters';
 
-// Vaccine categories for grouping
+// EPI Immunization Schedule mapping
+const VACCINE_SCHEDULE = {
+  'At Birth': ['BCG', 'OPV 0', 'Hepatitis B'],
+  '6 weeks': ['OPV 1', 'Penta 1', 'PCV 1', 'Rotavirus 1'],
+  '10 weeks': ['OPV 2', 'Penta 2', 'PCV 2', 'Rotavirus 2'],
+  '14 weeks': ['OPV 3', 'Penta 3', 'PCV 3', 'Rotavirus 3', 'IPV'],
+  '6 months': ['Vitamin A 1'],
+  '9 months': ['Measles Rubella 1', 'Yellow Fever'],
+  '12 months': ['Vitamin A 2', 'Men A'],
+  '18 months': ['Measles Rubella 2'],
+};
+
+// Normalized vaccine types for consistent matching
 const VACCINE_TYPES = [
   'BCG', 'OPV', 'Hepatitis B', 'Penta', 'PCV', 'Rotavirus', 
-  'IPV', 'Malaria', 'Measles Rubella', 'Men A', 'LLIN', 'Vitamin A'
+  'IPV', 'Vitamin A', 'Measles Rubella', 'Yellow Fever', 'Men A'
 ];
+
+// Normalize vaccine name for consistent matching
+const normalizeVaccineName = (name: string): string => {
+  return name
+    .replace(/\s+/g, ' ')
+    .replace(/at birth/i, '')
+    .replace(/at \d+ (weeks?|months?)/i, '')
+    .trim();
+};
+
+// Get vaccine type from full name
+const getVaccineType = (vaccineName: string): string | null => {
+  const normalized = normalizeVaccineName(vaccineName).toLowerCase();
+  for (const type of VACCINE_TYPES) {
+    if (normalized.includes(type.toLowerCase())) {
+      return type;
+    }
+  }
+  return null;
+};
 
 export function ReportingSection({ stats, children }: ReportingSectionProps) {
   const [activeTab, setActiveTab] = useState<ReportTab>('summary');
   const [period, setPeriod] = useState('month');
+
+  // Filter only active children (exclude transferred out)
+  const activeChildren = useMemo(() => {
+    return children.filter(child => 
+      child.transferStatus !== 'traveled_out' && 
+      child.transferStatus !== 'moved_out'
+    );
+  }, [children]);
 
   // Age distribution calculation
   const ageDistribution = useMemo(() => {
@@ -48,7 +88,7 @@ export function ReportingSection({ stats, children }: ReportingSectionProps) {
       '49-59 months': 0,
     };
 
-    children.forEach(child => {
+    activeChildren.forEach(child => {
       const birthDate = new Date(child.dateOfBirth);
       const today = new Date();
       const months = (today.getFullYear() - birthDate.getFullYear()) * 12 + 
@@ -63,9 +103,44 @@ export function ReportingSection({ stats, children }: ReportingSectionProps) {
     });
 
     return groups;
-  }, [children]);
+  }, [activeChildren]);
 
-  // Detailed vaccination records
+  // Grouped records by unique child (each child appears once)
+  const groupedChildRecords = useMemo(() => {
+    const childMap = new Map<string, {
+      regNo: string;
+      childName: string;
+      mostRecentVisit: string;
+      vaccines: Array<{ name: string; batchNumber: string; status: string; givenDate: string }>;
+    }>();
+
+    activeChildren.forEach(child => {
+      const completedVaccines = child.vaccines
+        .filter(v => v.status === 'completed' && v.givenDate)
+        .map(v => ({
+          name: v.name,
+          batchNumber: v.batchNumber || 'N/A',
+          status: 'Completed',
+          givenDate: v.givenDate!
+        }))
+        .sort((a, b) => new Date(b.givenDate).getTime() - new Date(a.givenDate).getTime());
+
+      if (completedVaccines.length > 0) {
+        childMap.set(child.regNo, {
+          regNo: child.regNo,
+          childName: child.name,
+          mostRecentVisit: completedVaccines[0].givenDate,
+          vaccines: completedVaccines
+        });
+      }
+    });
+
+    // Convert to array and sort by most recent visit
+    return Array.from(childMap.values())
+      .sort((a, b) => new Date(b.mostRecentVisit).getTime() - new Date(a.mostRecentVisit).getTime());
+  }, [activeChildren]);
+
+  // Legacy detailed records (for backward compatibility with exports)
   const detailedRecords = useMemo(() => {
     const records: Array<{
       date: string;
@@ -76,7 +151,7 @@ export function ReportingSection({ stats, children }: ReportingSectionProps) {
       status: string;
     }> = [];
 
-    children.forEach(child => {
+    activeChildren.forEach(child => {
       child.vaccines.forEach(vaccine => {
         if (vaccine.status === 'completed' && vaccine.givenDate) {
           records.push({
@@ -91,42 +166,70 @@ export function ReportingSection({ stats, children }: ReportingSectionProps) {
       });
     });
 
-    // Sort by date descending
     return records.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
-  }, [children]);
+  }, [activeChildren]);
 
-  // Vaccine coverage statistics
+  // Vaccine coverage statistics with proper schedule mapping
   const vaccineCoverage = useMemo(() => {
-    const coverage: Record<string, { given: number; pending: number; overdue: number }> = {};
+    const coverage: Record<string, { 
+      given: number; 
+      pending: number; 
+      overdue: number;
+      eligible: number;
+      scheduleGroup: string;
+    }> = {};
 
+    // Initialize coverage for each vaccine type
     VACCINE_TYPES.forEach(type => {
-      coverage[type] = { given: 0, pending: 0, overdue: 0 };
+      coverage[type] = { given: 0, pending: 0, overdue: 0, eligible: 0, scheduleGroup: '' };
     });
 
-    children.forEach(child => {
+    // Map schedule groups to vaccine types
+    Object.entries(VACCINE_SCHEDULE).forEach(([schedule, vaccines]) => {
+      vaccines.forEach(vaccine => {
+        const type = getVaccineType(vaccine);
+        if (type && coverage[type]) {
+          coverage[type].scheduleGroup = schedule;
+        }
+      });
+    });
+
+    // Track unique children per vaccine type to avoid duplicates
+    const childVaccineTracker: Record<string, Set<string>> = {};
+    VACCINE_TYPES.forEach(type => {
+      childVaccineTracker[type] = new Set();
+    });
+
+    activeChildren.forEach(child => {
       child.vaccines.forEach(vaccine => {
-        const matchedType = VACCINE_TYPES.find(type => vaccine.name.includes(type));
-        if (matchedType) {
-          if (vaccine.status === 'completed') {
-            coverage[matchedType].given++;
-          } else if (vaccine.status === 'overdue') {
-            coverage[matchedType].overdue++;
-          } else {
-            coverage[matchedType].pending++;
+        const matchedType = getVaccineType(vaccine.name);
+        if (matchedType && coverage[matchedType]) {
+          // Only count each child once per vaccine type
+          if (!childVaccineTracker[matchedType].has(child.regNo)) {
+            childVaccineTracker[matchedType].add(child.regNo);
+            coverage[matchedType].eligible++;
+            
+            if (vaccine.status === 'completed') {
+              coverage[matchedType].given++;
+            } else if (vaccine.status === 'overdue') {
+              coverage[matchedType].overdue++;
+            } else {
+              coverage[matchedType].pending++;
+            }
           }
         }
       });
     });
 
     return coverage;
-  }, [children]);
+  }, [activeChildren]);
 
-  // Defaulters list
+  // Defaulters list (unique children with overdue vaccines)
   const defaultersList = useMemo((): Defaulter[] => {
     const defaulters: Defaulter[] = [];
     const today = new Date();
 
-    children.forEach(child => {
+    activeChildren.forEach(child => {
       const overdueVaccines = child.vaccines.filter(v => v.status === 'overdue');
       if (overdueVaccines.length > 0) {
         const earliestOverdue = overdueVaccines.reduce((earliest, v) => 
@@ -145,7 +248,7 @@ export function ReportingSection({ stats, children }: ReportingSectionProps) {
     });
 
     return defaulters.sort((a, b) => b.daysOverdue - a.daysOverdue);
-  }, [children]);
+  }, [activeChildren]);
 
   // Get period-filtered data
   const getFilteredData = useMemo(() => {
@@ -172,13 +275,14 @@ export function ReportingSection({ stats, children }: ReportingSectionProps) {
         startDate = new Date(now.getFullYear(), now.getMonth(), 1);
     }
 
-    const filteredRecords = detailedRecords.filter(r => new Date(r.date) >= startDate);
+    const filteredRecords = groupedChildRecords.filter(r => new Date(r.mostRecentVisit) >= startDate);
     
     return {
-      totalVaccinations: filteredRecords.length,
+      totalVaccinations: filteredRecords.reduce((sum, r) => sum + r.vaccines.length, 0),
+      uniqueChildren: filteredRecords.length,
       records: filteredRecords
     };
-  }, [period, detailedRecords]);
+  }, [period, groupedChildRecords]);
 
   const tabs: { id: ReportTab; label: string; icon: React.ReactNode }[] = [
     { id: 'summary', label: 'Summary', icon: <TrendingUp className="w-4 h-4" /> },
@@ -283,7 +387,12 @@ export function ReportingSection({ stats, children }: ReportingSectionProps) {
               </div>
             </div>
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
+              <StatCard
+                title="Unique Children"
+                value={getFilteredData.uniqueChildren}
+                variant="default"
+              />
               <StatCard
                 title="Total Vaccinations"
                 value={getFilteredData.totalVaccinations}
@@ -296,12 +405,12 @@ export function ReportingSection({ stats, children }: ReportingSectionProps) {
               />
               <StatCard
                 title="Defaulters"
-                value={stats.defaulters}
+                value={defaultersList.length}
                 variant="danger"
               />
               <StatCard
                 title="Completion Rate"
-                value={`${Math.round((stats.fullyImmunized / Math.max(stats.totalChildren, 1)) * 100)}%`}
+                value={`${Math.round((stats.fullyImmunized / Math.max(activeChildren.length, 1)) * 100)}%`}
                 variant="info"
               />
             </div>
@@ -314,8 +423,12 @@ export function ReportingSection({ stats, children }: ReportingSectionProps) {
                 </div>
                 <div className="space-y-3">
                   <div className="flex justify-between p-3 bg-background rounded-lg">
-                    <span>Total Children Registered</span>
-                    <span className="font-bold">{stats.totalChildren}</span>
+                    <span>Active Children</span>
+                    <span className="font-bold">{activeChildren.length}</span>
+                  </div>
+                  <div className="flex justify-between p-3 bg-background rounded-lg">
+                    <span>Total Registered</span>
+                    <span className="font-bold text-muted-foreground">{children.length}</span>
                   </div>
                   <div className="flex justify-between p-3 bg-background rounded-lg">
                     <span>Fully Immunized</span>
@@ -348,7 +461,7 @@ export function ReportingSection({ stats, children }: ReportingSectionProps) {
                         <div 
                           className="h-full bg-primary transition-all duration-500"
                           style={{ 
-                            width: `${children.length > 0 ? (count / children.length) * 100 : 0}%` 
+                            width: `${activeChildren.length > 0 ? (count / activeChildren.length) * 100 : 0}%` 
                           }}
                         />
                       </div>
@@ -375,47 +488,61 @@ export function ReportingSection({ stats, children }: ReportingSectionProps) {
           </div>
         )}
 
-        {/* Detailed Tab */}
+        {/* Detailed Tab - Grouped by unique child */}
         {activeTab === 'detailed' && (
           <div className="space-y-6">
-            <div className="flex items-center justify-between">
+            <div className="flex items-center justify-between flex-wrap gap-2">
               <div className="flex items-center gap-2">
                 <Users className="w-5 h-5 text-primary" />
                 <h3 className="font-semibold">Individual Vaccination Records</h3>
               </div>
-              <Badge variant="secondary">{detailedRecords.length} records</Badge>
+              <div className="flex gap-2">
+                <Badge variant="secondary">{groupedChildRecords.length} unique children</Badge>
+                <Badge variant="outline">{detailedRecords.length} total vaccines</Badge>
+              </div>
             </div>
 
             <div className="overflow-x-auto">
               <table className="w-full text-sm">
                 <thead>
                   <tr className="bg-primary text-primary-foreground">
-                    <th className="p-3 text-left font-semibold">Date</th>
+                    <th className="p-3 text-left font-semibold">Last Visit</th>
                     <th className="p-3 text-left font-semibold">Reg No</th>
                     <th className="p-3 text-left font-semibold">Child Name</th>
-                    <th className="p-3 text-left font-semibold">Vaccine</th>
-                    <th className="p-3 text-left font-semibold">Batch No.</th>
-                    <th className="p-3 text-left font-semibold">Status</th>
+                    <th className="p-3 text-left font-semibold">Vaccines Received</th>
+                    <th className="p-3 text-left font-semibold">Total</th>
                   </tr>
                 </thead>
                 <tbody>
-                  {detailedRecords.length === 0 ? (
+                  {groupedChildRecords.length === 0 ? (
                     <tr>
-                      <td colSpan={6} className="p-8 text-center text-muted-foreground">
+                      <td colSpan={5} className="p-8 text-center text-muted-foreground">
                         No vaccination records found
                       </td>
                     </tr>
                   ) : (
-                    detailedRecords.slice(0, 50).map((record, idx) => (
-                      <tr key={idx} className="border-b border-border hover:bg-muted/50">
-                        <td className="p-3">{new Date(record.date).toLocaleDateString()}</td>
+                    groupedChildRecords.slice(0, 50).map((record, idx) => (
+                      <tr key={record.regNo} className="border-b border-border hover:bg-muted/50">
+                        <td className="p-3">{new Date(record.mostRecentVisit).toLocaleDateString()}</td>
                         <td className="p-3 font-mono text-xs">{record.regNo}</td>
                         <td className="p-3 font-medium">{record.childName}</td>
-                        <td className="p-3">{record.vaccine}</td>
-                        <td className="p-3 font-mono text-xs">{record.batchNumber}</td>
+                        <td className="p-3">
+                          <div className="flex flex-wrap gap-1 max-w-md">
+                            {record.vaccines.slice(0, 4).map((v, i) => (
+                              <Badge key={i} variant="outline" className="text-xs">
+                                {v.name.split(' at ')[0]}
+                              </Badge>
+                            ))}
+                            {record.vaccines.length > 4 && (
+                              <Badge variant="secondary" className="text-xs">
+                                +{record.vaccines.length - 4} more
+                              </Badge>
+                            )}
+                          </div>
+                        </td>
                         <td className="p-3">
                           <Badge variant="default" className="bg-ghs-green">
-                            {record.status}
+                            {record.vaccines.length}
                           </Badge>
                         </td>
                       </tr>
@@ -425,9 +552,9 @@ export function ReportingSection({ stats, children }: ReportingSectionProps) {
               </table>
             </div>
 
-            {detailedRecords.length > 50 && (
+            {groupedChildRecords.length > 50 && (
               <p className="text-sm text-muted-foreground text-center">
-                Showing 50 of {detailedRecords.length} records
+                Showing 50 of {groupedChildRecords.length} children
               </p>
             )}
 
@@ -447,22 +574,48 @@ export function ReportingSection({ stats, children }: ReportingSectionProps) {
         {/* Vaccine Coverage Tab */}
         {activeTab === 'vaccine' && (
           <div className="space-y-6">
-            <div className="flex items-center gap-2">
-              <Syringe className="w-5 h-5 text-primary" />
-              <h3 className="font-semibold">Vaccine Coverage by Type</h3>
+            <div className="flex items-center justify-between flex-wrap gap-2">
+              <div className="flex items-center gap-2">
+                <Syringe className="w-5 h-5 text-primary" />
+                <h3 className="font-semibold">Vaccine Coverage by Type</h3>
+              </div>
+              <Badge variant="secondary">{activeChildren.length} eligible children</Badge>
+            </div>
+
+            {/* Schedule-based grouping info */}
+            <div className="bg-muted/30 rounded-lg p-4">
+              <h4 className="font-medium mb-3 text-sm">EPI Schedule Reference</h4>
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-xs">
+                {Object.entries(VACCINE_SCHEDULE).map(([schedule, vaccines]) => (
+                  <div key={schedule} className="p-2 bg-background rounded">
+                    <span className="font-medium text-primary">{schedule}</span>
+                    <p className="text-muted-foreground mt-1">{vaccines.join(', ')}</p>
+                  </div>
+                ))}
+              </div>
             </div>
 
             <div className="grid gap-4">
               {VACCINE_TYPES.map(type => {
                 const data = vaccineCoverage[type];
-                const total = data.given + data.pending + data.overdue;
-                const coveragePercent = total > 0 ? Math.round((data.given / total) * 100) : 0;
+                const eligible = data.eligible || activeChildren.length;
+                const coveragePercent = eligible > 0 ? Math.round((data.given / eligible) * 100) : 0;
 
                 return (
                   <div key={type} className="bg-muted/30 rounded-lg p-4">
-                    <div className="flex items-center justify-between mb-3">
-                      <h4 className="font-medium">{type}</h4>
-                      <span className="text-sm font-bold text-primary">{coveragePercent}% coverage</span>
+                    <div className="flex items-center justify-between mb-2">
+                      <div>
+                        <h4 className="font-medium">{type}</h4>
+                        {data.scheduleGroup && (
+                          <span className="text-xs text-muted-foreground">{data.scheduleGroup}</span>
+                        )}
+                      </div>
+                      <div className="text-right">
+                        <span className="text-sm font-bold text-primary">{coveragePercent}%</span>
+                        <span className="text-xs text-muted-foreground ml-1">
+                          ({data.given}/{eligible})
+                        </span>
+                      </div>
                     </div>
                     
                     <div className="h-3 bg-muted rounded-full overflow-hidden mb-3">
@@ -472,10 +625,10 @@ export function ReportingSection({ stats, children }: ReportingSectionProps) {
                       />
                     </div>
                     
-                    <div className="flex gap-4 text-xs">
+                    <div className="flex gap-4 text-xs flex-wrap">
                       <span className="flex items-center gap-1">
                         <span className="w-2 h-2 rounded-full bg-ghs-green" />
-                        Given: {data.given}
+                        Vaccinated: {data.given}
                       </span>
                       <span className="flex items-center gap-1">
                         <span className="w-2 h-2 rounded-full bg-amber-500" />
@@ -484,6 +637,10 @@ export function ReportingSection({ stats, children }: ReportingSectionProps) {
                       <span className="flex items-center gap-1">
                         <span className="w-2 h-2 rounded-full bg-destructive" />
                         Overdue: {data.overdue}
+                      </span>
+                      <span className="flex items-center gap-1">
+                        <span className="w-2 h-2 rounded-full bg-muted-foreground" />
+                        Eligible: {eligible}
                       </span>
                     </div>
                   </div>
