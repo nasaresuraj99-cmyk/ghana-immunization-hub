@@ -1,5 +1,5 @@
 import { useState, useMemo } from "react";
-import { FileText, Download, Printer, TrendingUp, PieChart, Users, Syringe, AlertTriangle, CalendarDays } from "lucide-react";
+import { FileText, Download, Printer, TrendingUp, PieChart, Users, Syringe, AlertTriangle, CalendarDays, ArrowUpDown, ArrowUp, ArrowDown } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Label } from "@/components/ui/label";
@@ -24,6 +24,7 @@ import {
 interface ReportingSectionProps {
   stats: DashboardStats;
   children: Child[];
+  facilityName?: string;
 }
 
 type ReportTab = 'summary' | 'detailed' | 'vaccine' | 'defaulters';
@@ -124,11 +125,13 @@ const generateMonthOptions = () => {
 
 const MONTH_OPTIONS = generateMonthOptions();
 
-export function ReportingSection({ stats, children }: ReportingSectionProps) {
+export function ReportingSection({ stats, children, facilityName = "Health Facility" }: ReportingSectionProps) {
   const [activeTab, setActiveTab] = useState<ReportTab>('summary');
-  const [periodType, setPeriodType] = useState<'preset' | 'monthly'>('preset');
+  const [periodType, setPeriodType] = useState<'preset' | 'monthly' | 'compare'>('preset');
   const [period, setPeriod] = useState('month');
   const [selectedMonth, setSelectedMonth] = useState(MONTH_OPTIONS[0]?.value || '');
+  const [compareMonth1, setCompareMonth1] = useState(MONTH_OPTIONS[0]?.value || '');
+  const [compareMonth2, setCompareMonth2] = useState(MONTH_OPTIONS[1]?.value || '');
 
   // Filter only active children (exclude transferred out)
   const activeChildren = useMemo(() => {
@@ -334,6 +337,31 @@ export function ReportingSection({ stats, children }: ReportingSectionProps) {
     return defaulters.sort((a, b) => b.daysOverdue - a.daysOverdue);
   }, [activeChildren]);
 
+  // Helper function to get data for a specific month
+  const getMonthData = (monthValue: string) => {
+    const [year, month] = monthValue.split('-').map(Number);
+    const startDate = new Date(year, month - 1, 1);
+    const endDate = new Date(year, month, 0, 23, 59, 59);
+    
+    const filteredRecords = groupedChildRecords.filter(r => {
+      const visitDate = new Date(r.mostRecentVisit);
+      return visitDate >= startDate && visitDate <= endDate;
+    });
+    
+    const filteredDefaulters = defaultersList.filter(d => {
+      const dueDate = new Date(d.dueDate);
+      return dueDate >= startDate && dueDate <= endDate;
+    });
+    
+    return {
+      totalVaccinations: filteredRecords.reduce((sum, r) => sum + r.vaccines.length, 0),
+      uniqueChildren: filteredRecords.length,
+      records: filteredRecords,
+      defaulters: filteredDefaulters.length,
+      periodLabel: MONTH_OPTIONS.find(m => m.value === monthValue)?.label || monthValue
+    };
+  };
+
   // Get period-filtered data with monthly support
   const getFilteredData = useMemo(() => {
     const now = new Date();
@@ -343,7 +371,12 @@ export function ReportingSection({ stats, children }: ReportingSectionProps) {
     if (periodType === 'monthly' && selectedMonth) {
       const [year, month] = selectedMonth.split('-').map(Number);
       startDate = new Date(year, month - 1, 1);
-      endDate = new Date(year, month, 0, 23, 59, 59); // Last day of month
+      endDate = new Date(year, month, 0, 23, 59, 59);
+    } else if (periodType === 'compare') {
+      // For compare mode, use the first comparison month
+      const [year, month] = compareMonth1.split('-').map(Number);
+      startDate = new Date(year, month - 1, 1);
+      endDate = new Date(year, month, 0, 23, 59, 59);
     } else {
       switch (period) {
         case 'today':
@@ -377,13 +410,24 @@ export function ReportingSection({ stats, children }: ReportingSectionProps) {
       records: filteredRecords,
       periodLabel: periodType === 'monthly' && selectedMonth 
         ? MONTH_OPTIONS.find(m => m.value === selectedMonth)?.label || selectedMonth
+        : periodType === 'compare'
+        ? `${MONTH_OPTIONS.find(m => m.value === compareMonth1)?.label || compareMonth1} vs ${MONTH_OPTIONS.find(m => m.value === compareMonth2)?.label || compareMonth2}`
         : period === 'today' ? 'Today' 
         : period === 'week' ? 'This Week'
         : period === 'month' ? 'This Month'
         : period === 'quarter' ? 'This Quarter'
         : 'This Year'
     };
-  }, [period, periodType, selectedMonth, groupedChildRecords]);
+  }, [period, periodType, selectedMonth, compareMonth1, compareMonth2, groupedChildRecords]);
+
+  // Comparison data for side-by-side view
+  const comparisonData = useMemo(() => {
+    if (periodType !== 'compare') return null;
+    return {
+      month1: getMonthData(compareMonth1),
+      month2: getMonthData(compareMonth2)
+    };
+  }, [periodType, compareMonth1, compareMonth2, groupedChildRecords, defaultersList]);
 
   const tabs: { id: ReportTab; label: string; icon: React.ReactNode }[] = [
     { id: 'summary', label: 'Summary', icon: <TrendingUp className="w-4 h-4" /> },
@@ -394,11 +438,16 @@ export function ReportingSection({ stats, children }: ReportingSectionProps) {
 
   const handleExportPDF = () => {
     try {
-      const options = { facilityName: "Health Facility", reportDate: new Date().toLocaleDateString() };
+      const periodLabel = getFilteredData.periodLabel;
+      const options = { 
+        facilityName, 
+        reportDate: new Date().toLocaleDateString(),
+        periodLabel
+      };
       
       switch (activeTab) {
         case "summary":
-          exportSummaryReport(stats, ageDistribution, period, options);
+          exportSummaryReport(stats, ageDistribution, periodLabel, options);
           break;
         case "detailed":
           exportDetailedReport(detailedRecords, options);
@@ -474,18 +523,19 @@ export function ReportingSection({ stats, children }: ReportingSectionProps) {
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
               <div className="space-y-2">
                 <Label>Report Type</Label>
-                <Select value={periodType} onValueChange={(v: 'preset' | 'monthly') => setPeriodType(v)}>
+                <Select value={periodType} onValueChange={(v: 'preset' | 'monthly' | 'compare') => setPeriodType(v)}>
                   <SelectTrigger>
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="preset">Quick Range</SelectItem>
                     <SelectItem value="monthly">Monthly Report</SelectItem>
+                    <SelectItem value="compare">Compare Months</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
               
-              {periodType === 'preset' ? (
+              {periodType === 'preset' && (
                 <div className="space-y-2">
                   <Label>Date Range</Label>
                   <Select value={period} onValueChange={setPeriod}>
@@ -501,7 +551,9 @@ export function ReportingSection({ stats, children }: ReportingSectionProps) {
                     </SelectContent>
                   </Select>
                 </div>
-              ) : (
+              )}
+              
+              {periodType === 'monthly' && (
                 <div className="space-y-2">
                   <Label className="flex items-center gap-2">
                     <CalendarDays className="w-4 h-4" />
@@ -522,8 +574,49 @@ export function ReportingSection({ stats, children }: ReportingSectionProps) {
                 </div>
               )}
               
-              {periodType === 'monthly' && selectedMonth && (
-                <div className="sm:col-span-2 flex items-end">
+              {periodType === 'compare' && (
+                <>
+                  <div className="space-y-2">
+                    <Label className="flex items-center gap-2">
+                      <CalendarDays className="w-4 h-4" />
+                      First Month
+                    </Label>
+                    <Select value={compareMonth1} onValueChange={setCompareMonth1}>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select month..." />
+                      </SelectTrigger>
+                      <SelectContent className="max-h-64">
+                        {MONTH_OPTIONS.map(opt => (
+                          <SelectItem key={opt.value} value={opt.value}>
+                            {opt.label}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="space-y-2">
+                    <Label className="flex items-center gap-2">
+                      <ArrowUpDown className="w-4 h-4" />
+                      Compare With
+                    </Label>
+                    <Select value={compareMonth2} onValueChange={setCompareMonth2}>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select month..." />
+                      </SelectTrigger>
+                      <SelectContent className="max-h-64">
+                        {MONTH_OPTIONS.map(opt => (
+                          <SelectItem key={opt.value} value={opt.value}>
+                            {opt.label}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </>
+              )}
+              
+              {(periodType === 'monthly' || periodType === 'compare') && (
+                <div className="flex items-end">
                   <Badge variant="secondary" className="text-sm py-2 px-4">
                     <CalendarDays className="w-4 h-4 mr-2" />
                     {getFilteredData.periodLabel}
@@ -531,6 +624,97 @@ export function ReportingSection({ stats, children }: ReportingSectionProps) {
                 </div>
               )}
             </div>
+
+            {/* Month Comparison View */}
+            {periodType === 'compare' && comparisonData && (
+              <div className="bg-muted/20 rounded-lg p-6 border border-border">
+                <div className="flex items-center gap-2 mb-4">
+                  <ArrowUpDown className="w-5 h-5 text-primary" />
+                  <h3 className="font-semibold">Month-to-Month Comparison</h3>
+                </div>
+                
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                  {/* Month 1 */}
+                  <div className="bg-background rounded-lg p-4 border">
+                    <h4 className="font-medium text-primary mb-3">{comparisonData.month1.periodLabel}</h4>
+                    <div className="space-y-2">
+                      <div className="flex justify-between">
+                        <span className="text-muted-foreground">Unique Children</span>
+                        <span className="font-bold">{comparisonData.month1.uniqueChildren}</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-muted-foreground">Total Vaccinations</span>
+                        <span className="font-bold">{comparisonData.month1.totalVaccinations}</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-muted-foreground">Defaulters</span>
+                        <span className="font-bold text-destructive">{comparisonData.month1.defaulters}</span>
+                      </div>
+                    </div>
+                  </div>
+                  
+                  {/* Month 2 */}
+                  <div className="bg-background rounded-lg p-4 border">
+                    <h4 className="font-medium text-primary mb-3">{comparisonData.month2.periodLabel}</h4>
+                    <div className="space-y-2">
+                      <div className="flex justify-between">
+                        <span className="text-muted-foreground">Unique Children</span>
+                        <span className="font-bold">{comparisonData.month2.uniqueChildren}</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-muted-foreground">Total Vaccinations</span>
+                        <span className="font-bold">{comparisonData.month2.totalVaccinations}</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-muted-foreground">Defaulters</span>
+                        <span className="font-bold text-destructive">{comparisonData.month2.defaulters}</span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+                
+                {/* Change Indicators */}
+                <div className="mt-4 pt-4 border-t">
+                  <h4 className="font-medium mb-3">Change Summary</h4>
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                    {(() => {
+                      const childrenDiff = comparisonData.month1.uniqueChildren - comparisonData.month2.uniqueChildren;
+                      const vaccDiff = comparisonData.month1.totalVaccinations - comparisonData.month2.totalVaccinations;
+                      const defaulterDiff = comparisonData.month1.defaulters - comparisonData.month2.defaulters;
+                      
+                      return (
+                        <>
+                          <div className="flex items-center gap-2 p-3 bg-muted/50 rounded-lg">
+                            {childrenDiff > 0 ? (
+                              <ArrowUp className="w-4 h-4 text-green-600" />
+                            ) : childrenDiff < 0 ? (
+                              <ArrowDown className="w-4 h-4 text-red-600" />
+                            ) : null}
+                            <span className="text-sm">Children: {childrenDiff > 0 ? '+' : ''}{childrenDiff}</span>
+                          </div>
+                          <div className="flex items-center gap-2 p-3 bg-muted/50 rounded-lg">
+                            {vaccDiff > 0 ? (
+                              <ArrowUp className="w-4 h-4 text-green-600" />
+                            ) : vaccDiff < 0 ? (
+                              <ArrowDown className="w-4 h-4 text-red-600" />
+                            ) : null}
+                            <span className="text-sm">Vaccinations: {vaccDiff > 0 ? '+' : ''}{vaccDiff}</span>
+                          </div>
+                          <div className="flex items-center gap-2 p-3 bg-muted/50 rounded-lg">
+                            {defaulterDiff < 0 ? (
+                              <ArrowUp className="w-4 h-4 text-green-600" />
+                            ) : defaulterDiff > 0 ? (
+                              <ArrowDown className="w-4 h-4 text-red-600" />
+                            ) : null}
+                            <span className="text-sm">Defaulters: {defaulterDiff > 0 ? '+' : ''}{defaulterDiff}</span>
+                          </div>
+                        </>
+                      );
+                    })()}
+                  </div>
+                </div>
+              </div>
+            )}
 
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
               <StatCard

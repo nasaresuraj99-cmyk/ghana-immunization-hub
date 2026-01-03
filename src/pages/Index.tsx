@@ -518,6 +518,7 @@ export default function Index() {
           <ReportingSection
             stats={stats}
             children={children}
+            facilityName={user?.facility || "Health Facility"}
           />
         )}
 
