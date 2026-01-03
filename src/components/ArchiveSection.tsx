@@ -8,7 +8,7 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
 import { Child } from '@/types/child';
 import { ROLE_PERMISSIONS, AppRole } from '@/types/facility';
-import { cn } from '@/lib/utils';
+import { cn, formatDate } from '@/lib/utils';
 
 interface ArchiveSectionProps {
   archivedChildren: Child[];
@@ -49,9 +49,9 @@ export function ArchiveSection({
     setConfirmDelete(null);
   };
 
-  const formatDate = (dateStr?: string) => {
+  const formatDateLocal = (dateStr?: string) => {
     if (!dateStr) return 'Unknown';
-    return new Date(dateStr).toLocaleDateString();
+    return formatDate(dateStr);
   };
 
   return (
@@ -110,7 +110,7 @@ export function ArchiveSection({
                         </span>
                         <span className="flex items-center gap-1">
                           <Calendar className="w-3 h-3" />
-                          Deleted: {formatDate(child.deletedAt)}
+                          Deleted: {formatDateLocal(child.deletedAt)}
                         </span>
                       </div>
                     </div>

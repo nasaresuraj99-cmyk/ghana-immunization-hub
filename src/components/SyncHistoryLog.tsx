@@ -7,7 +7,7 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { useSyncHistory } from '@/hooks/useSyncHistory';
 import { SyncHistoryRecord } from '@/types/facility';
-import { cn } from '@/lib/utils';
+import { cn, formatDate } from '@/lib/utils';
 
 interface SyncHistoryLogProps {
   history?: SyncHistoryRecord[];
@@ -59,7 +59,7 @@ export function SyncHistoryLog({ history: externalHistory, isLoading: externalLo
     if (diff < 60) return 'Just now';
     if (diff < 3600) return `${Math.floor(diff / 60)}m ago`;
     if (diff < 86400) return `${Math.floor(diff / 3600)}h ago`;
-    return date.toLocaleDateString();
+    return formatDate(date);
   };
 
   const recentStats = {

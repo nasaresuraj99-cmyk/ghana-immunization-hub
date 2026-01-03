@@ -15,6 +15,15 @@ interface PDFOptions {
   periodLabel?: string;
 }
 
+// Format date as DD/MM/YYYY
+export function formatDateDDMMYYYY(date: Date | string): string {
+  const d = typeof date === 'string' ? new Date(date) : date;
+  const day = String(d.getDate()).padStart(2, '0');
+  const month = String(d.getMonth() + 1).padStart(2, '0');
+  const year = d.getFullYear();
+  return `${day}/${month}/${year}`;
+}
+
 // Helper to create safe filename
 function sanitizeFilename(name: string): string {
   return name.replace(/[^a-zA-Z0-9-_]/g, '_').substring(0, 50);
@@ -24,7 +33,7 @@ function addHeader(doc: jsPDF, title: string, options: PDFOptions = {}) {
   const pageWidth = doc.internal.pageSize.getWidth();
   const { 
     facilityName = "Health Facility", 
-    reportDate = new Date().toLocaleDateString(),
+    reportDate = formatDateDDMMYYYY(new Date()),
     periodLabel 
   } = options;
 
@@ -197,7 +206,7 @@ export function exportDetailedReport(
     startY: yPos,
     head: [["Date", "Reg No.", "Child Name", "Vaccine", "Batch No.", "Status"]],
     body: records.map((r) => [
-      new Date(r.date).toLocaleDateString(),
+      formatDateDDMMYYYY(r.date),
       r.regNo,
       r.childName,
       r.vaccine,
@@ -356,7 +365,7 @@ export function exportDefaultersReport(
       d.child.telephoneAddress || "N/A",
       d.child.community || "N/A",
       d.missedVaccines.slice(0, 2).join(", ") + (d.missedVaccines.length > 2 ? ` +${d.missedVaccines.length - 2}` : ""),
-      new Date(d.dueDate).toLocaleDateString(),
+      formatDateDDMMYYYY(d.dueDate),
       d.daysOverdue.toString(),
     ]),
     headStyles: {
@@ -432,7 +441,7 @@ export function exportChildrenRegister(
       return [
         child.regNo,
         child.name,
-        new Date(child.dateOfBirth).toLocaleDateString(),
+        formatDateDDMMYYYY(child.dateOfBirth),
         `${months}m`,
         child.sex,
         child.motherName,
@@ -489,7 +498,7 @@ export function exportVaccineHistory(
   const childInfo = [
     ["Registration No:", child.regNo],
     ["Name:", child.name],
-    ["Date of Birth:", new Date(child.dateOfBirth).toLocaleDateString()],
+    ["Date of Birth:", formatDateDDMMYYYY(child.dateOfBirth)],
     ["Age:", `${months} months`],
     ["Sex:", child.sex],
     ["Mother's Name:", child.motherName],
@@ -527,7 +536,7 @@ export function exportVaccineHistory(
       body: administeredVaccines.map((v, idx) => [
         (idx + 1).toString(),
         v.name,
-        v.givenDate ? new Date(v.givenDate).toLocaleDateString() : "N/A",
+        v.givenDate ? formatDateDDMMYYYY(v.givenDate) : "N/A",
         v.batchNumber || "N/A",
         v.administeredBy || "N/A",
       ]),
@@ -699,7 +708,7 @@ export async function exportImmunizationCard(
   const details: [string, string][] = [
     ["Reg No:", child.regNo],
     ["Name:", child.name],
-    ["DOB:", new Date(child.dateOfBirth).toLocaleDateString()],
+    ["DOB:", formatDateDDMMYYYY(child.dateOfBirth)],
     ["Sex:", child.sex],
     ["Caregiver:", child.motherName],
     ["Contact:", child.telephoneAddress || "N/A"],
@@ -814,7 +823,7 @@ export async function exportImmunizationCard(
   
   doc.setFontSize(4);
   doc.setTextColor(100, 100, 100);
-  doc.text(`ID: ${child.regNo} | Generated: ${new Date().toLocaleDateString()} | Ghana Health Service`, pageWidth / 2, pageHeight - 3, { align: "center" });
+  doc.text(`ID: ${child.regNo} | Generated: ${formatDateDDMMYYYY(new Date())} | Ghana Health Service`, pageWidth / 2, pageHeight - 3, { align: "center" });
 
   const facilitySlug = sanitizeFilename(options.facilityName || 'GHS');
   doc.save(`${facilitySlug}_Immunization_Card_${child.regNo}_${child.name.replace(/\s+/g, "_")}.pdf`);
@@ -867,7 +876,7 @@ export function exportOutreachSessionReport(
   
   const sessionInfo: [string, string][] = [
     ["Vaccine Administered:", sessionDetails.vaccineName],
-    ["Session Date:", new Date(sessionDetails.sessionDate).toLocaleDateString()],
+    ["Session Date:", formatDateDDMMYYYY(sessionDetails.sessionDate)],
     ["Batch Number:", sessionDetails.batchNumber],
     ["Total Children Vaccinated:", sessionDetails.totalChildren.toString()],
   ];
@@ -903,7 +912,7 @@ export function exportOutreachSessionReport(
       r.childName,
       r.motherName,
       r.community || "N/A",
-      new Date(r.dateGiven).toLocaleDateString(),
+      formatDateDDMMYYYY(r.dateGiven),
       r.batchNumber,
     ]),
     headStyles: {
@@ -964,4 +973,328 @@ export function exportOutreachSessionReport(
   const vaccineSlug = sanitizeFilename(sessionDetails.vaccineName);
   const dateSlug = new Date(sessionDetails.sessionDate).toISOString().split("T")[0];
   doc.save(`${facilitySlug}_Outreach_Session_${vaccineSlug}_${dateSlug}.pdf`);
+}
+
+// Export consolidated report combining all report types for a date range
+export function exportConsolidatedReport(
+  data: {
+    stats: DashboardStats;
+    ageDistribution: Record<string, number>;
+    detailedRecords: Array<{
+      date: string;
+      childName: string;
+      regNo: string;
+      vaccine: string;
+      batchNumber: string;
+      status: string;
+    }>;
+    vaccineCoverage: Record<string, { given: number; pending: number; overdue: number; eligible?: number }>;
+    defaulters: Defaulter[];
+  },
+  options: PDFOptions = {}
+) {
+  const doc = new jsPDF();
+  const { facilityName = "Health Facility", periodLabel } = options;
+  let currentPage = 1;
+  
+  // ============ Page 1: Summary Report ============
+  let yPos = addHeader(doc, "Consolidated Report - Summary", options);
+
+  doc.setFontSize(11);
+  doc.setFont("helvetica", "normal");
+  doc.setTextColor(...GHS_DARK);
+  doc.text(`Reporting Period: ${periodLabel || 'All Time'}`, 14, yPos);
+  yPos += 10;
+
+  // Stats table
+  autoTable(doc, {
+    startY: yPos,
+    head: [["Metric", "Value"]],
+    body: [
+      ["Total Children Registered", data.stats.totalChildren.toString()],
+      ["Fully Immunized", data.stats.fullyImmunized.toString()],
+      ["Vaccinated Today", data.stats.vaccinatedToday.toString()],
+      ["Due This Week", data.stats.dueSoon.toString()],
+      ["Defaulters", data.stats.defaulters.toString()],
+      ["Coverage Rate", `${data.stats.coverageRate}%`],
+      ["Dropout Rate", `${data.stats.dropoutRate}%`],
+    ],
+    headStyles: { fillColor: GHS_GREEN, textColor: [255, 255, 255], fontStyle: "bold" },
+    alternateRowStyles: { fillColor: [232, 245, 232] },
+    styles: { fontSize: 10, cellPadding: 5 },
+    columnStyles: { 0: { fontStyle: "bold", cellWidth: 100 }, 1: { halign: "right", cellWidth: 50 } },
+    margin: { left: 14, right: 14 },
+  });
+
+  yPos = (doc as jsPDF & { lastAutoTable?: { finalY: number } }).lastAutoTable?.finalY || yPos + 80;
+  yPos += 15;
+
+  // Age Distribution
+  doc.setFontSize(14);
+  doc.setFont("helvetica", "bold");
+  doc.text("Age Distribution", 14, yPos);
+  yPos += 8;
+
+  autoTable(doc, {
+    startY: yPos,
+    head: [["Age Group", "Children", "Percentage"]],
+    body: Object.entries(data.ageDistribution).map(([group, count]) => {
+      const total = Object.values(data.ageDistribution).reduce((a, b) => a + b, 0);
+      const percent = total > 0 ? Math.round((count / total) * 100) : 0;
+      return [group, count.toString(), `${percent}%`];
+    }),
+    headStyles: { fillColor: GHS_GREEN, textColor: [255, 255, 255], fontStyle: "bold" },
+    alternateRowStyles: { fillColor: [232, 245, 232] },
+    styles: { fontSize: 10, cellPadding: 5 },
+    margin: { left: 14, right: 14 },
+  });
+
+  addFooter(doc, currentPage);
+  currentPage++;
+
+  // ============ Page 2: Vaccine Coverage ============
+  doc.addPage();
+  yPos = addHeader(doc, "Consolidated Report - Vaccine Coverage", options);
+
+  autoTable(doc, {
+    startY: yPos,
+    head: [["Schedule", "Eligible", "Given", "Pending", "Overdue", "Coverage %"]],
+    body: Object.entries(data.vaccineCoverage).map(([type, coverage]) => {
+      const eligible = coverage.eligible || (coverage.given + coverage.pending + coverage.overdue);
+      const coveragePercent = eligible > 0 ? Math.round((coverage.given / eligible) * 100) : 0;
+      return [type, eligible.toString(), coverage.given.toString(), coverage.pending.toString(), coverage.overdue.toString(), `${coveragePercent}%`];
+    }),
+    headStyles: { fillColor: GHS_GREEN, textColor: [255, 255, 255], fontStyle: "bold" },
+    alternateRowStyles: { fillColor: [232, 245, 232] },
+    styles: { fontSize: 9, cellPadding: 4 },
+    columnStyles: { 0: { fontStyle: "bold", cellWidth: 40 }, 5: { fontStyle: "bold", halign: "center" } },
+    margin: { left: 14, right: 14 },
+  });
+
+  addFooter(doc, currentPage);
+  currentPage++;
+
+  // ============ Page 3+: Detailed Records ============
+  doc.addPage();
+  yPos = addHeader(doc, "Consolidated Report - Detailed Records", options);
+
+  doc.setFontSize(11);
+  doc.setTextColor(...GHS_DARK);
+  doc.text(`Total Records: ${data.detailedRecords.length}`, 14, yPos);
+  yPos += 8;
+
+  autoTable(doc, {
+    startY: yPos,
+    head: [["Date", "Reg No.", "Child Name", "Vaccine", "Batch No.", "Status"]],
+    body: data.detailedRecords.slice(0, 100).map((r) => [
+      formatDateDDMMYYYY(r.date),
+      r.regNo,
+      r.childName,
+      r.vaccine,
+      r.batchNumber,
+      r.status,
+    ]),
+    headStyles: { fillColor: GHS_GREEN, textColor: [255, 255, 255], fontStyle: "bold", fontSize: 9 },
+    alternateRowStyles: { fillColor: [232, 245, 232] },
+    styles: { fontSize: 8, cellPadding: 4 },
+    margin: { left: 14, right: 14 },
+    didDrawPage: (pageData) => { addFooter(doc, currentPage + pageData.pageNumber - 1); },
+  });
+
+  // ============ Defaulters Page ============
+  if (data.defaulters.length > 0) {
+    doc.addPage();
+    yPos = addHeader(doc, "Consolidated Report - Defaulters", options);
+
+    const critical = data.defaulters.filter((d) => d.daysOverdue > 30).length;
+    const moderate = data.defaulters.filter((d) => d.daysOverdue >= 14 && d.daysOverdue <= 30).length;
+    const recent = data.defaulters.filter((d) => d.daysOverdue < 14).length;
+
+    doc.setFontSize(10);
+    doc.setTextColor(...GHS_DARK);
+    doc.text(`Total Defaulters: ${data.defaulters.length}  |  Critical (>30d): ${critical}  |  Moderate (14-30d): ${moderate}  |  Recent (<14d): ${recent}`, 14, yPos);
+    yPos += 10;
+
+    autoTable(doc, {
+      startY: yPos,
+      head: [["#", "Child Name", "Mother", "Missed Vaccines", "Due Date", "Days Overdue"]],
+      body: data.defaulters.slice(0, 50).map((d, idx) => [
+        (idx + 1).toString(),
+        d.child.name,
+        d.child.motherName,
+        d.missedVaccines.slice(0, 2).join(", ") + (d.missedVaccines.length > 2 ? ` +${d.missedVaccines.length - 2}` : ""),
+        formatDateDDMMYYYY(d.dueDate),
+        d.daysOverdue.toString(),
+      ]),
+      headStyles: { fillColor: GHS_RED, textColor: [255, 255, 255], fontStyle: "bold", fontSize: 9 },
+      alternateRowStyles: { fillColor: [255, 235, 238] },
+      styles: { fontSize: 8, cellPadding: 4 },
+      margin: { left: 14, right: 14 },
+      didDrawPage: (pageData) => { addFooter(doc, pageData.pageNumber); },
+    });
+  }
+
+  const facilitySlug = sanitizeFilename(facilityName);
+  const periodSlug = periodLabel ? `_${sanitizeFilename(periodLabel)}` : '';
+  const dateSlug = new Date().toISOString().split("T")[0];
+  doc.save(`${facilitySlug}_Consolidated_Report${periodSlug}_${dateSlug}.pdf`);
+}
+
+// Export month comparison report
+export function exportMonthComparisonReport(
+  comparisonData: {
+    month1: { periodLabel: string; uniqueChildren: number; totalVaccinations: number; defaulters: number };
+    month2: { periodLabel: string; uniqueChildren: number; totalVaccinations: number; defaulters: number };
+  },
+  options: PDFOptions = {}
+) {
+  const doc = new jsPDF();
+  const { facilityName = "Health Facility" } = options;
+  
+  const yPosStart = addHeader(doc, "Month-to-Month Comparison Report", {
+    ...options,
+    periodLabel: `${comparisonData.month1.periodLabel} vs ${comparisonData.month2.periodLabel}`
+  });
+  let yPos = yPosStart;
+
+  // Comparison header
+  doc.setFontSize(12);
+  doc.setFont("helvetica", "bold");
+  doc.setTextColor(...GHS_DARK);
+  doc.text("Side-by-Side Comparison", 14, yPos);
+  yPos += 10;
+
+  const pageWidth = doc.internal.pageSize.getWidth();
+  const halfWidth = (pageWidth - 42) / 2;
+
+  // Month 1 Box
+  doc.setFillColor(232, 245, 232);
+  doc.roundedRect(14, yPos, halfWidth, 60, 3, 3, "F");
+  doc.setDrawColor(...GHS_GREEN);
+  doc.setLineWidth(0.5);
+  doc.roundedRect(14, yPos, halfWidth, 60, 3, 3, "S");
+
+  doc.setFontSize(11);
+  doc.setFont("helvetica", "bold");
+  doc.setTextColor(...GHS_GREEN);
+  doc.text(comparisonData.month1.periodLabel, 20, yPos + 12);
+
+  doc.setFontSize(10);
+  doc.setFont("helvetica", "normal");
+  doc.setTextColor(...GHS_DARK);
+  doc.text(`Unique Children: ${comparisonData.month1.uniqueChildren}`, 20, yPos + 26);
+  doc.text(`Total Vaccinations: ${comparisonData.month1.totalVaccinations}`, 20, yPos + 38);
+  doc.text(`Defaulters: ${comparisonData.month1.defaulters}`, 20, yPos + 50);
+
+  // Month 2 Box
+  const month2X = 14 + halfWidth + 14;
+  doc.setFillColor(232, 245, 232);
+  doc.roundedRect(month2X, yPos, halfWidth, 60, 3, 3, "F");
+  doc.setDrawColor(...GHS_GREEN);
+  doc.roundedRect(month2X, yPos, halfWidth, 60, 3, 3, "S");
+
+  doc.setFontSize(11);
+  doc.setFont("helvetica", "bold");
+  doc.setTextColor(...GHS_GREEN);
+  doc.text(comparisonData.month2.periodLabel, month2X + 6, yPos + 12);
+
+  doc.setFontSize(10);
+  doc.setFont("helvetica", "normal");
+  doc.setTextColor(...GHS_DARK);
+  doc.text(`Unique Children: ${comparisonData.month2.uniqueChildren}`, month2X + 6, yPos + 26);
+  doc.text(`Total Vaccinations: ${comparisonData.month2.totalVaccinations}`, month2X + 6, yPos + 38);
+  doc.text(`Defaulters: ${comparisonData.month2.defaulters}`, month2X + 6, yPos + 50);
+
+  yPos += 75;
+
+  // Change Analysis Section
+  doc.setFillColor(...GHS_GOLD);
+  doc.rect(14, yPos, pageWidth - 28, 8, "F");
+  doc.setFontSize(11);
+  doc.setFont("helvetica", "bold");
+  doc.setTextColor(...GHS_DARK);
+  doc.text("CHANGE ANALYSIS", 18, yPos + 6);
+  yPos += 15;
+
+  const childrenDiff = comparisonData.month1.uniqueChildren - comparisonData.month2.uniqueChildren;
+  const vaccDiff = comparisonData.month1.totalVaccinations - comparisonData.month2.totalVaccinations;
+  const defaulterDiff = comparisonData.month1.defaulters - comparisonData.month2.defaulters;
+
+  const changes = [
+    { metric: "Children Seen", diff: childrenDiff, positive: childrenDiff > 0 },
+    { metric: "Vaccinations Given", diff: vaccDiff, positive: vaccDiff > 0 },
+    { metric: "Defaulters", diff: defaulterDiff, positive: defaulterDiff < 0 }, // fewer defaulters is good
+  ];
+
+  autoTable(doc, {
+    startY: yPos,
+    head: [["Metric", `${comparisonData.month1.periodLabel}`, `${comparisonData.month2.periodLabel}`, "Change", "Trend"]],
+    body: [
+      ["Children Seen", comparisonData.month1.uniqueChildren.toString(), comparisonData.month2.uniqueChildren.toString(), 
+       `${childrenDiff > 0 ? '+' : ''}${childrenDiff}`, childrenDiff > 0 ? "↑ Increase" : childrenDiff < 0 ? "↓ Decrease" : "→ No Change"],
+      ["Vaccinations", comparisonData.month1.totalVaccinations.toString(), comparisonData.month2.totalVaccinations.toString(),
+       `${vaccDiff > 0 ? '+' : ''}${vaccDiff}`, vaccDiff > 0 ? "↑ Increase" : vaccDiff < 0 ? "↓ Decrease" : "→ No Change"],
+      ["Defaulters", comparisonData.month1.defaulters.toString(), comparisonData.month2.defaulters.toString(),
+       `${defaulterDiff > 0 ? '+' : ''}${defaulterDiff}`, defaulterDiff < 0 ? "↑ Improved" : defaulterDiff > 0 ? "↓ Worsened" : "→ No Change"],
+    ],
+    headStyles: { fillColor: GHS_GREEN, textColor: [255, 255, 255], fontStyle: "bold" },
+    alternateRowStyles: { fillColor: [232, 245, 232] },
+    styles: { fontSize: 10, cellPadding: 6 },
+    columnStyles: { 
+      0: { fontStyle: "bold" },
+      3: { halign: "center", fontStyle: "bold" },
+      4: { halign: "center" }
+    },
+    margin: { left: 14, right: 14 },
+    didParseCell: (cellData) => {
+      if (cellData.section === "body" && cellData.column.index === 4) {
+        const text = cellData.cell.raw as string;
+        if (text.includes("Increase") || text.includes("Improved")) {
+          cellData.cell.styles.textColor = [0, 128, 0];
+        } else if (text.includes("Decrease") || text.includes("Worsened")) {
+          cellData.cell.styles.textColor = [206, 17, 38];
+        }
+      }
+      if (cellData.section === "body" && cellData.column.index === 3) {
+        const text = cellData.cell.raw as string;
+        if (text.startsWith('+')) {
+          cellData.cell.styles.textColor = [0, 128, 0];
+        } else if (text.startsWith('-')) {
+          cellData.cell.styles.textColor = [206, 17, 38];
+        }
+      }
+    },
+  });
+
+  yPos = (doc as jsPDF & { lastAutoTable?: { finalY: number } }).lastAutoTable?.finalY || yPos + 60;
+  yPos += 20;
+
+  // Summary recommendation
+  doc.setFillColor(250, 250, 240);
+  doc.roundedRect(14, yPos, pageWidth - 28, 35, 3, 3, "F");
+  doc.setDrawColor(...GHS_GOLD);
+  doc.roundedRect(14, yPos, pageWidth - 28, 35, 3, 3, "S");
+
+  doc.setFontSize(10);
+  doc.setFont("helvetica", "bold");
+  doc.setTextColor(...GHS_DARK);
+  doc.text("Summary:", 20, yPos + 10);
+
+  doc.setFont("helvetica", "normal");
+  doc.setFontSize(9);
+  const summaryText = `Comparing ${comparisonData.month1.periodLabel} to ${comparisonData.month2.periodLabel}: ` +
+    `${Math.abs(childrenDiff)} ${childrenDiff >= 0 ? 'more' : 'fewer'} children seen, ` +
+    `${Math.abs(vaccDiff)} ${vaccDiff >= 0 ? 'more' : 'fewer'} vaccinations administered, ` +
+    `${Math.abs(defaulterDiff)} ${defaulterDiff <= 0 ? 'fewer' : 'more'} defaulters.`;
+  
+  const splitText = doc.splitTextToSize(summaryText, pageWidth - 50);
+  doc.text(splitText, 20, yPos + 20);
+
+  addFooter(doc, 1);
+
+  const facilitySlug = sanitizeFilename(facilityName);
+  const month1Slug = sanitizeFilename(comparisonData.month1.periodLabel);
+  const month2Slug = sanitizeFilename(comparisonData.month2.periodLabel);
+  const dateSlug = new Date().toISOString().split("T")[0];
+  doc.save(`${facilitySlug}_Comparison_${month1Slug}_vs_${month2Slug}_${dateSlug}.pdf`);
 }

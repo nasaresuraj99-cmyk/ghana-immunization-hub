@@ -1,4 +1,5 @@
 import { Child, DashboardStats, VaccineRecord } from "@/types/child";
+import { formatDate } from "@/lib/utils";
 
 export interface FullExportData {
   exportDate: string;
@@ -102,13 +103,13 @@ export function exportFullDataCSV(children: Child[]): void {
     return [
       child.regNo,
       child.name,
-      new Date(child.dateOfBirth).toLocaleDateString(),
+      formatDate(child.dateOfBirth),
       ageMonths.toString(),
       child.sex,
       child.motherName,
       child.telephoneAddress || "N/A",
       child.community || "N/A",
-      new Date(child.registeredAt).toLocaleDateString(),
+      formatDate(child.registeredAt),
       completed.toString(),
       total.toString(),
       `${completionPct}%`,
@@ -168,9 +169,9 @@ export function exportVaccinationHistoryCSV(children: Child[]): void {
         child.regNo,
         child.name,
         vaccine.name,
-        new Date(vaccine.dueDate).toLocaleDateString(),
+        formatDate(vaccine.dueDate),
         vaccine.status.charAt(0).toUpperCase() + vaccine.status.slice(1),
-        vaccine.givenDate ? new Date(vaccine.givenDate).toLocaleDateString() : "N/A",
+        vaccine.givenDate ? formatDate(vaccine.givenDate) : "N/A",
         vaccine.batchNumber || "N/A",
         vaccine.status === "overdue" ? daysOverdue.toString() : "0",
       ]);

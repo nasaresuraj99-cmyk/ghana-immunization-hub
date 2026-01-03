@@ -1,5 +1,5 @@
 import { Child, DashboardStats, Defaulter } from "@/types/child";
-
+import { formatDate } from "@/lib/utils";
 // Helper to convert data to CSV format
 function arrayToCSV(headers: string[], rows: string[][]): string {
   const csvContent = [
@@ -67,7 +67,7 @@ export function exportDetailedExcel(
 ) {
   const headers = ["Date", "Reg No.", "Child Name", "Vaccine", "Batch No.", "Status"];
   const rows = records.map(r => [
-    new Date(r.date).toLocaleDateString(),
+    formatDate(r.date),
     r.regNo,
     r.childName,
     r.vaccine,
@@ -127,7 +127,7 @@ export function exportDefaultersExcel(defaulters: Defaulter[]) {
     // Get detailed missed vaccines with their due dates
     const missedWithDates = d.missedVaccines.map(vaccineName => {
       const vaccineRecord = d.child.vaccines.find(v => v.name === vaccineName);
-      const dueDate = vaccineRecord ? new Date(vaccineRecord.dueDate).toLocaleDateString() : "N/A";
+      const dueDate = vaccineRecord ? formatDate(vaccineRecord.dueDate) : "N/A";
       return `${vaccineName} (Due: ${dueDate})`;
     }).join("; ");
     
@@ -140,7 +140,7 @@ export function exportDefaultersExcel(defaulters: Defaulter[]) {
       (idx + 1).toString(),
       d.child.regNo,
       d.child.name,
-      new Date(d.child.dateOfBirth).toLocaleDateString(),
+      formatDate(d.child.dateOfBirth),
       ageMonths.toString(),
       d.child.sex,
       d.child.motherName,
@@ -148,7 +148,7 @@ export function exportDefaultersExcel(defaulters: Defaulter[]) {
       d.child.community || "N/A",
       d.missedVaccines.length.toString(),
       missedWithDates,
-      new Date(d.dueDate).toLocaleDateString(),
+      formatDate(d.dueDate),
       d.daysOverdue.toString(),
       priority,
     ];
@@ -170,7 +170,7 @@ export function exportChildrenRegisterExcel(children: Child[]) {
     return [
       child.regNo,
       child.name,
-      new Date(child.dateOfBirth).toLocaleDateString(),
+      formatDate(child.dateOfBirth),
       months.toString(),
       child.sex,
       child.motherName,

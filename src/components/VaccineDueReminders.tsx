@@ -3,6 +3,7 @@ import { Bell, Calendar, AlertTriangle, ChevronRight, Filter } from "lucide-reac
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Child } from "@/types/child";
+import { formatDate } from "@/lib/utils";
 import {
   Select,
   SelectContent,
@@ -106,7 +107,7 @@ export function VaccineDueReminders({ children, onViewChild }: VaccineDueReminde
           <p className="font-medium text-sm">{item.child.name}</p>
           <p className="text-xs text-muted-foreground">{item.vaccine.name}</p>
           <p className="text-xs text-muted-foreground">
-            Due: {new Date(item.vaccine.dueDate).toLocaleDateString()}
+            Due: {formatDate(item.vaccine.dueDate)}
           </p>
         </div>
       </div>
