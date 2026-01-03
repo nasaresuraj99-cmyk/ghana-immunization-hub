@@ -9,6 +9,7 @@ import { Defaulter, Child } from "@/types/child";
 import { exportDefaultersExcel } from "@/lib/excelExport";
 import { exportDefaultersReport } from "@/lib/pdfExport";
 import { calculateExactAge } from "@/lib/ageCalculator";
+import { formatDate } from "@/lib/utils";
 
 interface DefaultersSectionProps {
   children: Child[];
@@ -334,7 +335,7 @@ export function DefaultersSection({ children, onRefresh, canExport = true, onVie
                         <div>
                           <p className="font-medium text-sm">{vaccine}</p>
                           <p className="text-xs text-muted-foreground">
-                            Due: {dueDate.toLocaleDateString()}
+                            Due: {formatDate(dueDate)}
                           </p>
                         </div>
                         <Badge variant="destructive" className="text-xs">

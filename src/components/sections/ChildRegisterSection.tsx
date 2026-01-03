@@ -7,6 +7,7 @@ import { Child } from "@/types/child";
 import { exportImmunizationCard } from "@/lib/pdfExport";
 import { toast } from "sonner";
 import { calculateExactAge } from "@/lib/ageCalculator";
+import { formatDate } from "@/lib/utils";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuCheckboxItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 
@@ -245,7 +246,7 @@ export function ChildRegisterSection({
                               <span className="text-xs text-muted-foreground italic">Inactive</span>
                             ) : nextVisit ? (
                               <span className="text-xs">
-                                {nextVisit.name} - {new Date(nextVisit.dueDate).toLocaleDateString()}
+                                {nextVisit.name} - {formatDate(nextVisit.dueDate)}
                               </span>
                             ) : (
                               <span className="text-muted-foreground">—</span>

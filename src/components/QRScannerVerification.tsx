@@ -20,6 +20,7 @@ import {
   Syringe,
   AlertTriangle
 } from "lucide-react";
+import { formatDate } from "@/lib/utils";
 
 interface QRVerificationData {
   id: string;
@@ -165,7 +166,7 @@ export function QRScannerVerification({ isOpen, onClose, onFindChild }: QRScanne
                   <div>
                     <p className="font-semibold text-success">Valid Certificate</p>
                     <p className="text-xs text-muted-foreground">
-                      Generated: {new Date(scanResult.generatedAt).toLocaleDateString()}
+                      Generated: {formatDate(scanResult.generatedAt)}
                     </p>
                   </div>
                 </div>
@@ -192,7 +193,7 @@ export function QRScannerVerification({ isOpen, onClose, onFindChild }: QRScanne
                     <Calendar className="w-4 h-4 text-muted-foreground" />
                     <div>
                       <p className="text-xs text-muted-foreground">Date of Birth</p>
-                      <p className="font-medium">{new Date(scanResult.dob).toLocaleDateString()}</p>
+                      <p className="font-medium">{formatDate(scanResult.dob)}</p>
                     </div>
                   </div>
 

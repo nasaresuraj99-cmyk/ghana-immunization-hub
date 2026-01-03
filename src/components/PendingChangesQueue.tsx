@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { Clock, Upload, Trash2, Edit3, Plus, ChevronDown, ChevronUp, Package } from "lucide-react";
-import { cn } from "@/lib/utils";
+import { cn, formatDate } from "@/lib/utils";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -84,7 +84,7 @@ export function PendingChangesQueue({ isOnline, pendingCount }: PendingChangesQu
     if (diff < 60) return 'Just now';
     if (diff < 3600) return `${Math.floor(diff / 60)}m ago`;
     if (diff < 86400) return `${Math.floor(diff / 3600)}h ago`;
-    return date.toLocaleDateString();
+    return formatDate(date);
   };
 
   return (

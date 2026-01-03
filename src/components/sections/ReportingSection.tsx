@@ -1,5 +1,5 @@
 import { useState, useMemo } from "react";
-import { FileText, Download, Printer, TrendingUp, PieChart, Users, Syringe, AlertTriangle, CalendarDays, ArrowUpDown, ArrowUp, ArrowDown } from "lucide-react";
+import { FileText, Download, Printer, TrendingUp, PieChart, Users, Syringe, AlertTriangle, CalendarDays, ArrowUpDown, ArrowUp, ArrowDown, FileStack, GitCompare } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Label } from "@/components/ui/label";
@@ -13,6 +13,9 @@ import {
   exportDetailedReport,
   exportVaccineCoverageReport,
   exportDefaultersReport,
+  exportConsolidatedReport,
+  exportMonthComparisonReport,
+  formatDateDDMMYYYY,
 } from "@/lib/pdfExport";
 import {
   exportSummaryExcel,
@@ -441,7 +444,7 @@ export function ReportingSection({ stats, children, facilityName = "Health Facil
       const periodLabel = getFilteredData.periodLabel;
       const options = { 
         facilityName, 
-        reportDate: new Date().toLocaleDateString(),
+        reportDate: formatDateDDMMYYYY(new Date()),
         periodLabel
       };
       
@@ -464,6 +467,47 @@ export function ReportingSection({ stats, children, facilityName = "Health Facil
     } catch (error) {
       console.error("Export error:", error);
       toast.error("Failed to export PDF");
+    }
+  };
+
+  const handleExportConsolidated = () => {
+    try {
+      const periodLabel = getFilteredData.periodLabel;
+      exportConsolidatedReport(
+        {
+          stats,
+          ageDistribution,
+          detailedRecords,
+          vaccineCoverage,
+          defaulters: defaultersList,
+        },
+        { 
+          facilityName, 
+          reportDate: formatDateDDMMYYYY(new Date()),
+          periodLabel
+        }
+      );
+      toast.success("Consolidated PDF exported successfully!");
+    } catch (error) {
+      console.error("Export error:", error);
+      toast.error("Failed to export consolidated PDF");
+    }
+  };
+
+  const handleExportComparisonPDF = () => {
+    if (!comparisonData) {
+      toast.error("Please select two months to compare");
+      return;
+    }
+    try {
+      exportMonthComparisonReport(comparisonData, { 
+        facilityName, 
+        reportDate: formatDateDDMMYYYY(new Date()) 
+      });
+      toast.success("Comparison PDF exported successfully!");
+    } catch (error) {
+      console.error("Export error:", error);
+      toast.error("Failed to export comparison PDF");
     }
   };
 
@@ -805,6 +849,16 @@ export function ReportingSection({ stats, children, facilityName = "Health Facil
                 <FileText className="w-4 h-4 mr-2" />
                 Export PDF
               </Button>
+              <Button variant="secondary" onClick={handleExportConsolidated}>
+                <FileStack className="w-4 h-4 mr-2" />
+                Export All Reports (PDF)
+              </Button>
+              {periodType === 'compare' && comparisonData && (
+                <Button variant="outline" onClick={handleExportComparisonPDF} className="border-primary text-primary">
+                  <GitCompare className="w-4 h-4 mr-2" />
+                  Export Comparison PDF
+                </Button>
+              )}
               <Button variant="secondary" onClick={handleExportExcel}>
                 <Download className="w-4 h-4 mr-2" />
                 Export Excel
@@ -852,7 +906,7 @@ export function ReportingSection({ stats, children, facilityName = "Health Facil
                   ) : (
                     groupedChildRecords.slice(0, 50).map((record, idx) => (
                       <tr key={record.regNo} className="border-b border-border hover:bg-muted/50">
-                        <td className="p-3">{new Date(record.mostRecentVisit).toLocaleDateString()}</td>
+                        <td className="p-3">{formatDateDDMMYYYY(record.mostRecentVisit)}</td>
                         <td className="p-3 font-mono text-xs">{record.regNo}</td>
                         <td className="p-3 font-medium">{record.childName}</td>
                         <td className="p-3">
@@ -1080,7 +1134,7 @@ export function ReportingSection({ stats, children, facilityName = "Health Facil
                         <td className="p-3">{defaulter.child.motherName}</td>
                         <td className="p-3">{defaulter.child.telephoneAddress || 'N/A'}</td>
                         <td className="p-3 text-xs">{defaulter.missedVaccines.slice(0, 2).join(', ')}{defaulter.missedVaccines.length > 2 ? ` +${defaulter.missedVaccines.length - 2}` : ''}</td>
-                        <td className="p-3">{new Date(defaulter.dueDate).toLocaleDateString()}</td>
+                        <td className="p-3">{formatDateDDMMYYYY(defaulter.dueDate)}</td>
                         <td className="p-3">
                           <Badge 
                             variant={defaulter.daysOverdue > 30 ? 'destructive' : defaulter.daysOverdue > 14 ? 'default' : 'secondary'}

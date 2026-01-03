@@ -8,6 +8,7 @@ import { AgeDistributionChart } from "@/components/charts/AgeDistributionChart";
 import { VaccineDueReminders } from "@/components/VaccineDueReminders";
 import { SyncStatusWidget } from "@/components/SyncStatusWidget";
 import { SyncProgress } from "@/hooks/useSyncStatus";
+import { formatDate } from "@/lib/utils";
 
 interface DashboardSectionProps {
   stats: DashboardStats;
@@ -368,7 +369,7 @@ export function DashboardSection({ stats, children, onViewChild, syncProgress }:
                   recentActivity.map((visit) => (
                     <tr key={`${visit.childId}-${visit.date}`} className="hover:bg-muted/50">
                       <td className="px-4 py-2 text-xs">
-                        {new Date(visit.date).toLocaleDateString()}
+                        {formatDate(visit.date)}
                       </td>
                       <td className="px-4 py-2 text-xs font-medium">{visit.childName}</td>
                       <td className="px-4 py-2">

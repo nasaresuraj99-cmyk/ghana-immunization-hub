@@ -42,6 +42,7 @@ import { exportImmunizationCard } from "@/lib/pdfExport";
 import { exportImmunizationCardAsImage } from "@/lib/imageExport";
 import { toast } from "sonner";
 import { calculateExactAge } from "@/lib/ageCalculator";
+import { formatDate } from "@/lib/utils";
 import { TransferHistoryTimeline } from "@/components/TransferHistoryTimeline";
 
 interface ChildProfileModalProps {
@@ -253,7 +254,7 @@ export function ChildProfileModal({
                       <div key={v.name} className="flex items-center justify-between p-2 rounded-lg bg-muted/30">
                         <span className="text-sm">{v.name}</span>
                         <span className="text-xs text-muted-foreground">
-                          {new Date(v.dueDate).toLocaleDateString()}
+                          {formatDate(v.dueDate)}
                         </span>
                       </div>
                     ))}
@@ -274,7 +275,7 @@ export function ChildProfileModal({
                         <span className="text-sm">{v.name}</span>
                         <div className="text-right">
                           <span className="text-xs text-muted-foreground block">
-                            {new Date(v.givenDate!).toLocaleDateString()}
+                            {formatDate(v.givenDate!)}
                           </span>
                           {v.batchNumber && (
                             <span className="text-xs text-muted-foreground">

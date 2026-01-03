@@ -12,6 +12,7 @@ import {
 import { parseImportFile, FullExportData, convertImportedChild } from "@/lib/dataExport";
 import { Child } from "@/types/child";
 import { toast } from "sonner";
+import { formatDate } from "@/lib/utils";
 
 interface DataImportButtonProps {
   userId: string;
@@ -130,7 +131,7 @@ export function DataImportButton({ userId, existingChildren, onImport }: DataImp
                 <div className="flex items-center justify-between text-sm">
                   <span className="text-muted-foreground">Export Date:</span>
                   <span className="font-medium">
-                    {new Date(parsedData.exportDate).toLocaleDateString()}
+                    {formatDate(parsedData.exportDate)}
                   </span>
                 </div>
                 <div className="flex items-center justify-between text-sm">

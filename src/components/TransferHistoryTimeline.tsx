@@ -10,7 +10,7 @@ import {
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { TransferRecord } from "@/types/child";
-import { cn } from "@/lib/utils";
+import { cn, formatDate } from "@/lib/utils";
 
 interface TransferHistoryTimelineProps {
   transferHistory?: TransferRecord[];
@@ -134,7 +134,7 @@ export function TransferHistoryTimeline({
                     <div className="flex items-center gap-2 text-muted-foreground">
                       <Calendar className="w-3.5 h-3.5" />
                       <span>
-                        Date: <span className="text-foreground">{new Date(record.date).toLocaleDateString()}</span>
+                        Date: <span className="text-foreground">{formatDate(record.date)}</span>
                       </span>
                     </div>
 
@@ -149,7 +149,7 @@ export function TransferHistoryTimeline({
 
                     <div className="flex items-center gap-2 text-xs text-muted-foreground pt-2 border-t border-border/50">
                       <Clock className="w-3 h-3" />
-                      <span>Recorded: {recordDate.toLocaleString()}</span>
+                      <span>Recorded: {formatDate(recordDate)} {recordDate.toLocaleTimeString()}</span>
                     </div>
                   </div>
                 </div>
