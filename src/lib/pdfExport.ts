@@ -12,19 +12,29 @@ const GHS_DARK: [number, number, number] = [30, 41, 59];
 interface PDFOptions {
   facilityName?: string;
   reportDate?: string;
+  periodLabel?: string;
+}
+
+// Helper to create safe filename
+function sanitizeFilename(name: string): string {
+  return name.replace(/[^a-zA-Z0-9-_]/g, '_').substring(0, 50);
 }
 
 function addHeader(doc: jsPDF, title: string, options: PDFOptions = {}) {
   const pageWidth = doc.internal.pageSize.getWidth();
-  const { facilityName = "Health Facility", reportDate = new Date().toLocaleDateString() } = options;
+  const { 
+    facilityName = "Health Facility", 
+    reportDate = new Date().toLocaleDateString(),
+    periodLabel 
+  } = options;
 
   // Green header bar
   doc.setFillColor(...GHS_GREEN);
-  doc.rect(0, 0, pageWidth, 35, "F");
+  doc.rect(0, 0, pageWidth, 40, "F");
 
   // Gold accent line
   doc.setFillColor(...GHS_GOLD);
-  doc.rect(0, 35, pageWidth, 3, "F");
+  doc.rect(0, 40, pageWidth, 3, "F");
 
   // Title
   doc.setTextColor(255, 255, 255);
@@ -37,17 +47,25 @@ function addHeader(doc: jsPDF, title: string, options: PDFOptions = {}) {
   doc.text("Immunization Tracker - 2030 EPI Agenda", 14, 23);
 
   // Facility info on right
-  doc.setFontSize(10);
-  doc.text(facilityName, pageWidth - 14, 15, { align: "right" });
-  doc.text(`Report Date: ${reportDate}`, pageWidth - 14, 23, { align: "right" });
+  doc.setFontSize(11);
+  doc.setFont("helvetica", "bold");
+  doc.text(facilityName, pageWidth - 14, 12, { align: "right" });
+  
+  doc.setFontSize(9);
+  doc.setFont("helvetica", "normal");
+  doc.text(`Report Date: ${reportDate}`, pageWidth - 14, 20, { align: "right" });
+  
+  if (periodLabel) {
+    doc.text(`Period: ${periodLabel}`, pageWidth - 14, 28, { align: "right" });
+  }
 
   // Report title
   doc.setTextColor(...GHS_DARK);
   doc.setFontSize(16);
   doc.setFont("helvetica", "bold");
-  doc.text(title, 14, 50);
+  doc.text(title, 14, 55);
 
-  return 55; // Return Y position after header
+  return 62; // Return Y position after header
 }
 
 function addFooter(doc: jsPDF, pageNumber: number) {
@@ -149,7 +167,11 @@ export function exportSummaryReport(
   });
 
   addFooter(doc, 1);
-  doc.save(`GHS_Summary_Report_${new Date().toISOString().split("T")[0]}.pdf`);
+  
+  const facilitySlug = sanitizeFilename(options.facilityName || 'GHS');
+  const periodSlug = options.periodLabel ? `_${sanitizeFilename(options.periodLabel)}` : '';
+  const dateSlug = new Date().toISOString().split("T")[0];
+  doc.save(`${facilitySlug}_Summary_Report${periodSlug}_${dateSlug}.pdf`);
 }
 
 export function exportDetailedReport(
@@ -209,7 +231,10 @@ export function exportDetailedReport(
     },
   });
 
-  doc.save(`GHS_Detailed_Report_${new Date().toISOString().split("T")[0]}.pdf`);
+  const facilitySlug = sanitizeFilename(options.facilityName || 'GHS');
+  const periodSlug = options.periodLabel ? `_${sanitizeFilename(options.periodLabel)}` : '';
+  const dateSlug = new Date().toISOString().split("T")[0];
+  doc.save(`${facilitySlug}_Detailed_Report${periodSlug}_${dateSlug}.pdf`);
 }
 
 export function exportVaccineCoverageReport(
@@ -287,7 +312,11 @@ export function exportVaccineCoverageReport(
   doc.text("Overdue - Vaccines past due date requiring follow-up", 24, yPos);
 
   addFooter(doc, 1);
-  doc.save(`GHS_Vaccine_Coverage_${new Date().toISOString().split("T")[0]}.pdf`);
+  
+  const facilitySlug = sanitizeFilename(options.facilityName || 'GHS');
+  const periodSlug = options.periodLabel ? `_${sanitizeFilename(options.periodLabel)}` : '';
+  const dateSlug = new Date().toISOString().split("T")[0];
+  doc.save(`${facilitySlug}_Vaccine_Coverage${periodSlug}_${dateSlug}.pdf`);
 }
 
 export function exportDefaultersReport(
@@ -372,7 +401,10 @@ export function exportDefaultersReport(
     },
   });
 
-  doc.save(`GHS_Defaulters_Report_${new Date().toISOString().split("T")[0]}.pdf`);
+  const facilitySlug = sanitizeFilename(options.facilityName || 'GHS');
+  const periodSlug = options.periodLabel ? `_${sanitizeFilename(options.periodLabel)}` : '';
+  const dateSlug = new Date().toISOString().split("T")[0];
+  doc.save(`${facilitySlug}_Defaulters_Report${periodSlug}_${dateSlug}.pdf`);
 }
 
 export function exportChildrenRegister(
@@ -428,7 +460,9 @@ export function exportChildrenRegister(
     },
   });
 
-  doc.save(`GHS_Children_Register_${new Date().toISOString().split("T")[0]}.pdf`);
+  const facilitySlug = sanitizeFilename(options.facilityName || 'GHS');
+  const dateSlug = new Date().toISOString().split("T")[0];
+  doc.save(`${facilitySlug}_Children_Register_${dateSlug}.pdf`);
 }
 
 // Export individual child's vaccine history with administered vaccines
@@ -561,7 +595,10 @@ export function exportVaccineHistory(
   doc.text(`Overdue: ${overdue}`, 126, yPos);
 
   addFooter(doc, 1);
-  doc.save(`GHS_Vaccine_History_${child.regNo}_${new Date().toISOString().split("T")[0]}.pdf`);
+  
+  const facilitySlug = sanitizeFilename(options.facilityName || 'GHS');
+  const dateSlug = new Date().toISOString().split("T")[0];
+  doc.save(`${facilitySlug}_Vaccine_History_${child.regNo}_${dateSlug}.pdf`);
 }
 
 export async function exportImmunizationCard(
@@ -779,7 +816,8 @@ export async function exportImmunizationCard(
   doc.setTextColor(100, 100, 100);
   doc.text(`ID: ${child.regNo} | Generated: ${new Date().toLocaleDateString()} | Ghana Health Service`, pageWidth / 2, pageHeight - 3, { align: "center" });
 
-  doc.save(`GHS_Immunization_Card_${child.regNo}_${child.name.replace(/\s+/g, "_")}.pdf`);
+  const facilitySlug = sanitizeFilename(options.facilityName || 'GHS');
+  doc.save(`${facilitySlug}_Immunization_Card_${child.regNo}_${child.name.replace(/\s+/g, "_")}.pdf`);
 }
 
 // Export outreach session report for bulk vaccination
@@ -922,5 +960,8 @@ export function exportOutreachSessionReport(
     doc.rect(150, yPos - 15, 35, 25, "S");
   }
 
-  doc.save(`GHS_Outreach_Session_${sessionDetails.vaccineName.replace(/\s+/g, "_")}_${new Date(sessionDetails.sessionDate).toISOString().split("T")[0]}.pdf`);
+  const facilitySlug = sanitizeFilename(options.facilityName || 'GHS');
+  const vaccineSlug = sanitizeFilename(sessionDetails.vaccineName);
+  const dateSlug = new Date(sessionDetails.sessionDate).toISOString().split("T")[0];
+  doc.save(`${facilitySlug}_Outreach_Session_${vaccineSlug}_${dateSlug}.pdf`);
 }
