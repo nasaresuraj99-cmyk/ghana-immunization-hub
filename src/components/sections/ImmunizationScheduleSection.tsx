@@ -7,20 +7,20 @@ interface ImmunizationScheduleSectionProps {
   onBack?: () => void;
 }
 
-// Ghana EPI Schedule
+// Ghana EPI Schedule - matching useChildren.ts exactly
 const IMMUNIZATION_SCHEDULE = [
   {
     age: "At Birth",
     vaccines: [
       { name: "BCG", description: "Protects against tuberculosis" },
-      { name: "OPV0", description: "Oral Polio Vaccine - first dose" },
+      { name: "OPV0", description: "Oral Polio Vaccine - birth dose" },
       { name: "Hepatitis B", description: "Birth dose for Hepatitis B" },
     ],
   },
   {
     age: "6 Weeks",
     vaccines: [
-      { name: "OPV1", description: "Oral Polio Vaccine - second dose" },
+      { name: "OPV1", description: "Oral Polio Vaccine - first dose" },
       { name: "Penta1", description: "DTP-HepB-Hib combination vaccine" },
       { name: "PCV1", description: "Pneumococcal Conjugate Vaccine" },
       { name: "Rotavirus1", description: "Rotavirus vaccine first dose" },
@@ -29,7 +29,7 @@ const IMMUNIZATION_SCHEDULE = [
   {
     age: "10 Weeks",
     vaccines: [
-      { name: "OPV2", description: "Oral Polio Vaccine - third dose" },
+      { name: "OPV2", description: "Oral Polio Vaccine - second dose" },
       { name: "Penta2", description: "DTP-HepB-Hib second dose" },
       { name: "PCV2", description: "Pneumococcal second dose" },
       { name: "Rotavirus2", description: "Rotavirus vaccine second dose" },
@@ -38,11 +38,11 @@ const IMMUNIZATION_SCHEDULE = [
   {
     age: "14 Weeks",
     vaccines: [
-      { name: "OPV3", description: "Oral Polio Vaccine - fourth dose" },
+      { name: "OPV3", description: "Oral Polio Vaccine - third dose" },
       { name: "Penta3", description: "DTP-HepB-Hib third dose" },
       { name: "PCV3", description: "Pneumococcal third dose" },
       { name: "Rotavirus3", description: "Rotavirus vaccine third dose" },
-      { name: "IPV1", description: "Inactivated Polio Vaccine" },
+      { name: "IPV1", description: "Inactivated Polio Vaccine first dose" },
     ],
   },
   {
@@ -63,7 +63,7 @@ const IMMUNIZATION_SCHEDULE = [
     age: "9 Months",
     vaccines: [
       { name: "Malaria3 (RTS,S)", description: "Malaria vaccine third dose" },
-      { name: "Measles Rubella 1", description: "MR first dose" },
+      { name: "Measles Rubella1", description: "MR first dose" },
     ],
   },
   {
@@ -76,7 +76,7 @@ const IMMUNIZATION_SCHEDULE = [
     age: "18 Months",
     vaccines: [
       { name: "Malaria4 (RTS,S)", description: "Malaria vaccine fourth dose" },
-      { name: "Measles Rubella 2", description: "MR second dose" },
+      { name: "Measles Rubella2", description: "MR second dose" },
       { name: "Men A", description: "Meningococcal A conjugate vaccine" },
       { name: "LLIN", description: "Long-lasting insecticidal net" },
       { name: "Vitamin A", description: "Vitamin A supplementation" },
@@ -85,7 +85,7 @@ const IMMUNIZATION_SCHEDULE = [
   {
     age: "24-60 Months",
     vaccines: [
-      { name: "Vitamin A", description: "Every 6 months until 5 years" },
+      { name: "Vitamin A", description: "Every 6 months until 5 years (at 24, 30, 36, 42, 48, 54, 60 months)" },
     ],
   },
 ];

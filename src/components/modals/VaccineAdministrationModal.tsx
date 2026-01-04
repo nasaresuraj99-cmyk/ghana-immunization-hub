@@ -18,7 +18,7 @@ import {
   PopoverTrigger,
 } from "@/components/ui/popover";
 import { Child, VaccineRecord } from "@/types/child";
-import { cn } from "@/lib/utils";
+import { cn, formatDate } from "@/lib/utils";
 import { calculateExactAge, isVaccineDue } from "@/lib/ageCalculator";
 
 interface VaccineAdministrationModalProps {
@@ -242,7 +242,7 @@ export function VaccineAdministrationModal({
                 </div>
                 <div>
                   <span className="text-muted-foreground">DOB:</span>
-                  <p className="font-medium">{new Date(child.dateOfBirth).toLocaleDateString()}</p>
+                  <p className="font-medium">{formatDate(child.dateOfBirth)}</p>
                 </div>
                 <div>
                   <span className="text-muted-foreground">Mother:</span>
@@ -387,7 +387,7 @@ export function VaccineAdministrationModal({
                                     <div>
                                       <p className="font-medium text-sm">{vaccine.name}</p>
                                       <p className="text-xs text-muted-foreground">
-                                        Due: {new Date(vaccine.dueDate).toLocaleDateString()}
+                                        Due: {formatDate(vaccine.dueDate)}
                                       </p>
                                     </div>
                                   </div>
@@ -434,7 +434,7 @@ export function VaccineAdministrationModal({
                           )}
                         >
                           <CalendarIcon className="mr-2 h-4 w-4" />
-                          {givenDate ? format(givenDate, "PPP") : <span>Pick a date</span>}
+                          {givenDate ? formatDate(givenDate) : <span>Pick a date</span>}
                         </Button>
                       </PopoverTrigger>
                       <PopoverContent className="w-auto p-0" align="start">
@@ -512,7 +512,7 @@ export function VaccineAdministrationModal({
                                 <span className="text-xs">{vaccine.name}</span>
                               </div>
                               <span className="text-xs text-muted-foreground">
-                                Due: {new Date(vaccine.dueDate).toLocaleDateString()}
+                                Due: {formatDate(vaccine.dueDate)}
                               </span>
                             </div>
                           ))}
@@ -553,7 +553,7 @@ export function VaccineAdministrationModal({
                                   <span>Batch: {vaccine.batchNumber}</span>
                                 )}
                                 <span>
-                                  {vaccine.givenDate && new Date(vaccine.givenDate).toLocaleDateString()}
+                                  {vaccine.givenDate && formatDate(vaccine.givenDate)}
                                 </span>
                               </div>
                             </div>
