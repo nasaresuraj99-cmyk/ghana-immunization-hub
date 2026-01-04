@@ -9,6 +9,8 @@ import { VaccineDueReminders } from "@/components/VaccineDueReminders";
 import { SyncStatusWidget } from "@/components/SyncStatusWidget";
 import { SyncProgress } from "@/hooks/useSyncStatus";
 import { formatDate } from "@/lib/utils";
+import { RealTimeStatsWidget } from "@/components/widgets/RealTimeStatsWidget";
+import { CoverageMapWidget } from "@/components/widgets/CoverageMapWidget";
 
 interface DashboardSectionProps {
   stats: DashboardStats;
@@ -157,6 +159,12 @@ export function DashboardSection({ stats, children, onViewChild, syncProgress }:
             icon={AlertTriangle}
             variant="danger"
           />
+        </div>
+
+        {/* Real-Time Stats and Coverage Map Row */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
+          <RealTimeStatsWidget children={children} />
+          <CoverageMapWidget children={children} />
         </div>
 
         {/* Charts Row */}
