@@ -32,7 +32,7 @@ interface ReportingSectionProps {
 
 type ReportTab = 'summary' | 'detailed' | 'vaccine' | 'defaulters';
 
-// Ghana EPI Immunization Schedule - EXACT match with official schedule
+// Ghana EPI Immunization Schedule - EXACT match with useChildren.ts vaccine names
 const VACCINE_SCHEDULE: Record<string, { vaccines: string[]; ageInWeeks?: number; ageInMonths?: number }> = {
   'At Birth': { 
     vaccines: ['BCG', 'OPV0', 'Hepatitis B'],
@@ -51,15 +51,15 @@ const VACCINE_SCHEDULE: Record<string, { vaccines: string[]; ageInWeeks?: number
     ageInWeeks: 14
   },
   '6 Months': { 
-    vaccines: ['Malaria1 (RTS,S)', 'Vitamin A'],
+    vaccines: ['Malaria1', 'Vitamin A'],
     ageInMonths: 6
   },
   '7 Months': { 
-    vaccines: ['Malaria2 (RTS,S)', 'IPV2'],
+    vaccines: ['Malaria2', 'IPV2'],
     ageInMonths: 7
   },
   '9 Months': { 
-    vaccines: ['Malaria3 (RTS,S)', 'Measles Rubella 1'],
+    vaccines: ['Malaria3', 'Measles Rubella1'],
     ageInMonths: 9
   },
   '12 Months': { 
@@ -67,8 +67,36 @@ const VACCINE_SCHEDULE: Record<string, { vaccines: string[]; ageInWeeks?: number
     ageInMonths: 12
   },
   '18 Months': { 
-    vaccines: ['Malaria4 (RTS,S)', 'Measles Rubella 2', 'Men A'],
+    vaccines: ['Malaria4', 'Measles Rubella2', 'Men A', 'LLIN', 'Vitamin A'],
     ageInMonths: 18
+  },
+  '24 Months': {
+    vaccines: ['Vitamin A'],
+    ageInMonths: 24
+  },
+  '30 Months': {
+    vaccines: ['Vitamin A'],
+    ageInMonths: 30
+  },
+  '36 Months': {
+    vaccines: ['Vitamin A'],
+    ageInMonths: 36
+  },
+  '42 Months': {
+    vaccines: ['Vitamin A'],
+    ageInMonths: 42
+  },
+  '48 Months': {
+    vaccines: ['Vitamin A'],
+    ageInMonths: 48
+  },
+  '54 Months': {
+    vaccines: ['Vitamin A'],
+    ageInMonths: 54
+  },
+  '60 Months': {
+    vaccines: ['Vitamin A'],
+    ageInMonths: 60
   },
 };
 
@@ -79,10 +107,10 @@ const ALL_VACCINES = [
   'PCV1', 'PCV2', 'PCV3',
   'Rotavirus1', 'Rotavirus2', 'Rotavirus3',
   'IPV1', 'IPV2',
-  'Malaria1 (RTS,S)', 'Malaria2 (RTS,S)', 'Malaria3 (RTS,S)', 'Malaria4 (RTS,S)',
+  'Malaria1', 'Malaria2', 'Malaria3', 'Malaria4',
   'Vitamin A',
-  'Measles Rubella 1', 'Measles Rubella 2',
-  'Men A'
+  'Measles Rubella1', 'Measles Rubella2',
+  'Men A', 'LLIN'
 ];
 
 // Normalize vaccine name for consistent matching
@@ -91,6 +119,7 @@ const normalizeVaccineName = (name: string): string => {
     .replace(/\s+/g, ' ')
     .replace(/at birth/i, '')
     .replace(/at \d+ (weeks?|months?)/i, '')
+    .replace(/\s*\(.*?\)/g, '') // Remove parenthetical like (RTS,S)
     .trim()
     .toLowerCase();
 };
@@ -101,9 +130,10 @@ const getVaccineScheduleGroup = (vaccineName: string): string | null => {
   
   for (const [schedule, data] of Object.entries(VACCINE_SCHEDULE)) {
     for (const v of data.vaccines) {
-      if (normalizeVaccineName(v) === normalized || 
-          normalized.includes(normalizeVaccineName(v)) ||
-          normalizeVaccineName(v).includes(normalized)) {
+      const normalizedScheduleVaccine = normalizeVaccineName(v);
+      if (normalizedScheduleVaccine === normalized || 
+          normalized.includes(normalizedScheduleVaccine) ||
+          normalizedScheduleVaccine.includes(normalized)) {
         return schedule;
       }
     }

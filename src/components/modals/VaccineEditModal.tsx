@@ -25,7 +25,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { VaccineRecord } from "@/types/child";
-import { cn } from "@/lib/utils";
+import { cn, formatDate } from "@/lib/utils";
 import { toast } from "sonner";
 
 interface VaccineEditModalProps {
@@ -139,7 +139,7 @@ export function VaccineEditModal({
           <div className="space-y-2">
             <Label className="text-muted-foreground">Due Date</Label>
             <div className="p-3 rounded-lg bg-muted/50">
-              {new Date(vaccine.dueDate).toLocaleDateString()}
+              {formatDate(vaccine.dueDate)}
             </div>
           </div>
 

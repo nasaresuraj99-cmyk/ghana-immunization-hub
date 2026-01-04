@@ -31,7 +31,7 @@ import { VaccineEditModal } from "./VaccineEditModal";
 import { exportImmunizationCard, exportVaccineHistory } from "@/lib/pdfExport";
 import { toast } from "sonner";
 import { calculateExactAge } from "@/lib/ageCalculator";
-import { cn } from "@/lib/utils";
+import { cn, formatDate } from "@/lib/utils";
 
 interface ImmunizationStatusViewProps {
   child: Child | null;
@@ -333,10 +333,10 @@ export function ImmunizationStatusView({
                                     {vaccine.name}
                                   </p>
                                   <div className="flex flex-wrap gap-2 mt-1 text-xs text-muted-foreground">
-                                    <span>Due: {new Date(vaccine.dueDate).toLocaleDateString()}</span>
+                                    <span>Due: {formatDate(vaccine.dueDate)}</span>
                                     {vaccine.givenDate && (
                                       <span className="text-ghs-green">
-                                        Given: {new Date(vaccine.givenDate).toLocaleDateString()}
+                                        Given: {formatDate(vaccine.givenDate)}
                                       </span>
                                     )}
                                     {vaccine.batchNumber && (

@@ -25,7 +25,7 @@ import {
 } from "lucide-react";
 import { format } from "date-fns";
 import { Child, VaccineRecord } from "@/types/child";
-import { cn } from "@/lib/utils";
+import { cn, formatDate } from "@/lib/utils";
 import { exportOutreachSessionReport, OutreachVaccinationRecord } from "@/lib/pdfExport";
 
 interface BulkVaccinationModalProps {
@@ -41,28 +41,53 @@ interface BulkVaccinationModalProps {
   facilityName?: string;
 }
 
-// Common vaccines for bulk administration
+// Ghana EPI Vaccine Schedule - matching useChildren.ts exactly
 const COMMON_VACCINES = [
+  // At Birth
   "BCG at Birth",
-  "OPV 0 at Birth",
-  "OPV 1 at 6 weeks",
-  "Penta 1 at 6 weeks",
-  "PCV 1 at 6 weeks",
-  "Rota 1 at 6 weeks",
-  "OPV 2 at 10 weeks",
-  "Penta 2 at 10 weeks",
-  "PCV 2 at 10 weeks",
-  "Rota 2 at 10 weeks",
-  "OPV 3 at 14 weeks",
-  "Penta 3 at 14 weeks",
-  "PCV 3 at 14 weeks",
-  "IPV at 14 weeks",
-  "Vitamin A (Blue) at 6 months",
-  "Vitamin A (Red) at 12 months",
-  "Measles-Rubella 1 at 9 months",
-  "Measles-Rubella 2 at 18 months",
-  "Yellow Fever at 9 months",
-  "Meningitis A at 18 months",
+  "OPV0 at Birth",
+  "Hepatitis B at Birth",
+  // 6 Weeks
+  "OPV1 at 6 weeks",
+  "Penta1 at 6 weeks",
+  "PCV1 at 6 weeks",
+  "Rotavirus1 at 6 weeks",
+  // 10 Weeks
+  "OPV2 at 10 weeks",
+  "Penta2 at 10 weeks",
+  "PCV2 at 10 weeks",
+  "Rotavirus2 at 10 weeks",
+  // 14 Weeks
+  "OPV3 at 14 weeks",
+  "Penta3 at 14 weeks",
+  "PCV3 at 14 weeks",
+  "Rotavirus3 at 14 weeks",
+  "IPV1 at 14 weeks",
+  // 6 Months
+  "Malaria1 at 6 months",
+  "Vitamin A at 6 months",
+  // 7 Months
+  "Malaria2 at 7 months",
+  "IPV2 at 7 months",
+  // 9 Months
+  "Malaria3 at 9 months",
+  "Measles Rubella1 at 9 months",
+  // 12 Months
+  "Vitamin A at 12 months",
+  // 18 Months
+  "Malaria4 at 18 months",
+  "Measles Rubella2 at 18 months",
+  "Men A at 18 months",
+  "LLIN at 18 months",
+  "Vitamin A at 18 months",
+  // Additional Vitamin A supplements
+  "Vitamin A at 24 months",
+  "Vitamin A at 30 months",
+  "Vitamin A at 36 months",
+  "Vitamin A at 42 months",
+  "Vitamin A at 48 months",
+  "Vitamin A at 54 months",
+  "Vitamin A at 60 months",
 ];
 
 export function BulkVaccinationModal({
@@ -422,7 +447,7 @@ export function BulkVaccinationModal({
                         className="w-full justify-start text-left font-normal"
                       >
                         <CalendarIcon className="mr-2 h-4 w-4" />
-                        {format(date, "PPP")}
+                        {formatDate(date)}
                       </Button>
                     </PopoverTrigger>
                     <PopoverContent className="w-auto p-0 z-50 bg-background" align="start">
