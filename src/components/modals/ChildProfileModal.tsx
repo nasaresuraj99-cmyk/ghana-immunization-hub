@@ -151,7 +151,7 @@ export function ChildProfileModal({
                   </span>
                   <span className="flex items-center gap-1">
                     <Users className="w-4 h-4 text-muted-foreground" />
-                    {child.motherName}
+                    Caregiver: {child.motherName}
                   </span>
                   <span className="flex items-center gap-1">
                     <Phone className="w-4 h-4 text-muted-foreground" />

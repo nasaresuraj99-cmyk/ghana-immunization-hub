@@ -63,7 +63,7 @@ export function ChildRegisterSection({
         child.name.toLowerCase().includes(term) ||
         child.regNo.toLowerCase().includes(term) ||
         child.telephoneAddress.toLowerCase().includes(term) ||
-        child.motherName.toLowerCase().includes(term)
+        (child.motherName || "").toLowerCase().includes(term)
       );
     }
     

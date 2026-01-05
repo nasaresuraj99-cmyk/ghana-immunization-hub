@@ -245,7 +245,7 @@ export function VaccineAdministrationModal({
                   <p className="font-medium">{formatDate(child.dateOfBirth)}</p>
                 </div>
                 <div>
-                  <span className="text-muted-foreground">Mother:</span>
+                  <span className="text-muted-foreground">Caregiver:</span>
                   <p className="font-medium">{child.motherName}</p>
                 </div>
                 <div>

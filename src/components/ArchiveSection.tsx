@@ -34,7 +34,7 @@ export function ArchiveSection({
   const filteredChildren = archivedChildren.filter(child =>
     child.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
     child.regNo.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    child.motherName.toLowerCase().includes(searchQuery.toLowerCase())
+    (child.motherName || "").toLowerCase().includes(searchQuery.toLowerCase())
   );
 
   const handleRestore = () => {
@@ -106,7 +106,7 @@ export function ArchiveSection({
                       <div className="flex flex-wrap items-center gap-3 text-xs text-muted-foreground">
                         <span className="flex items-center gap-1">
                           <User className="w-3 h-3" />
-                          {child.motherName}
+                          Caregiver: {child.motherName}
                         </span>
                         <span className="flex items-center gap-1">
                           <Calendar className="w-3 h-3" />

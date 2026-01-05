@@ -109,7 +109,7 @@ export function exportDefaultersExcel(defaulters: Defaulter[]) {
     "Date of Birth",
     "Age (months)",
     "Sex",
-    "Mother's Name", 
+    "Caregiver Name", 
     "Contact Number", 
     "Community/Address", 
     "Total Missed Vaccines",
@@ -159,7 +159,7 @@ export function exportDefaultersExcel(defaulters: Defaulter[]) {
 }
 
 export function exportChildrenRegisterExcel(children: Child[]) {
-  const headers = ["Reg No.", "Name", "DOB", "Age (months)", "Sex", "Mother", "Contact", "Community", "Vaccines Completed", "Total Vaccines"];
+  const headers = ["Reg No.", "Name", "DOB", "Age (months)", "Sex", "Caregiver", "Contact", "Community", "Vaccines Completed", "Total Vaccines"];
   const rows = children.map(child => {
     const birthDate = new Date(child.dateOfBirth);
     const today = new Date();
