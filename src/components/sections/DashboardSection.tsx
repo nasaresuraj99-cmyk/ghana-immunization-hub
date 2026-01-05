@@ -11,6 +11,7 @@ import { SyncProgress } from "@/hooks/useSyncStatus";
 import { formatDate } from "@/lib/utils";
 import { RealTimeStatsWidget } from "@/components/widgets/RealTimeStatsWidget";
 import { CoverageMapWidget } from "@/components/widgets/CoverageMapWidget";
+import { VaccinationTargetsWidget } from "@/components/widgets/VaccinationTargetsWidget";
 
 interface DashboardSectionProps {
   stats: DashboardStats;
@@ -161,10 +162,11 @@ export function DashboardSection({ stats, children, onViewChild, syncProgress }:
           />
         </div>
 
-        {/* Real-Time Stats and Coverage Map Row */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
+        {/* Real-Time Stats, Coverage Map, and Targets Row */}
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
           <RealTimeStatsWidget children={children} />
           <CoverageMapWidget children={children} />
+          <VaccinationTargetsWidget children={children} stats={stats} />
         </div>
 
         {/* Charts Row */}

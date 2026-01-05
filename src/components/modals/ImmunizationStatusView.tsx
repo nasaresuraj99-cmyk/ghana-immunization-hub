@@ -221,7 +221,7 @@ export function ImmunizationStatusView({
                     </span>
                     <span className="flex items-center gap-1">
                       <Users className="w-4 h-4" />
-                      {child.motherName}
+                      Caregiver: {child.motherName}
                     </span>
                     <span className="flex items-center gap-1">
                       <Phone className="w-4 h-4" />

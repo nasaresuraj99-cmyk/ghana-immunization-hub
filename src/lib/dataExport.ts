@@ -77,7 +77,7 @@ export function exportFullDataCSV(children: Child[]): void {
     "Date of Birth",
     "Age (months)",
     "Sex",
-    "Mother's Name",
+    "Caregiver Name",
     "Contact",
     "Community",
     "Registered At",

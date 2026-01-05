@@ -357,7 +357,7 @@ export function exportDefaultersReport(
 
   autoTable(doc, {
     startY: yPos,
-    head: [["#", "Child Name", "Mother", "Contact", "Community", "Missed Vaccines", "Due Date", "Days Overdue"]],
+    head: [["#", "Child Name", "Caregiver", "Contact", "Community", "Missed Vaccines", "Due Date", "Days Overdue"]],
     body: defaulters.map((d, idx) => [
       (idx + 1).toString(),
       d.child.name,
@@ -430,7 +430,7 @@ export function exportChildrenRegister(
 
   autoTable(doc, {
     startY: yPos,
-    head: [["Reg No.", "Name", "DOB", "Age", "Sex", "Mother", "Contact", "Community", "Vaccines"]],
+    head: [["Reg No.", "Name", "DOB", "Age", "Sex", "Caregiver", "Contact", "Community", "Vaccines"]],
     body: children.map((child) => {
       const birthDate = new Date(child.dateOfBirth);
       const today = new Date();
@@ -501,7 +501,7 @@ export function exportVaccineHistory(
     ["Date of Birth:", formatDateDDMMYYYY(child.dateOfBirth)],
     ["Age:", `${months} months`],
     ["Sex:", child.sex],
-    ["Mother's Name:", child.motherName],
+    ["Caregiver:", child.motherName],
     ["Contact:", child.telephoneAddress || "N/A"],
     ["Community:", child.community || "N/A"],
   ];
@@ -647,84 +647,96 @@ export async function exportImmunizationCard(
     },
   });
 
-  // Border
+  // Outer decorative border
   doc.setDrawColor(...GHS_GREEN);
-  doc.setLineWidth(1.5);
-  doc.rect(4, 4, pageWidth - 8, pageHeight - 8, "S");
-
-  // Header
-  doc.setFillColor(...GHS_GREEN);
-  doc.rect(4, 4, pageWidth - 8, 22, "F");
+  doc.setLineWidth(2);
+  doc.rect(3, 3, pageWidth - 6, pageHeight - 6, "S");
   
-  // Gold accent line
+  // Inner border
+  doc.setLineWidth(0.5);
+  doc.rect(5, 5, pageWidth - 10, pageHeight - 10, "S");
+
+  // Header background with gradient effect
+  doc.setFillColor(...GHS_GREEN);
+  doc.rect(5, 5, pageWidth - 10, 28, "F");
+  
+  // Gold accent stripe
   doc.setFillColor(...GHS_GOLD);
-  doc.rect(4, 26, pageWidth - 8, 2, "F");
+  doc.rect(5, 33, pageWidth - 10, 3, "F");
+
+  // Ghana coat of arms placeholder area
+  doc.setFillColor(255, 255, 255);
+  doc.circle(pageWidth / 2, 14, 6, "F");
+  doc.setDrawColor(...GHS_GOLD);
+  doc.setLineWidth(0.8);
+  doc.circle(pageWidth / 2, 14, 6, "S");
 
   // Header text
   doc.setTextColor(255, 255, 255);
-  doc.setFontSize(10);
+  doc.setFontSize(7);
   doc.setFont("helvetica", "bold");
-  doc.text("REPUBLIC OF GHANA", pageWidth / 2, 10, { align: "center" });
+  doc.text("REPUBLIC OF GHANA", pageWidth / 2, 24, { align: "center" });
   
-  doc.setFontSize(12);
-  doc.text("GHANA HEALTH SERVICE", pageWidth / 2, 16, { align: "center" });
-  
-  doc.setFontSize(8);
-  doc.setFont("helvetica", "normal");
-  doc.text("Child Immunization Record Card", pageWidth / 2, 22, { align: "center" });
+  doc.setFontSize(10);
+  doc.text("CHILD IMMUNIZATION CERTIFICATE", pageWidth / 2, 30, { align: "center" });
 
-  // Facility name - prominent
-  let yPos = 34;
-  doc.setFillColor(...GHS_GREEN);
-  doc.rect(8, yPos - 3, pageWidth - 16, 10, "F");
-  doc.setTextColor(255, 255, 255);
-  doc.setFontSize(12);
+  // Facility name bar
+  let yPos = 40;
+  doc.setFillColor(245, 250, 245);
+  doc.roundedRect(8, yPos - 3, pageWidth - 16, 12, 2, 2, "F");
+  doc.setDrawColor(...GHS_GREEN);
+  doc.setLineWidth(0.3);
+  doc.roundedRect(8, yPos - 3, pageWidth - 16, 12, 2, 2, "S");
+  
+  doc.setTextColor(...GHS_GREEN);
+  doc.setFontSize(9);
   doc.setFont("helvetica", "bold");
   doc.text(facilityName.toUpperCase(), pageWidth / 2, yPos + 4, { align: "center" });
 
-  // Child info section
-  yPos = 48;
-  doc.setTextColor(...GHS_DARK);
-  doc.setFontSize(8);
+  // Child details section
+  yPos = 56;
+  doc.setFillColor(250, 252, 250);
+  doc.roundedRect(8, yPos, pageWidth - 16, 38, 2, 2, "F");
+  doc.setDrawColor(...GHS_GREEN);
+  doc.roundedRect(8, yPos, pageWidth - 16, 38, 2, 2, "S");
+
+  // Section header
+  doc.setFillColor(...GHS_GREEN);
+  doc.rect(8, yPos, pageWidth - 16, 6, "F");
+  doc.setTextColor(255, 255, 255);
+  doc.setFontSize(7);
   doc.setFont("helvetica", "bold");
-  doc.text("CHILD DETAILS", 10, yPos);
+  doc.text("CHILD PARTICULARS", pageWidth / 2, yPos + 4, { align: "center" });
+  yPos += 10;
+
+  // QR Code in the corner
+  doc.addImage(qrCodeDataUrl, "PNG", pageWidth - 38, yPos - 4, 28, 28);
   
-  doc.setDrawColor(...GHS_GREEN);
-  doc.setLineWidth(0.3);
-  doc.line(10, yPos + 1, 80, yPos + 1);
-  yPos += 5;
-
-  // QR Code
-  doc.setDrawColor(...GHS_GREEN);
-  doc.setLineWidth(0.5);
-  doc.addImage(qrCodeDataUrl, "PNG", pageWidth - 40, 44, 30, 30);
-  doc.setFontSize(5);
-  doc.setTextColor(100, 100, 100);
-  doc.text("Scan to Verify", pageWidth - 25, 76, { align: "center" });
-
-  // Child details
+  // Child details grid
   doc.setFontSize(7);
   doc.setTextColor(...GHS_DARK);
   const details: [string, string][] = [
-    ["Reg No:", child.regNo],
-    ["Name:", child.name],
-    ["DOB:", formatDateDDMMYYYY(child.dateOfBirth)],
+    ["Registration No:", child.regNo],
+    ["Full Name:", child.name],
+    ["Date of Birth:", formatDateDDMMYYYY(child.dateOfBirth)],
     ["Sex:", child.sex],
     ["Caregiver:", child.motherName],
     ["Contact:", child.telephoneAddress || "N/A"],
   ];
 
+  let detailY = yPos;
   details.forEach(([label, value]) => {
     doc.setFont("helvetica", "bold");
-    doc.text(label, 10, yPos);
+    doc.setTextColor(100, 100, 100);
+    doc.text(label, 12, detailY);
     doc.setFont("helvetica", "normal");
-    doc.text(String(value).substring(0, 25), 28, yPos);
-    yPos += 4;
+    doc.setTextColor(...GHS_DARK);
+    doc.text(String(value).substring(0, 28), 38, detailY);
+    detailY += 4.5;
   });
 
-  yPos += 2;
-
-  // Immunization record header
+  // Immunization record section
+  yPos = 98;
   doc.setFillColor(...GHS_GREEN);
   doc.rect(8, yPos, pageWidth - 16, 7, "F");
   doc.setTextColor(255, 255, 255);
@@ -738,43 +750,44 @@ export async function exportImmunizationCard(
   const total = child.vaccines.length;
   const progress = total > 0 ? Math.round((completed / total) * 100) : 0;
 
-  // Vaccination table - compact
+  // Vaccination table - professional styling
   autoTable(doc, {
     startY: yPos,
-    head: [["Vaccine", "Due", "Given", "✓"]],
+    head: [["Vaccine", "Due Date", "Given", "Status"]],
     body: child.vaccines.slice(0, 18).map((v) => [
-      v.name.split(" at")[0].substring(0, 20),
+      v.name.split(" at")[0].substring(0, 22),
       new Date(v.dueDate).toLocaleDateString('en-GB', { day: '2-digit', month: '2-digit', year: '2-digit' }),
-      v.givenDate ? new Date(v.givenDate).toLocaleDateString('en-GB', { day: '2-digit', month: '2-digit', year: '2-digit' }) : "-",
-      v.status === "completed" ? "✓" : v.status === "overdue" ? "!" : "○",
+      v.givenDate ? new Date(v.givenDate).toLocaleDateString('en-GB', { day: '2-digit', month: '2-digit', year: '2-digit' }) : "—",
+      v.status === "completed" ? "✓ Done" : v.status === "overdue" ? "⚠ Overdue" : "○ Pending",
     ]),
     headStyles: {
       fillColor: GHS_GREEN,
       textColor: [255, 255, 255],
       fontSize: 6,
-      cellPadding: 1,
+      cellPadding: 1.5,
       fontStyle: "bold",
+      halign: "center",
     },
     bodyStyles: {
       fontSize: 5.5,
-      cellPadding: 0.8,
+      cellPadding: 1.2,
     },
     alternateRowStyles: {
-      fillColor: [245, 250, 245],
+      fillColor: [248, 252, 248],
     },
     columnStyles: {
-      0: { cellWidth: 35 },
-      1: { cellWidth: 22 },
-      2: { cellWidth: 22 },
-      3: { cellWidth: 10, halign: "center", fontStyle: "bold" },
+      0: { cellWidth: 38, halign: "left" },
+      1: { cellWidth: 22, halign: "center" },
+      2: { cellWidth: 22, halign: "center" },
+      3: { cellWidth: 20, halign: "center", fontStyle: "bold" },
     },
     margin: { left: 8, right: 8 },
     tableWidth: pageWidth - 16,
     didParseCell: (data) => {
       if (data.section === "body" && data.column.index === 3) {
-        if (data.cell.raw === "✓") {
-          data.cell.styles.textColor = [0, 100, 0];
-        } else if (data.cell.raw === "!") {
+        if (String(data.cell.raw).includes("Done")) {
+          data.cell.styles.textColor = [0, 128, 0];
+        } else if (String(data.cell.raw).includes("Overdue")) {
           data.cell.styles.textColor = [206, 17, 38];
         } else {
           data.cell.styles.textColor = [150, 150, 150];
@@ -784,49 +797,72 @@ export async function exportImmunizationCard(
   });
 
   yPos = (doc as jsPDF & { lastAutoTable?: { finalY: number } }).lastAutoTable?.finalY || yPos + 80;
-  yPos += 4;
+  yPos += 3;
 
+  // Progress section with visual bar
+  doc.setFillColor(248, 252, 248);
+  doc.roundedRect(8, yPos, pageWidth - 16, 14, 2, 2, "F");
+  doc.setDrawColor(...GHS_GREEN);
+  doc.setLineWidth(0.3);
+  doc.roundedRect(8, yPos, pageWidth - 16, 14, 2, 2, "S");
+  
+  doc.setFontSize(7);
+  doc.setFont("helvetica", "bold");
+  doc.setTextColor(...GHS_DARK);
+  doc.text("VACCINATION PROGRESS", 12, yPos + 5);
+  
   // Progress bar
-  doc.setFillColor(245, 250, 245);
-  doc.roundedRect(8, yPos, pageWidth - 16, 10, 2, 2, "F");
+  const barWidth = 60;
+  const barX = 12;
+  const barY = yPos + 8;
+  doc.setFillColor(230, 230, 230);
+  doc.roundedRect(barX, barY, barWidth, 3, 1, 1, "F");
+  
+  if (progress > 0) {
+    doc.setFillColor(progress >= 100 ? 0 : 34, progress >= 100 ? 150 : 139, progress >= 100 ? 0 : 34);
+    doc.roundedRect(barX, barY, (progress / 100) * barWidth, 3, 1, 1, "F");
+  }
+  
+  doc.setFontSize(9);
+  doc.setFont("helvetica", "bold");
+  doc.setTextColor(progress >= 100 ? 0 : 34, progress >= 100 ? 150 : 139, progress >= 100 ? 0 : 34);
+  doc.text(`${progress}%`, barX + barWidth + 5, barY + 3);
   
   doc.setFontSize(6);
-  doc.setTextColor(...GHS_DARK);
-  doc.setFont("helvetica", "bold");
-  doc.text("PROGRESS:", 12, yPos + 4);
-  
-  doc.setFillColor(230, 230, 230);
-  doc.roundedRect(35, yPos + 2, 50, 4, 1, 1, "F");
-  doc.setFillColor(...GHS_GREEN);
-  doc.roundedRect(35, yPos + 2, (progress / 100) * 50, 4, 1, 1, "F");
-  
-  doc.setFontSize(8);
-  doc.text(`${progress}%`, 88, yPos + 5);
-  
-  doc.setFontSize(5);
   doc.setFont("helvetica", "normal");
-  doc.text(`${completed}/${total} vaccines completed`, 100, yPos + 5);
+  doc.setTextColor(100, 100, 100);
+  doc.text(`${completed} of ${total} vaccines completed`, pageWidth - 12, barY + 2, { align: "right" });
 
-  // Footer
-  yPos = pageHeight - 20;
+  // Footer section
+  yPos = pageHeight - 22;
+  
+  // Instructions
   doc.setFillColor(...GHS_GOLD);
-  doc.rect(8, yPos, pageWidth - 16, 1, "F");
-  yPos += 4;
-
+  doc.rect(8, yPos, pageWidth - 16, 0.8, "F");
+  yPos += 3;
+  
   doc.setFontSize(5);
   doc.setTextColor(...GHS_DARK);
-  doc.text("This card is an official health document. Bring it to every clinic visit.", pageWidth / 2, yPos, { align: "center" });
+  doc.setFont("helvetica", "italic");
+  doc.text("This is an official health document. Please present at every clinic visit.", pageWidth / 2, yPos, { align: "center" });
+  yPos += 3;
+  doc.text("Keep this card safe. Report loss immediately to your health facility.", pageWidth / 2, yPos, { align: "center" });
   
-  // Bottom bar
-  doc.setFillColor(...GHS_GREEN);
-  doc.rect(4, pageHeight - 6, pageWidth - 8, 2, "F");
+  // Bottom bar with Ghana colors
+  doc.setFillColor(206, 17, 38); // Red
+  doc.rect(5, pageHeight - 8, (pageWidth - 10) / 3, 3, "F");
+  doc.setFillColor(255, 215, 0); // Gold
+  doc.rect(5 + (pageWidth - 10) / 3, pageHeight - 8, (pageWidth - 10) / 3, 3, "F");
+  doc.setFillColor(0, 100, 0); // Green
+  doc.rect(5 + 2 * (pageWidth - 10) / 3, pageHeight - 8, (pageWidth - 10) / 3, 3, "F");
   
+  // Card ID footer
   doc.setFontSize(4);
-  doc.setTextColor(100, 100, 100);
-  doc.text(`ID: ${child.regNo} | Generated: ${formatDateDDMMYYYY(new Date())} | Ghana Health Service`, pageWidth / 2, pageHeight - 3, { align: "center" });
+  doc.setTextColor(80, 80, 80);
+  doc.text(`Card ID: ${child.regNo} | Issued: ${formatDateDDMMYYYY(new Date())} | Ghana Health Service - EPI Program`, pageWidth / 2, pageHeight - 3, { align: "center" });
 
   const facilitySlug = sanitizeFilename(options.facilityName || 'GHS');
-  doc.save(`${facilitySlug}_Immunization_Card_${child.regNo}_${child.name.replace(/\s+/g, "_")}.pdf`);
+  doc.save(`${facilitySlug}_Immunization_Certificate_${child.regNo}_${child.name.replace(/\s+/g, "_")}.pdf`);
 }
 
 // Export outreach session report for bulk vaccination
@@ -834,7 +870,7 @@ export interface OutreachVaccinationRecord {
   childId: string;
   childName: string;
   regNo: string;
-  motherName: string;
+  motherName: string; // Caregiver name (legacy field name for compatibility)
   community?: string;
   vaccine: string;
   dateGiven: string;
@@ -905,7 +941,7 @@ export function exportOutreachSessionReport(
 
   autoTable(doc, {
     startY: yPos,
-    head: [["#", "Reg No.", "Child Name", "Mother's Name", "Community", "Date Given", "Batch No."]],
+    head: [["#", "Reg No.", "Child Name", "Caregiver", "Community", "Date Given", "Batch No."]],
     body: records.map((r, idx) => [
       (idx + 1).toString(),
       r.regNo,
@@ -1117,7 +1153,7 @@ export function exportConsolidatedReport(
 
     autoTable(doc, {
       startY: yPos,
-      head: [["#", "Child Name", "Mother", "Missed Vaccines", "Due Date", "Days Overdue"]],
+      head: [["#", "Child Name", "Caregiver", "Missed Vaccines", "Due Date", "Days Overdue"]],
       body: data.defaulters.slice(0, 50).map((d, idx) => [
         (idx + 1).toString(),
         d.child.name,

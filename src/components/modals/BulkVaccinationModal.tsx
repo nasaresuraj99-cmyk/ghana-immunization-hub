@@ -135,7 +135,7 @@ export function BulkVaccinationModal({
       (child) =>
         child.name.toLowerCase().includes(term) ||
         child.regNo.toLowerCase().includes(term) ||
-        child.motherName.toLowerCase().includes(term)
+        (child.motherName || "").toLowerCase().includes(term)
     );
   }, [eligibleChildren, searchTerm]);
 
@@ -396,7 +396,7 @@ export function BulkVaccinationModal({
                               {child.name}
                             </p>
                             <p className="text-xs text-muted-foreground">
-                              {child.regNo} • Mother: {child.motherName}
+                              {child.regNo} • Caregiver: {child.motherName}
                             </p>
                           </div>
                           <Badge

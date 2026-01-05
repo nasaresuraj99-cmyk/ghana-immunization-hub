@@ -172,10 +172,10 @@ export function DefaultersSection({ children, onRefresh, canExport = true, onVie
               <thead className="sticky top-0 z-10">
                 <tr className="bg-primary text-primary-foreground">
                   <th className="px-2 py-2 text-left font-semibold w-8">#</th>
-                  <th className="px-2 py-2 text-left font-semibold">Name</th>
-                  <th className="px-2 py-2 text-left font-semibold w-12">Age</th>
-                  <th className="px-2 py-2 text-left font-semibold hidden sm:table-cell">Mother</th>
-                  <th className="px-2 py-2 text-left font-semibold">Phone</th>
+                    <th className="px-2 py-2 text-left font-semibold">Name</th>
+                    <th className="px-2 py-2 text-left font-semibold w-12">Age</th>
+                    <th className="px-2 py-2 text-left font-semibold hidden sm:table-cell">Caregiver</th>
+                    <th className="px-2 py-2 text-left font-semibold">Phone</th>
                   <th className="px-2 py-2 text-left font-semibold">Missed</th>
                   <th className="px-2 py-2 text-left font-semibold hidden md:table-cell w-20">Due</th>
                   <th className="px-2 py-2 text-left font-semibold w-16">Overdue</th>
@@ -302,7 +302,7 @@ export function DefaultersSection({ children, onRefresh, canExport = true, onVie
                     <p className="font-medium">{selectedDefaulter.child.sex}</p>
                   </div>
                   <div>
-                    <span className="text-muted-foreground">Mother:</span>
+                    <span className="text-muted-foreground">Caregiver:</span>
                     <p className="font-medium">{selectedDefaulter.child.motherName}</p>
                   </div>
                   <div>

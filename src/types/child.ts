@@ -18,7 +18,8 @@ export interface Child {
   name: string;
   dateOfBirth: string;
   sex: 'Male' | 'Female';
-  motherName: string; // Now represents caregiver/parent
+  motherName: string; // Caregiver/Parent name (legacy field name for compatibility)
+  caregiverName?: string; // Alias for motherName
   telephoneAddress: string;
   community: string;
   healthFacilityName?: string; // Health facility name
