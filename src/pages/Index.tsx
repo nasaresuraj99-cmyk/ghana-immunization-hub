@@ -9,10 +9,12 @@ import { DashboardSection } from "@/components/sections/DashboardSection";
 import { ReportingSection } from "@/components/sections/ReportingSection";
 import { SettingsSection } from "@/components/sections/SettingsSection";
 import { ImmunizationScheduleSection } from "@/components/sections/ImmunizationScheduleSection";
+import { UserManualSection } from "@/components/sections/UserManualSection";
 import { VaccineAdministrationModal } from "@/components/modals/VaccineAdministrationModal";
 import { ChildProfileModal } from "@/components/modals/ChildProfileModal";
 import { ImmunizationStatusView } from "@/components/modals/ImmunizationStatusView";
 import { BulkVaccinationModal } from "@/components/modals/BulkVaccinationModal";
+import { CertificateModal } from "@/components/modals/CertificateModal";
 import { GlobalSearchBar } from "@/components/GlobalSearchBar";
 import { DeveloperCredits } from "@/components/DeveloperCredits";
 import { PWAInstallBanner } from "@/components/PWAInstallBanner";
@@ -34,7 +36,7 @@ import { Child, VaccineRecord } from "@/types/child";
 import { ROLE_PERMISSIONS } from "@/types/facility";
 import { Loader2 } from "lucide-react";
 
-type Section = 'home' | 'registration' | 'register' | 'defaulters' | 'dashboard' | 'reporting' | 'settings' | 'schedule' | 'archive' | 'users' | 'activity' | 'admin';
+type Section = 'home' | 'registration' | 'register' | 'defaulters' | 'dashboard' | 'reporting' | 'settings' | 'schedule' | 'archive' | 'users' | 'activity' | 'admin' | 'help';
 
 export default function Index() {
   const { user, loading: authLoading, login, signup, logout, forgotPassword, updateFacility, isAuthenticated, refreshUser, needsOnboarding, completeOnboarding } = useAuth();
@@ -48,6 +50,7 @@ export default function Index() {
   const [showPendingQueue, setShowPendingQueue] = useState(false);
   const [showBulkVaccination, setShowBulkVaccination] = useState(false);
   const [showQRScanner, setShowQRScanner] = useState(false);
+  const [certificateModalChild, setCertificateModalChild] = useState<Child | null>(null);
   const [highlightedChildRegNo, setHighlightedChildRegNo] = useState<string | undefined>(undefined);
   // Pass both userId and facilityId to useChildren
   const { 
@@ -526,6 +529,10 @@ export default function Index() {
           <ImmunizationScheduleSection />
         )}
 
+        {currentSection === 'help' && (
+          <UserManualSection />
+        )}
+
         {currentSection === 'archive' && permissions.canViewArchive && (
           <ArchiveSection
             archivedChildren={archivedChildren}
@@ -624,6 +631,10 @@ export default function Index() {
           setVaccineModalChild(child);
         }}
         onViewImmunizationStatus={handleViewImmunizationStatus}
+        onViewCertificate={(child) => {
+          setProfileModalChild(null);
+          setCertificateModalChild(child);
+        }}
         facilityName={user?.facility || "Health Facility"}
       />
 
@@ -645,6 +656,14 @@ export default function Index() {
         onClose={() => setShowBulkVaccination(false)}
         onAdminister={handleBulkVaccination}
         facilityName={user?.facility || "Health Facility"}
+      />
+
+      <CertificateModal
+        child={certificateModalChild}
+        isOpen={!!certificateModalChild}
+        onClose={() => setCertificateModalChild(null)}
+        facilityName={user?.facility || "Health Facility"}
+        districtRegion={user?.facility || "District/Region"}
       />
 
       <ConflictResolutionModal

@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { Menu, LogOut, Home, UserPlus, List, AlertTriangle, LayoutDashboard, BarChart3, Settings, X, Wifi, WifiOff, Calendar, Mail, RefreshCw, Users, Archive, Activity, QrCode, CloudUpload, AlertCircle } from "lucide-react";
+import { Menu, LogOut, Home, UserPlus, List, AlertTriangle, LayoutDashboard, BarChart3, Settings, X, Wifi, WifiOff, Calendar, Mail, RefreshCw, Users, Archive, Activity, QrCode, CloudUpload, AlertCircle, BookOpen } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { resendVerificationEmail } from "@/lib/firebase";
@@ -32,6 +32,7 @@ const getNavItems = (userRole?: AppRole) => {
     { id: 'schedule', label: 'Schedule', icon: Calendar },
     { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
     { id: 'reporting', label: 'Reports', icon: BarChart3 },
+    { id: 'help', label: 'Help', icon: BookOpen },
     { id: 'settings', label: 'Settings', icon: Settings },
   ];
 
