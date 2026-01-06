@@ -35,7 +35,8 @@ import {
   MoreVertical,
   Plane,
   Home,
-  History
+  History,
+  Award
 } from "lucide-react";
 import { Child } from "@/types/child";
 import { exportImmunizationCard } from "@/lib/pdfExport";
@@ -54,6 +55,7 @@ interface ChildProfileModalProps {
   onResetRecords?: (child: Child) => void;
   onTransferOut?: (child: Child) => void;
   onTransferIn?: (child: Child) => void;
+  onViewCertificate?: (child: Child) => void;
   facilityName?: string;
 }
 
@@ -66,6 +68,7 @@ export function ChildProfileModal({
   onResetRecords,
   onTransferOut,
   onTransferIn,
+  onViewCertificate,
   facilityName
 }: ChildProfileModalProps) {
   // All hooks MUST be called before any conditional returns
@@ -332,6 +335,15 @@ export function ChildProfileModal({
                   <Image className="w-4 h-4 mr-2" />
                   Download as Image
                 </DropdownMenuItem>
+                {onViewCertificate && (
+                  <>
+                    <DropdownMenuSeparator />
+                    <DropdownMenuItem onClick={() => onViewCertificate(child)}>
+                      <Award className="w-4 h-4 mr-2" />
+                      View Official Certificate
+                    </DropdownMenuItem>
+                  </>
+                )}
               </DropdownMenuContent>
             </DropdownMenu>
             

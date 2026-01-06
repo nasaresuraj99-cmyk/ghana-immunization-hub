@@ -1,13 +1,17 @@
 import { useState, useMemo } from "react";
-import { FileText, Download, Printer, TrendingUp, PieChart, Users, Syringe, AlertTriangle, CalendarDays, ArrowUpDown, ArrowUp, ArrowDown, FileStack, GitCompare } from "lucide-react";
+import { FileText, Download, Printer, TrendingUp, PieChart, Users, Syringe, AlertTriangle, CalendarDays, ArrowUpDown, ArrowUp, ArrowDown, FileStack, GitCompare, Calendar, Filter, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { StatCard } from "@/components/ui/stat-card";
+import { Input } from "@/components/ui/input";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Calendar as CalendarComponent } from "@/components/ui/calendar";
 import { Child, DashboardStats, Defaulter } from "@/types/child";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
+import { format } from "date-fns";
 import {
   exportSummaryReport,
   exportDetailedReport,
@@ -156,13 +160,30 @@ const generateMonthOptions = () => {
   return options;
 };
 
+// Generate year options
+const generateYearOptions = () => {
+  const options: { value: string; label: string }[] = [];
+  const currentYear = new Date().getFullYear();
+  
+  for (let year = currentYear; year >= currentYear - 5; year--) {
+    options.push({ value: year.toString(), label: year.toString() });
+  }
+  
+  return options;
+};
+
 const MONTH_OPTIONS = generateMonthOptions();
+const YEAR_OPTIONS = generateYearOptions();
 
 export function ReportingSection({ stats, children, facilityName = "Health Facility" }: ReportingSectionProps) {
   const [activeTab, setActiveTab] = useState<ReportTab>('summary');
-  const [periodType, setPeriodType] = useState<'preset' | 'monthly' | 'compare'>('preset');
+  const [periodType, setPeriodType] = useState<'preset' | 'monthly' | 'daterange' | 'yearly' | 'compare'>('preset');
   const [period, setPeriod] = useState('month');
   const [selectedMonth, setSelectedMonth] = useState(MONTH_OPTIONS[0]?.value || '');
+  const [selectedYear, setSelectedYear] = useState(new Date().getFullYear().toString());
+  const [dateRangeStart, setDateRangeStart] = useState<Date | undefined>();
+  const [dateRangeEnd, setDateRangeEnd] = useState<Date | undefined>();
+  const [selectedVaccineType, setSelectedVaccineType] = useState<string>('all');
   const [compareMonth1, setCompareMonth1] = useState(MONTH_OPTIONS[0]?.value || '');
   const [compareMonth2, setCompareMonth2] = useState(MONTH_OPTIONS[1]?.value || '');
 
@@ -395,63 +416,100 @@ export function ReportingSection({ stats, children, facilityName = "Health Facil
     };
   };
 
-  // Get period-filtered data with monthly support
+  // Get period-filtered data with all filter types
   const getFilteredData = useMemo(() => {
     const now = new Date();
     let startDate: Date;
     let endDate: Date = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 59);
+    let periodLabel = '';
 
     if (periodType === 'monthly' && selectedMonth) {
       const [year, month] = selectedMonth.split('-').map(Number);
       startDate = new Date(year, month - 1, 1);
       endDate = new Date(year, month, 0, 23, 59, 59);
+      periodLabel = MONTH_OPTIONS.find(m => m.value === selectedMonth)?.label || selectedMonth;
+    } else if (periodType === 'daterange' && dateRangeStart && dateRangeEnd) {
+      startDate = new Date(dateRangeStart);
+      startDate.setHours(0, 0, 0, 0);
+      endDate = new Date(dateRangeEnd);
+      endDate.setHours(23, 59, 59, 999);
+      periodLabel = `${format(dateRangeStart, 'dd/MM/yyyy')} - ${format(dateRangeEnd, 'dd/MM/yyyy')}`;
+    } else if (periodType === 'yearly' && selectedYear) {
+      const year = parseInt(selectedYear);
+      startDate = new Date(year, 0, 1);
+      endDate = new Date(year, 11, 31, 23, 59, 59);
+      periodLabel = `Year ${selectedYear}`;
     } else if (periodType === 'compare') {
-      // For compare mode, use the first comparison month
       const [year, month] = compareMonth1.split('-').map(Number);
       startDate = new Date(year, month - 1, 1);
       endDate = new Date(year, month, 0, 23, 59, 59);
+      periodLabel = `${MONTH_OPTIONS.find(m => m.value === compareMonth1)?.label || compareMonth1} vs ${MONTH_OPTIONS.find(m => m.value === compareMonth2)?.label || compareMonth2}`;
     } else {
       switch (period) {
         case 'today':
           startDate = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+          periodLabel = 'Today';
           break;
         case 'week':
           startDate = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+          periodLabel = 'This Week';
           break;
         case 'month':
           startDate = new Date(now.getFullYear(), now.getMonth(), 1);
+          periodLabel = 'This Month';
           break;
         case 'quarter':
           startDate = new Date(now.getFullYear(), Math.floor(now.getMonth() / 3) * 3, 1);
+          periodLabel = 'This Quarter';
           break;
         case 'year':
           startDate = new Date(now.getFullYear(), 0, 1);
+          periodLabel = 'This Year';
           break;
         default:
           startDate = new Date(now.getFullYear(), now.getMonth(), 1);
+          periodLabel = 'This Month';
       }
     }
 
-    const filteredRecords = groupedChildRecords.filter(r => {
+    // Filter records by date
+    let filteredRecords = groupedChildRecords.filter(r => {
       const visitDate = new Date(r.mostRecentVisit);
       return visitDate >= startDate && visitDate <= endDate;
     });
+
+    // Apply vaccine type filter if selected
+    if (selectedVaccineType && selectedVaccineType !== 'all') {
+      filteredRecords = filteredRecords.map(record => ({
+        ...record,
+        vaccines: record.vaccines.filter(v => 
+          normalizeVaccineName(v.name).includes(normalizeVaccineName(selectedVaccineType)) ||
+          normalizeVaccineName(selectedVaccineType).includes(normalizeVaccineName(v.name.split(' at ')[0]))
+        )
+      })).filter(record => record.vaccines.length > 0);
+    }
     
     return {
       totalVaccinations: filteredRecords.reduce((sum, r) => sum + r.vaccines.length, 0),
       uniqueChildren: filteredRecords.length,
       records: filteredRecords,
-      periodLabel: periodType === 'monthly' && selectedMonth 
-        ? MONTH_OPTIONS.find(m => m.value === selectedMonth)?.label || selectedMonth
-        : periodType === 'compare'
-        ? `${MONTH_OPTIONS.find(m => m.value === compareMonth1)?.label || compareMonth1} vs ${MONTH_OPTIONS.find(m => m.value === compareMonth2)?.label || compareMonth2}`
-        : period === 'today' ? 'Today' 
-        : period === 'week' ? 'This Week'
-        : period === 'month' ? 'This Month'
-        : period === 'quarter' ? 'This Quarter'
-        : 'This Year'
+      periodLabel,
+      startDate,
+      endDate
     };
-  }, [period, periodType, selectedMonth, compareMonth1, compareMonth2, groupedChildRecords]);
+  }, [period, periodType, selectedMonth, selectedYear, dateRangeStart, dateRangeEnd, selectedVaccineType, compareMonth1, compareMonth2, groupedChildRecords]);
+
+  // Clear all filters
+  const clearFilters = () => {
+    setPeriodType('preset');
+    setPeriod('month');
+    setSelectedVaccineType('all');
+    setDateRangeStart(undefined);
+    setDateRangeEnd(undefined);
+  };
+
+  // Check if any filters are active
+  const hasActiveFilters = periodType !== 'preset' || selectedVaccineType !== 'all';
 
   // Comparison data for side-by-side view
   const comparisonData = useMemo(() => {
@@ -593,108 +651,240 @@ export function ReportingSection({ stats, children, facilityName = "Health Facil
         {/* Summary Tab */}
         {activeTab === 'summary' && (
           <div className="space-y-6">
-            {/* Period Selection */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-              <div className="space-y-2">
-                <Label>Report Type</Label>
-                <Select value={periodType} onValueChange={(v: 'preset' | 'monthly' | 'compare') => setPeriodType(v)}>
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="preset">Quick Range</SelectItem>
-                    <SelectItem value="monthly">Monthly Report</SelectItem>
-                    <SelectItem value="compare">Compare Months</SelectItem>
-                  </SelectContent>
-                </Select>
+            {/* Advanced Filter Section */}
+            <div className="bg-muted/30 rounded-lg p-4 border border-border">
+              <div className="flex items-center justify-between mb-4">
+                <div className="flex items-center gap-2">
+                  <Filter className="w-5 h-5 text-primary" />
+                  <h3 className="font-semibold">Report Filters</h3>
+                </div>
+                {hasActiveFilters && (
+                  <Button variant="ghost" size="sm" onClick={clearFilters}>
+                    <X className="w-4 h-4 mr-1" />
+                    Clear Filters
+                  </Button>
+                )}
               </div>
               
-              {periodType === 'preset' && (
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
+                {/* Filter Type */}
                 <div className="space-y-2">
-                  <Label>Date Range</Label>
-                  <Select value={period} onValueChange={setPeriod}>
+                  <Label>Filter Type</Label>
+                  <Select value={periodType} onValueChange={(v: 'preset' | 'monthly' | 'daterange' | 'yearly' | 'compare') => setPeriodType(v)}>
                     <SelectTrigger>
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="today">Today</SelectItem>
-                      <SelectItem value="week">This Week</SelectItem>
-                      <SelectItem value="month">This Month</SelectItem>
-                      <SelectItem value="quarter">This Quarter</SelectItem>
-                      <SelectItem value="year">This Year</SelectItem>
+                      <SelectItem value="preset">Quick Range</SelectItem>
+                      <SelectItem value="monthly">By Month</SelectItem>
+                      <SelectItem value="daterange">Date Range</SelectItem>
+                      <SelectItem value="yearly">By Year</SelectItem>
+                      <SelectItem value="compare">Compare Months</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
-              )}
-              
-              {periodType === 'monthly' && (
+                
+                {/* Quick Range Options */}
+                {periodType === 'preset' && (
+                  <div className="space-y-2">
+                    <Label>Quick Range</Label>
+                    <Select value={period} onValueChange={setPeriod}>
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="today">Today</SelectItem>
+                        <SelectItem value="week">This Week</SelectItem>
+                        <SelectItem value="month">This Month</SelectItem>
+                        <SelectItem value="quarter">This Quarter</SelectItem>
+                        <SelectItem value="year">This Year</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                )}
+                
+                {/* Monthly Select */}
+                {periodType === 'monthly' && (
+                  <div className="space-y-2">
+                    <Label className="flex items-center gap-2">
+                      <CalendarDays className="w-4 h-4" />
+                      Select Month
+                    </Label>
+                    <Select value={selectedMonth} onValueChange={setSelectedMonth}>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select month..." />
+                      </SelectTrigger>
+                      <SelectContent className="max-h-64">
+                        {MONTH_OPTIONS.map(opt => (
+                          <SelectItem key={opt.value} value={opt.value}>
+                            {opt.label}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                )}
+                
+                {/* Date Range */}
+                {periodType === 'daterange' && (
+                  <>
+                    <div className="space-y-2">
+                      <Label>Start Date</Label>
+                      <Popover>
+                        <PopoverTrigger asChild>
+                          <Button
+                            variant="outline"
+                            className={cn(
+                              "w-full justify-start text-left font-normal",
+                              !dateRangeStart && "text-muted-foreground"
+                            )}
+                          >
+                            <Calendar className="mr-2 h-4 w-4" />
+                            {dateRangeStart ? format(dateRangeStart, "dd/MM/yyyy") : "Pick start date"}
+                          </Button>
+                        </PopoverTrigger>
+                        <PopoverContent className="w-auto p-0" align="start">
+                          <CalendarComponent
+                            mode="single"
+                            selected={dateRangeStart}
+                            onSelect={setDateRangeStart}
+                            disabled={(date) => date > new Date()}
+                            initialFocus
+                            className="p-3 pointer-events-auto"
+                          />
+                        </PopoverContent>
+                      </Popover>
+                    </div>
+                    <div className="space-y-2">
+                      <Label>End Date</Label>
+                      <Popover>
+                        <PopoverTrigger asChild>
+                          <Button
+                            variant="outline"
+                            className={cn(
+                              "w-full justify-start text-left font-normal",
+                              !dateRangeEnd && "text-muted-foreground"
+                            )}
+                          >
+                            <Calendar className="mr-2 h-4 w-4" />
+                            {dateRangeEnd ? format(dateRangeEnd, "dd/MM/yyyy") : "Pick end date"}
+                          </Button>
+                        </PopoverTrigger>
+                        <PopoverContent className="w-auto p-0" align="start">
+                          <CalendarComponent
+                            mode="single"
+                            selected={dateRangeEnd}
+                            onSelect={setDateRangeEnd}
+                            disabled={(date) => date > new Date() || (dateRangeStart && date < dateRangeStart)}
+                            initialFocus
+                            className="p-3 pointer-events-auto"
+                          />
+                        </PopoverContent>
+                      </Popover>
+                    </div>
+                  </>
+                )}
+                
+                {/* Yearly Select */}
+                {periodType === 'yearly' && (
+                  <div className="space-y-2">
+                    <Label className="flex items-center gap-2">
+                      <Calendar className="w-4 h-4" />
+                      Select Year
+                    </Label>
+                    <Select value={selectedYear} onValueChange={setSelectedYear}>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select year..." />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {YEAR_OPTIONS.map(opt => (
+                          <SelectItem key={opt.value} value={opt.value}>
+                            {opt.label}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                )}
+                
+                {/* Compare Months */}
+                {periodType === 'compare' && (
+                  <>
+                    <div className="space-y-2">
+                      <Label className="flex items-center gap-2">
+                        <CalendarDays className="w-4 h-4" />
+                        First Month
+                      </Label>
+                      <Select value={compareMonth1} onValueChange={setCompareMonth1}>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select month..." />
+                        </SelectTrigger>
+                        <SelectContent className="max-h-64">
+                          {MONTH_OPTIONS.map(opt => (
+                            <SelectItem key={opt.value} value={opt.value}>
+                              {opt.label}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div className="space-y-2">
+                      <Label className="flex items-center gap-2">
+                        <ArrowUpDown className="w-4 h-4" />
+                        Compare With
+                      </Label>
+                      <Select value={compareMonth2} onValueChange={setCompareMonth2}>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select month..." />
+                        </SelectTrigger>
+                        <SelectContent className="max-h-64">
+                          {MONTH_OPTIONS.map(opt => (
+                            <SelectItem key={opt.value} value={opt.value}>
+                              {opt.label}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  </>
+                )}
+                
+                {/* Vaccine Type Filter */}
                 <div className="space-y-2">
                   <Label className="flex items-center gap-2">
-                    <CalendarDays className="w-4 h-4" />
-                    Select Month
+                    <Syringe className="w-4 h-4" />
+                    Vaccine Type
                   </Label>
-                  <Select value={selectedMonth} onValueChange={setSelectedMonth}>
+                  <Select value={selectedVaccineType} onValueChange={setSelectedVaccineType}>
                     <SelectTrigger>
-                      <SelectValue placeholder="Select month..." />
+                      <SelectValue placeholder="All vaccines" />
                     </SelectTrigger>
                     <SelectContent className="max-h-64">
-                      {MONTH_OPTIONS.map(opt => (
-                        <SelectItem key={opt.value} value={opt.value}>
-                          {opt.label}
+                      <SelectItem value="all">All Vaccines</SelectItem>
+                      {ALL_VACCINES.map(vaccine => (
+                        <SelectItem key={vaccine} value={vaccine}>
+                          {vaccine}
                         </SelectItem>
                       ))}
                     </SelectContent>
                   </Select>
                 </div>
-              )}
+              </div>
               
-              {periodType === 'compare' && (
-                <>
-                  <div className="space-y-2">
-                    <Label className="flex items-center gap-2">
-                      <CalendarDays className="w-4 h-4" />
-                      First Month
-                    </Label>
-                    <Select value={compareMonth1} onValueChange={setCompareMonth1}>
-                      <SelectTrigger>
-                        <SelectValue placeholder="Select month..." />
-                      </SelectTrigger>
-                      <SelectContent className="max-h-64">
-                        {MONTH_OPTIONS.map(opt => (
-                          <SelectItem key={opt.value} value={opt.value}>
-                            {opt.label}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  <div className="space-y-2">
-                    <Label className="flex items-center gap-2">
-                      <ArrowUpDown className="w-4 h-4" />
-                      Compare With
-                    </Label>
-                    <Select value={compareMonth2} onValueChange={setCompareMonth2}>
-                      <SelectTrigger>
-                        <SelectValue placeholder="Select month..." />
-                      </SelectTrigger>
-                      <SelectContent className="max-h-64">
-                        {MONTH_OPTIONS.map(opt => (
-                          <SelectItem key={opt.value} value={opt.value}>
-                            {opt.label}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                </>
-              )}
-              
-              {(periodType === 'monthly' || periodType === 'compare') && (
-                <div className="flex items-end">
-                  <Badge variant="secondary" className="text-sm py-2 px-4">
-                    <CalendarDays className="w-4 h-4 mr-2" />
+              {/* Active Filter Indicator */}
+              {hasActiveFilters && (
+                <div className="flex items-center gap-2 mt-3 pt-3 border-t flex-wrap">
+                  <span className="text-sm text-muted-foreground">Active filters:</span>
+                  <Badge variant="secondary" className="text-sm py-1 px-3">
+                    <CalendarDays className="w-3 h-3 mr-1" />
                     {getFilteredData.periodLabel}
                   </Badge>
+                  {selectedVaccineType !== 'all' && (
+                    <Badge variant="secondary" className="text-sm py-1 px-3">
+                      <Syringe className="w-3 h-3 mr-1" />
+                      {selectedVaccineType}
+                    </Badge>
+                  )}
                 </div>
               )}
             </div>
