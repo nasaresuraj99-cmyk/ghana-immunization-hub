@@ -67,27 +67,35 @@ export function VaccinationCoverageChart({ children }: VaccinationCoverageChartP
 
   const data = useMemo(() => {
     return filteredVaccines.map(group => {
-      let totalDoses = 0;
+      let totalEligible = 0;
       let completedDoses = 0;
 
       children.forEach(child => {
-        child.vaccines.forEach(vaccine => {
-          if (vaccine.name.includes(group.key)) {
-            totalDoses++;
-            if (vaccine.status === "completed") {
-              completedDoses++;
-            }
-          }
+        // Find the vaccine in this child's record that matches the group key
+        const matchedVaccine = child.vaccines.find(vaccine => {
+          // Exact match or match vaccine name to group key
+          const vaccineName = vaccine.name.toLowerCase().trim();
+          const groupKey = group.key.toLowerCase().trim();
+          return vaccineName === groupKey || 
+                 vaccine.name === group.key ||
+                 vaccineName.replace(/\s+/g, '') === groupKey.replace(/\s+/g, '');
         });
+
+        if (matchedVaccine) {
+          totalEligible++;
+          if (matchedVaccine.status === "completed") {
+            completedDoses++;
+          }
+        }
       });
 
-      const coverage = totalDoses > 0 ? Math.round((completedDoses / totalDoses) * 100) : 0;
+      const coverage = totalEligible > 0 ? Math.round((completedDoses / totalEligible) * 100) : 0;
 
       return {
         name: group.label,
         coverage,
         completed: completedDoses,
-        total: totalDoses,
+        total: totalEligible,
       };
     });
   }, [children, filteredVaccines]);
