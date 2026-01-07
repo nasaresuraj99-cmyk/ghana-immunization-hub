@@ -1,10 +1,11 @@
 import { useMemo } from "react";
-import { BarChart3, TrendingUp, AlertTriangle, CheckCircle, TrendingDown, Activity, Users as UsersIcon, UserCircle } from "lucide-react";
+import { BarChart3, TrendingUp, AlertTriangle, CheckCircle, TrendingDown, Activity, Users as UsersIcon, UserCircle, PieChart } from "lucide-react";
 import { StatCard } from "@/components/ui/stat-card";
 import { DashboardStats, Child } from "@/types/child";
 import { VaccinationCoverageChart } from "@/components/charts/VaccinationCoverageChart";
 import { MonthlyTrendsChart } from "@/components/charts/MonthlyTrendsChart";
 import { AgeDistributionChart } from "@/components/charts/AgeDistributionChart";
+import { ImmunizationCompletionChart } from "@/components/charts/ImmunizationCompletionChart";
 import { VaccineDueReminders } from "@/components/VaccineDueReminders";
 import { SyncStatusWidget } from "@/components/SyncStatusWidget";
 import { SyncProgress } from "@/hooks/useSyncStatus";
@@ -170,7 +171,15 @@ export function DashboardSection({ stats, children, onViewChild, syncProgress }:
         </div>
 
         {/* Charts Row */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-6 mb-8">
+        <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-4 gap-6 mb-8">
+          <div className="bg-muted/30 rounded-lg p-4">
+            <div className="flex items-center gap-2 mb-4">
+              <PieChart className="w-5 h-5 text-primary" />
+              <h3 className="font-semibold text-sm">Immunization Completion</h3>
+            </div>
+            <ImmunizationCompletionChart children={children} />
+          </div>
+
           <div className="bg-muted/30 rounded-lg p-4">
             <div className="flex items-center gap-2 mb-4">
               <BarChart3 className="w-5 h-5 text-primary" />
