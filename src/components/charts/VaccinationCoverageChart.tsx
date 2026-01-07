@@ -24,33 +24,39 @@ const VACCINE_CATEGORIES = {
   "18months": { label: "18 Month Vaccines", vaccines: ["Measles-Rubella 2", "Malaria 4"] },
 };
 
+// Vaccine keys matching the actual names stored in the database (from useChildren.ts getVaccineSchedule)
 const ALL_VACCINES = [
-  { key: "BCG", label: "BCG" },
-  { key: "OPV 0", label: "OPV0" },
-  { key: "OPV 1", label: "OPV1" },
-  { key: "OPV 2", label: "OPV2" },
-  { key: "OPV 3", label: "OPV3" },
-  { key: "Penta 1", label: "Penta1" },
-  { key: "Penta 2", label: "Penta2" },
-  { key: "Penta 3", label: "Penta3" },
-  { key: "PCV 1", label: "PCV1" },
-  { key: "PCV 2", label: "PCV2" },
-  { key: "PCV 3", label: "PCV3" },
-  { key: "Rotavirus 1", label: "Rota1" },
-  { key: "Rotavirus 2", label: "Rota2" },
-  { key: "Rotavirus 3", label: "Rota3" },
-  { key: "IPV 1", label: "IPV1" },
-  { key: "IPV 2", label: "IPV2" },
-  { key: "Measles-Rubella 1", label: "MR1" },
-  { key: "Measles-Rubella 2", label: "MR2" },
-  { key: "Malaria 1", label: "Mal1" },
-  { key: "Malaria 2", label: "Mal2" },
-  { key: "Malaria 3", label: "Mal3" },
-  { key: "Malaria 4", label: "Mal4" },
-  { key: "Vitamin A", label: "VitA" },
-  { key: "Yellow Fever", label: "YF" },
-  { key: "Meningitis", label: "Men" },
+  { key: "BCG", label: "BCG", patterns: ["BCG at Birth", "BCG"] },
+  { key: "OPV0", label: "OPV0", patterns: ["OPV0 at Birth", "OPV0"] },
+  { key: "Hepatitis B", label: "HepB", patterns: ["Hepatitis B at Birth", "Hepatitis B"] },
+  { key: "OPV1", label: "OPV1", patterns: ["OPV1 at 6 weeks", "OPV1"] },
+  { key: "OPV2", label: "OPV2", patterns: ["OPV2 at 10 weeks", "OPV2"] },
+  { key: "OPV3", label: "OPV3", patterns: ["OPV3 at 14 weeks", "OPV3"] },
+  { key: "Penta1", label: "Penta1", patterns: ["Penta1 at 6 weeks", "Penta1"] },
+  { key: "Penta2", label: "Penta2", patterns: ["Penta2 at 10 weeks", "Penta2"] },
+  { key: "Penta3", label: "Penta3", patterns: ["Penta3 at 14 weeks", "Penta3"] },
+  { key: "PCV1", label: "PCV1", patterns: ["PCV1 at 6 weeks", "PCV1"] },
+  { key: "PCV2", label: "PCV2", patterns: ["PCV2 at 10 weeks", "PCV2"] },
+  { key: "PCV3", label: "PCV3", patterns: ["PCV3 at 14 weeks", "PCV3"] },
+  { key: "Rotavirus1", label: "Rota1", patterns: ["Rotavirus1 at 6 weeks", "Rotavirus1"] },
+  { key: "Rotavirus2", label: "Rota2", patterns: ["Rotavirus2 at 10 weeks", "Rotavirus2"] },
+  { key: "Rotavirus3", label: "Rota3", patterns: ["Rotavirus3 at 14 weeks", "Rotavirus3"] },
+  { key: "IPV1", label: "IPV1", patterns: ["IPV1 at 14 weeks", "IPV1"] },
+  { key: "IPV2", label: "IPV2", patterns: ["IPV2 at 7 months", "IPV2"] },
+  { key: "Malaria1", label: "Mal1", patterns: ["Malaria1 at 6 months", "Malaria1"] },
+  { key: "Malaria2", label: "Mal2", patterns: ["Malaria2 at 7 months", "Malaria2"] },
+  { key: "Malaria3", label: "Mal3", patterns: ["Malaria3 at 9 months", "Malaria3"] },
+  { key: "Malaria4", label: "Mal4", patterns: ["Malaria4 at 18 months", "Malaria4"] },
+  { key: "Measles Rubella1", label: "MR1", patterns: ["Measles Rubella1 at 9 months", "Measles Rubella1"] },
+  { key: "Measles Rubella2", label: "MR2", patterns: ["Measles Rubella2 at 18 months", "Measles Rubella2"] },
+  { key: "Men A", label: "MenA", patterns: ["Men A at 18 months", "Men A"] },
 ];
+
+// Helper to match vaccine name from database to our chart keys
+const matchVaccineName = (vaccineName: string, patterns: string[]): boolean => {
+  const normalizedName = vaccineName.toLowerCase().trim();
+  return patterns.some(pattern => normalizedName === pattern.toLowerCase().trim());
+};
 
 export function VaccinationCoverageChart({ children }: VaccinationCoverageChartProps) {
   const [selectedCategory, setSelectedCategory] = useState<string>("all");
@@ -62,7 +68,10 @@ export function VaccinationCoverageChart({ children }: VaccinationCoverageChartP
       return ALL_VACCINES;
     }
     const category = VACCINE_CATEGORIES[selectedCategory as keyof typeof VACCINE_CATEGORIES];
-    return ALL_VACCINES.filter(v => category.vaccines.includes(v.key));
+    // Match category vaccines to our ALL_VACCINES by checking if key starts with any category vaccine
+    return ALL_VACCINES.filter(v => 
+      category.vaccines.some(cv => v.key.toLowerCase().startsWith(cv.toLowerCase().replace(/\s+/g, '')))
+    );
   }, [selectedCategory]);
 
   const data = useMemo(() => {
@@ -71,15 +80,10 @@ export function VaccinationCoverageChart({ children }: VaccinationCoverageChartP
       let completedDoses = 0;
 
       children.forEach(child => {
-        // Find the vaccine in this child's record that matches the group key
-        const matchedVaccine = child.vaccines.find(vaccine => {
-          // Exact match or match vaccine name to group key
-          const vaccineName = vaccine.name.toLowerCase().trim();
-          const groupKey = group.key.toLowerCase().trim();
-          return vaccineName === groupKey || 
-                 vaccine.name === group.key ||
-                 vaccineName.replace(/\s+/g, '') === groupKey.replace(/\s+/g, '');
-        });
+        // Find the vaccine in this child's record that matches the group patterns
+        const matchedVaccine = child.vaccines.find(vaccine => 
+          matchVaccineName(vaccine.name, group.patterns)
+        );
 
         if (matchedVaccine) {
           totalEligible++;
