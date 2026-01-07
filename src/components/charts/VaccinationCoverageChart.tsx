@@ -13,15 +13,16 @@ interface VaccinationCoverageChartProps {
 
 const VACCINE_CATEGORIES = {
   all: { label: "All Vaccines", vaccines: [] as string[] },
-  birth: { label: "Birth Vaccines", vaccines: ["BCG", "OPV 0"] },
-  "6weeks": { label: "6 Week Vaccines", vaccines: ["OPV 1", "Penta 1", "PCV 1", "Rotavirus 1"] },
-  "10weeks": { label: "10 Week Vaccines", vaccines: ["OPV 2", "Penta 2", "PCV 2", "Rotavirus 2"] },
-  "14weeks": { label: "14 Week Vaccines", vaccines: ["OPV 3", "Penta 3", "PCV 3", "Rotavirus 3", "IPV 1"] },
-  "6months": { label: "6 Month Vaccines", vaccines: ["Vitamin A"] },
-  "9months": { label: "9 Month Vaccines", vaccines: ["Measles-Rubella 1", "Malaria 1", "Yellow Fever", "Meningitis"] },
-  "12months": { label: "12 Month Vaccines", vaccines: ["Malaria 2"] },
-  "15months": { label: "15 Month Vaccines", vaccines: ["Malaria 3", "IPV 2"] },
-  "18months": { label: "18 Month Vaccines", vaccines: ["Measles-Rubella 2", "Malaria 4"] },
+  birth: { label: "Birth Vaccines", vaccines: ["bcg", "opv0", "hepatitisb"] },
+  "6weeks": { label: "6 Week Vaccines", vaccines: ["opv1", "penta1", "pcv1", "rotavirus1"] },
+  "10weeks": { label: "10 Week Vaccines", vaccines: ["opv2", "penta2", "pcv2", "rotavirus2"] },
+  "14weeks": { label: "14 Week Vaccines", vaccines: ["opv3", "penta3", "pcv3", "rotavirus3", "ipv1"] },
+  "6months": { label: "6 Month Vaccines", vaccines: ["vita6m", "malaria1"] },
+  "7months": { label: "7 Month Vaccines", vaccines: ["malaria2", "ipv2"] },
+  "9months": { label: "9 Month Vaccines", vaccines: ["measles rubella1", "malaria3"] },
+  "12months": { label: "12 Month Vaccines", vaccines: ["vita12m"] },
+  "18months": { label: "18 Month Vaccines", vaccines: ["measles rubella2", "malaria4", "men a", "llin", "vita18m"] },
+  vitaminA: { label: "Vitamin A (All)", vaccines: ["vita6m", "vita12m", "vita18m", "vita24m", "vita30m", "vita36m", "vita42m", "vita48m", "vita54m", "vita60m"] },
 };
 
 // Vaccine keys matching the actual names stored in the database (from useChildren.ts getVaccineSchedule)
@@ -43,13 +44,24 @@ const ALL_VACCINES = [
   { key: "Rotavirus3", label: "Rota3", patterns: ["Rotavirus3 at 14 weeks", "Rotavirus3"] },
   { key: "IPV1", label: "IPV1", patterns: ["IPV1 at 14 weeks", "IPV1"] },
   { key: "IPV2", label: "IPV2", patterns: ["IPV2 at 7 months", "IPV2"] },
+  { key: "VitA6m", label: "VitA-6m", patterns: ["Vitamin A at 6 months"] },
   { key: "Malaria1", label: "Mal1", patterns: ["Malaria1 at 6 months", "Malaria1"] },
   { key: "Malaria2", label: "Mal2", patterns: ["Malaria2 at 7 months", "Malaria2"] },
   { key: "Malaria3", label: "Mal3", patterns: ["Malaria3 at 9 months", "Malaria3"] },
-  { key: "Malaria4", label: "Mal4", patterns: ["Malaria4 at 18 months", "Malaria4"] },
   { key: "Measles Rubella1", label: "MR1", patterns: ["Measles Rubella1 at 9 months", "Measles Rubella1"] },
+  { key: "VitA12m", label: "VitA-12m", patterns: ["Vitamin A at 12 months"] },
+  { key: "Malaria4", label: "Mal4", patterns: ["Malaria4 at 18 months", "Malaria4"] },
   { key: "Measles Rubella2", label: "MR2", patterns: ["Measles Rubella2 at 18 months", "Measles Rubella2"] },
   { key: "Men A", label: "MenA", patterns: ["Men A at 18 months", "Men A"] },
+  { key: "LLIN", label: "LLIN", patterns: ["LLIN at 18 months", "LLIN"] },
+  { key: "VitA18m", label: "VitA-18m", patterns: ["Vitamin A at 18 months"] },
+  { key: "VitA24m", label: "VitA-24m", patterns: ["Vitamin A at 24 months"] },
+  { key: "VitA30m", label: "VitA-30m", patterns: ["Vitamin A at 30 months"] },
+  { key: "VitA36m", label: "VitA-36m", patterns: ["Vitamin A at 36 months"] },
+  { key: "VitA42m", label: "VitA-42m", patterns: ["Vitamin A at 42 months"] },
+  { key: "VitA48m", label: "VitA-48m", patterns: ["Vitamin A at 48 months"] },
+  { key: "VitA54m", label: "VitA-54m", patterns: ["Vitamin A at 54 months"] },
+  { key: "VitA60m", label: "VitA-60m", patterns: ["Vitamin A at 60 months"] },
 ];
 
 // Helper to match vaccine name from database to our chart keys
