@@ -195,7 +195,59 @@ export function ReportingSection({ stats, children, facilityName = "Health Facil
     );
   }, [children]);
 
-  // Age distribution calculation
+  // Helper function to get date range for current filter settings
+  const getDateRange = useMemo(() => {
+    const now = new Date();
+    let startDate: Date;
+    let endDate: Date = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 59);
+
+    if (periodType === 'monthly' && selectedMonth) {
+      const [year, month] = selectedMonth.split('-').map(Number);
+      startDate = new Date(year, month - 1, 1);
+      endDate = new Date(year, month, 0, 23, 59, 59);
+    } else if (periodType === 'daterange' && dateRangeStart && dateRangeEnd) {
+      startDate = new Date(dateRangeStart);
+      startDate.setHours(0, 0, 0, 0);
+      endDate = new Date(dateRangeEnd);
+      endDate.setHours(23, 59, 59, 999);
+    } else if (periodType === 'yearly' && selectedYear) {
+      const year = parseInt(selectedYear);
+      startDate = new Date(year, 0, 1);
+      endDate = new Date(year, 11, 31, 23, 59, 59);
+    } else {
+      switch (period) {
+        case 'today':
+          startDate = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+          break;
+        case 'week':
+          startDate = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+          break;
+        case 'month':
+          startDate = new Date(now.getFullYear(), now.getMonth(), 1);
+          break;
+        case 'quarter':
+          startDate = new Date(now.getFullYear(), Math.floor(now.getMonth() / 3) * 3, 1);
+          break;
+        case 'year':
+          startDate = new Date(now.getFullYear(), 0, 1);
+          break;
+        default:
+          startDate = new Date(now.getFullYear(), now.getMonth(), 1);
+      }
+    }
+    return { startDate, endDate };
+  }, [period, periodType, selectedMonth, selectedYear, dateRangeStart, dateRangeEnd]);
+
+  // Filter children registered within the selected period
+  const periodFilteredChildren = useMemo(() => {
+    const { startDate, endDate } = getDateRange;
+    return activeChildren.filter(child => {
+      const regDate = new Date(child.registeredAt);
+      return regDate >= startDate && regDate <= endDate;
+    });
+  }, [activeChildren, getDateRange]);
+
+  // Age distribution calculation - ONLY for children registered in selected period
   const ageDistribution = useMemo(() => {
     const groups = {
       '0-6 months': 0,
@@ -206,7 +258,7 @@ export function ReportingSection({ stats, children, facilityName = "Health Facil
       '49-59 months': 0,
     };
 
-    activeChildren.forEach(child => {
+    periodFilteredChildren.forEach(child => {
       const birthDate = new Date(child.dateOfBirth);
       const today = new Date();
       const months = (today.getFullYear() - birthDate.getFullYear()) * 12 + 
@@ -221,10 +273,11 @@ export function ReportingSection({ stats, children, facilityName = "Health Facil
     });
 
     return groups;
-  }, [activeChildren]);
+  }, [periodFilteredChildren]);
 
-  // Grouped records by unique child (each child appears once)
+  // Grouped records by unique child - FILTERED BY PERIOD (vaccination given date within period)
   const groupedChildRecords = useMemo(() => {
+    const { startDate, endDate } = getDateRange;
     const childMap = new Map<string, {
       regNo: string;
       childName: string;
@@ -233,8 +286,13 @@ export function ReportingSection({ stats, children, facilityName = "Health Facil
     }>();
 
     activeChildren.forEach(child => {
+      // Only include vaccines given within the selected period
       const completedVaccines = child.vaccines
-        .filter(v => v.status === 'completed' && v.givenDate)
+        .filter(v => {
+          if (v.status !== 'completed' || !v.givenDate) return false;
+          const givenDate = new Date(v.givenDate);
+          return givenDate >= startDate && givenDate <= endDate;
+        })
         .map(v => ({
           name: v.name,
           batchNumber: v.batchNumber || 'N/A',
@@ -256,10 +314,11 @@ export function ReportingSection({ stats, children, facilityName = "Health Facil
     // Convert to array and sort by most recent visit
     return Array.from(childMap.values())
       .sort((a, b) => new Date(b.mostRecentVisit).getTime() - new Date(a.mostRecentVisit).getTime());
-  }, [activeChildren]);
+  }, [activeChildren, getDateRange]);
 
-  // Legacy detailed records (for backward compatibility with exports)
+  // Detailed records - FILTERED BY PERIOD (only vaccinations given within selected period)
   const detailedRecords = useMemo(() => {
+    const { startDate, endDate } = getDateRange;
     const records: Array<{
       date: string;
       childName: string;
@@ -272,20 +331,96 @@ export function ReportingSection({ stats, children, facilityName = "Health Facil
     activeChildren.forEach(child => {
       child.vaccines.forEach(vaccine => {
         if (vaccine.status === 'completed' && vaccine.givenDate) {
-          records.push({
-            date: vaccine.givenDate,
-            childName: child.name,
-            regNo: child.regNo,
-            vaccine: vaccine.name,
-            batchNumber: vaccine.batchNumber || 'N/A',
-            status: 'Completed'
-          });
+          const givenDate = new Date(vaccine.givenDate);
+          // Only include vaccinations given within the selected period
+          if (givenDate >= startDate && givenDate <= endDate) {
+            records.push({
+              date: vaccine.givenDate,
+              childName: child.name,
+              regNo: child.regNo,
+              vaccine: vaccine.name,
+              batchNumber: vaccine.batchNumber || 'N/A',
+              status: 'Completed'
+            });
+          }
         }
       });
     });
 
     return records.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
-  }, [activeChildren]);
+  }, [activeChildren, getDateRange]);
+
+  // Period-filtered stats for exports
+  const periodFilteredStats = useMemo(() => {
+    const { startDate, endDate } = getDateRange;
+    
+    // Count children registered in period
+    const totalChildren = periodFilteredChildren.length;
+    
+    // Count fully immunized (among children registered in period)
+    const fullyImmunized = periodFilteredChildren.filter(child => {
+      const totalVaccines = child.vaccines.length;
+      const completedVaccines = child.vaccines.filter(v => v.status === 'completed').length;
+      return totalVaccines > 0 && completedVaccines === totalVaccines;
+    }).length;
+    
+    // Count vaccinations given today within period
+    const today = new Date();
+    const todayStart = new Date(today.getFullYear(), today.getMonth(), today.getDate());
+    const todayEnd = new Date(today.getFullYear(), today.getMonth(), today.getDate(), 23, 59, 59);
+    
+    let vaccinatedToday = 0;
+    activeChildren.forEach(child => {
+      child.vaccines.forEach(v => {
+        if (v.givenDate) {
+          const givenDate = new Date(v.givenDate);
+          if (givenDate >= todayStart && givenDate <= todayEnd) {
+            vaccinatedToday++;
+          }
+        }
+      });
+    });
+    
+    // Due soon - within next 7 days
+    const nextWeek = new Date(today.getTime() + 7 * 24 * 60 * 60 * 1000);
+    let dueSoon = 0;
+    periodFilteredChildren.forEach(child => {
+      child.vaccines.forEach(v => {
+        if (v.status === 'pending') {
+          const dueDate = new Date(v.dueDate);
+          if (dueDate >= today && dueDate <= nextWeek) {
+            dueSoon++;
+          }
+        }
+      });
+    });
+    
+    // Defaulters in period
+    const defaulters = periodFilteredChildren.filter(child => 
+      child.vaccines.some(v => v.status === 'overdue')
+    ).length;
+    
+    // Coverage rate
+    const coverageRate = totalChildren > 0 ? Math.round((fullyImmunized / totalChildren) * 100) : 0;
+    
+    // Dropout rate (children who started but didn't complete)
+    const startedVaccination = periodFilteredChildren.filter(child => 
+      child.vaccines.some(v => v.status === 'completed')
+    ).length;
+    const dropoutRate = startedVaccination > 0 
+      ? Math.round(((startedVaccination - fullyImmunized) / startedVaccination) * 100) 
+      : 0;
+    
+    return {
+      totalChildren,
+      fullyImmunized,
+      vaccinatedToday,
+      dueSoon,
+      defaulters,
+      coverageRate,
+      dropoutRate,
+    };
+  }, [periodFilteredChildren, activeChildren, getDateRange]);
 
   // Vaccine coverage statistics grouped by schedule
   const vaccineCoverage = useMemo(() => {
@@ -538,7 +673,8 @@ export function ReportingSection({ stats, children, facilityName = "Health Facil
       
       switch (activeTab) {
         case "summary":
-          exportSummaryReport(stats, ageDistribution, periodLabel, options);
+          // Use period-filtered stats for the selected period
+          exportSummaryReport(periodFilteredStats, ageDistribution, periodLabel, options);
           break;
         case "detailed":
           exportDetailedReport(detailedRecords, options);
@@ -563,7 +699,7 @@ export function ReportingSection({ stats, children, facilityName = "Health Facil
       const periodLabel = getFilteredData.periodLabel;
       exportConsolidatedReport(
         {
-          stats,
+          stats: periodFilteredStats, // Use period-filtered stats
           ageDistribution,
           detailedRecords,
           vaccineCoverage,
@@ -603,7 +739,7 @@ export function ReportingSection({ stats, children, facilityName = "Health Facil
     try {
       switch (activeTab) {
         case "summary":
-          exportSummaryExcel(stats, ageDistribution, period);
+          exportSummaryExcel(periodFilteredStats, ageDistribution, getFilteredData.periodLabel);
           break;
         case "detailed":
           exportDetailedExcel(detailedRecords);
