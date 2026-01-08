@@ -1,3 +1,4 @@
+import { forwardRef } from "react";
 import { cn } from "@/lib/utils";
 import { LucideIcon } from "lucide-react";
 
@@ -42,30 +43,35 @@ const variantStyles = {
   },
 };
 
-export function StatCard({ title, value, icon: Icon, variant = 'default', className }: StatCardProps) {
-  const styles = variantStyles[variant];
-  
-  return (
-    <div 
-      className={cn(
-        "relative bg-card rounded-xl p-5 shadow-elevation-1 transition-all duration-300 hover:shadow-elevation-3 hover:-translate-y-1 overflow-hidden",
-        styles.border,
-        className
-      )}
-    >
-      <div className="flex items-center justify-between gap-4">
-        <div className="flex-1 min-w-0">
-          <h3 className="text-xs font-medium text-muted-foreground uppercase tracking-wide truncate">{title}</h3>
-          <p className={cn("text-3xl font-bold mt-2 tabular-nums", styles.valueColor)}>
-            {typeof value === 'number' ? value.toLocaleString() : value}
-          </p>
-        </div>
-        {Icon && (
-          <div className={cn("p-3 rounded-xl shrink-0", styles.iconBg)}>
-            <Icon className={cn("w-6 h-6", styles.iconColor)} />
-          </div>
+export const StatCard = forwardRef<HTMLDivElement, StatCardProps>(
+  ({ title, value, icon: Icon, variant = 'default', className }, ref) => {
+    const styles = variantStyles[variant];
+    
+    return (
+      <div 
+        ref={ref}
+        className={cn(
+          "relative bg-card rounded-xl p-5 shadow-elevation-1 transition-all duration-300 hover:shadow-elevation-3 hover:-translate-y-1 overflow-hidden",
+          styles.border,
+          className
         )}
+      >
+        <div className="flex items-center justify-between gap-4">
+          <div className="flex-1 min-w-0">
+            <h3 className="text-xs font-medium text-muted-foreground uppercase tracking-wide truncate">{title}</h3>
+            <p className={cn("text-3xl font-bold mt-2 tabular-nums", styles.valueColor)}>
+              {typeof value === 'number' ? value.toLocaleString() : value}
+            </p>
+          </div>
+          {Icon && (
+            <div className={cn("p-3 rounded-xl shrink-0", styles.iconBg)}>
+              <Icon className={cn("w-6 h-6", styles.iconColor)} />
+            </div>
+          )}
+        </div>
       </div>
-    </div>
-  );
-}
+    );
+  }
+);
+
+StatCard.displayName = "StatCard";
