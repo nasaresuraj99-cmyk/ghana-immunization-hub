@@ -376,7 +376,7 @@ export function BulkVaccinationModal({
 
   return (
     <Dialog open={isOpen} onOpenChange={handleClose}>
-      <DialogContent className="max-w-4xl max-h-[90vh] overflow-hidden flex flex-col">
+      <DialogContent className="max-w-5xl max-h-[95vh] overflow-hidden flex flex-col">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2 text-lg">
             <div className="p-2 rounded-lg gradient-ghs">
@@ -389,171 +389,231 @@ export function BulkVaccinationModal({
           </DialogTitle>
         </DialogHeader>
 
-        <div className="flex-1 overflow-hidden space-y-4">
-          {/* Step 1: Session Details */}
-          <div className="space-y-3">
-            <Label className="text-sm font-semibold flex items-center gap-2">
-              <span className="w-6 h-6 rounded-full gradient-ghs text-primary-foreground flex items-center justify-center text-xs">
-                1
-              </span>
-              Session Details
-            </Label>
-            
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-              {/* Outreach Date */}
-              <div className="space-y-1.5">
-                <Label className="text-xs flex items-center gap-1">
-                  <CalendarIcon className="w-3 h-3" /> Outreach Date
-                </Label>
-                <Popover open={showCalendar} onOpenChange={setShowCalendar}>
-                  <PopoverTrigger asChild>
-                    <Button
-                      variant="outline"
-                      className="w-full justify-start text-left font-normal h-9"
-                    >
-                      <CalendarIcon className="mr-2 h-4 w-4" />
-                      {formatDate(date)}
-                    </Button>
-                  </PopoverTrigger>
-                  <PopoverContent className="w-auto p-0 z-50 bg-background" align="start">
-                    <Calendar
-                      mode="single"
-                      selected={date}
-                      onSelect={(d) => {
-                        if (d) {
-                          setDate(d);
-                          setShowCalendar(false);
-                          // Clear selection when date changes as eligibility may change
-                          setSelectedChildren(new Set());
-                        }
-                      }}
-                      disabled={(date) => date > new Date()}
-                      initialFocus
-                    />
-                  </PopoverContent>
-                </Popover>
-              </div>
-
-              {/* Outreach Site */}
-              <div className="space-y-1.5">
-                <Label className="text-xs flex items-center gap-1">
-                  <MapPin className="w-3 h-3" /> Outreach Site
-                </Label>
-                <Select value={outreachSite} onValueChange={(val) => {
-                  setOutreachSite(val);
-                  setSelectedChildren(new Set());
-                }}>
-                  <SelectTrigger className="h-9">
-                    <SelectValue placeholder="Select community" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">All Communities</SelectItem>
-                    {communities.map((community) => (
-                      <SelectItem key={community} value={community}>
-                        {community}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-
-              {/* Batch Number */}
-              <div className="space-y-1.5">
-                <Label className="text-xs">Batch Number *</Label>
-                <Input
-                  placeholder="e.g., BCG-2024-001"
-                  value={batchNumber}
-                  onChange={(e) => setBatchNumber(e.target.value)}
-                  className="h-9"
-                  maxLength={50}
-                />
-                {batchNumber && !validateBatchNumber(batchNumber) && (
-                  <p className="text-[10px] text-destructive">
-                    3-50 alphanumeric characters, hyphens, underscores only
-                  </p>
-                )}
-              </div>
-            </div>
-          </div>
-
-          {/* Step 2: Select Vaccine */}
-          <div className="space-y-2">
-            <Label className="text-sm font-semibold flex items-center gap-2">
-              <span className="w-6 h-6 rounded-full gradient-ghs text-primary-foreground flex items-center justify-center text-xs">
-                2
-              </span>
-              Select Vaccine
-            </Label>
-            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2 max-h-32 overflow-y-auto p-2 border rounded-lg bg-muted/30">
-              {allVaccines.map((vaccine) => (
-                <button
-                  key={vaccine}
-                  onClick={() => {
-                    setSelectedVaccine(vaccine);
-                    setSelectedChildren(new Set());
-                  }}
-                  className={cn(
-                    "px-3 py-2 text-xs rounded-lg border transition-all text-left",
-                    selectedVaccine === vaccine
-                      ? "bg-primary text-primary-foreground border-primary"
-                      : "bg-background hover:bg-muted border-border"
-                  )}
-                >
-                  {vaccine}
-                </button>
-              ))}
-            </div>
-          </div>
-
-          {/* Step 3: Select Children */}
-          {selectedVaccine && (
-            <div className="space-y-2">
+        <div className="flex-1 overflow-hidden grid grid-cols-1 lg:grid-cols-2 gap-4">
+          {/* Left Column - Session Setup */}
+          <div className="space-y-4 overflow-y-auto pr-2">
+            {/* Step 1: Session Details */}
+            <div className="space-y-3 p-4 border rounded-lg bg-muted/30">
               <Label className="text-sm font-semibold flex items-center gap-2">
                 <span className="w-6 h-6 rounded-full gradient-ghs text-primary-foreground flex items-center justify-center text-xs">
-                  3
+                  1
                 </span>
-                Eligible Children
-                <div className="flex gap-2 ml-2">
-                  <Badge variant="destructive" className="text-[10px]">
-                    <AlertCircle className="w-3 h-3 mr-1" />
-                    {stats.overdueCount} Overdue
-                  </Badge>
-                  <Badge variant="secondary" className="text-[10px]">
-                    <Clock className="w-3 h-3 mr-1" />
-                    {stats.dueCount} Due
-                  </Badge>
-                </div>
+                Session Details
               </Label>
-
-              <div className="flex items-center gap-2 mb-2">
-                <div className="relative flex-1">
-                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-                  <Input
-                    placeholder="Search by name, reg no, caregiver..."
-                    value={searchTerm}
-                    onChange={(e) => setSearchTerm(e.target.value)}
-                    className="pl-10 h-9"
-                    maxLength={100}
-                  />
+              
+              <div className="grid grid-cols-1 gap-3">
+                {/* Outreach Date */}
+                <div className="space-y-1.5">
+                  <Label className="text-xs flex items-center gap-1">
+                    <CalendarIcon className="w-3 h-3" /> Outreach Date
+                  </Label>
+                  <Popover open={showCalendar} onOpenChange={setShowCalendar}>
+                    <PopoverTrigger asChild>
+                      <Button
+                        variant="outline"
+                        className="w-full justify-start text-left font-normal h-9"
+                      >
+                        <CalendarIcon className="mr-2 h-4 w-4" />
+                        {formatDate(date)}
+                      </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-auto p-0 z-50 bg-background" align="start">
+                      <Calendar
+                        mode="single"
+                        selected={date}
+                        onSelect={(d) => {
+                          if (d) {
+                            setDate(d);
+                            setShowCalendar(false);
+                            setSelectedChildren(new Set());
+                          }
+                        }}
+                        disabled={(date) => date > new Date()}
+                        initialFocus
+                      />
+                    </PopoverContent>
+                  </Popover>
                 </div>
-                <Button variant="outline" size="sm" onClick={selectAll} disabled={filteredChildren.length === 0}>
-                  Select All
-                </Button>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={clearSelection}
-                  disabled={selectedChildren.size === 0}
-                >
-                  Clear
-                </Button>
-              </div>
 
-              {filteredChildren.length === 0 ? (
-                <div className="p-8 text-center border rounded-lg bg-muted/30">
-                  <AlertTriangle className="w-8 h-8 text-amber-500 mx-auto mb-2" />
+                {/* Outreach Site */}
+                <div className="space-y-1.5">
+                  <Label className="text-xs flex items-center gap-1">
+                    <MapPin className="w-3 h-3" /> Outreach Site (Community)
+                  </Label>
+                  <Select value={outreachSite} onValueChange={(val) => {
+                    setOutreachSite(val);
+                    setSelectedChildren(new Set());
+                  }}>
+                    <SelectTrigger className="h-9">
+                      <SelectValue placeholder="Select community" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">All Communities</SelectItem>
+                      {communities.map((community) => (
+                        <SelectItem key={community} value={community}>
+                          {community}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                {/* Batch Number */}
+                <div className="space-y-1.5">
+                  <Label className="text-xs">Vaccine Batch Number *</Label>
+                  <Input
+                    placeholder="e.g., BCG-2024-001"
+                    value={batchNumber}
+                    onChange={(e) => setBatchNumber(e.target.value)}
+                    className="h-9"
+                    maxLength={50}
+                  />
+                  {batchNumber && !validateBatchNumber(batchNumber) && (
+                    <p className="text-[10px] text-destructive">
+                      3-50 alphanumeric characters, hyphens, underscores only
+                    </p>
+                  )}
+                </div>
+              </div>
+            </div>
+
+            {/* Step 2: Select Vaccine */}
+            <div className="space-y-2 p-4 border rounded-lg bg-muted/30">
+              <Label className="text-sm font-semibold flex items-center gap-2">
+                <span className="w-6 h-6 rounded-full gradient-ghs text-primary-foreground flex items-center justify-center text-xs">
+                  2
+                </span>
+                Select Vaccine
+              </Label>
+              <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 max-h-48 overflow-y-auto p-1">
+                {allVaccines.map((vaccine) => {
+                  // Count eligible children for this vaccine
+                  const eligibleCount = activeChildren.filter(child => {
+                    const elig = checkVaccineEligibility(child.dateOfBirth, vaccine, child.vaccines, date);
+                    return elig.status === 'due' || elig.status === 'overdue';
+                  }).length;
+                  
+                  return (
+                    <button
+                      key={vaccine}
+                      onClick={() => {
+                        setSelectedVaccine(vaccine);
+                        setSelectedChildren(new Set());
+                      }}
+                      className={cn(
+                        "px-3 py-2 text-xs rounded-lg border transition-all text-left relative",
+                        selectedVaccine === vaccine
+                          ? "bg-primary text-primary-foreground border-primary"
+                          : "bg-background hover:bg-muted border-border"
+                      )}
+                    >
+                      <span>{vaccine}</span>
+                      {eligibleCount > 0 && (
+                        <Badge 
+                          variant={selectedVaccine === vaccine ? "secondary" : "outline"}
+                          className="absolute -top-1.5 -right-1.5 h-5 min-w-5 text-[10px] px-1"
+                        >
+                          {eligibleCount}
+                        </Badge>
+                      )}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+
+            {/* Selection Summary */}
+            {selectedChildren.size > 0 && (
+              <div className="p-4 rounded-lg bg-primary/10 border border-primary/20">
+                <div className="flex items-center gap-2">
+                  <Users className="w-5 h-5 text-primary" />
+                  <div>
+                    <p className="text-sm font-semibold">
+                      {selectedChildren.size} children selected
+                    </p>
+                    <p className="text-xs text-muted-foreground">
+                      Ready for {selectedVaccine} vaccination
+                    </p>
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* Right Column - Children List (Always Visible) */}
+          <div className="flex flex-col border rounded-lg bg-background overflow-hidden">
+            <div className="p-3 border-b bg-muted/50">
+              <div className="flex items-center justify-between mb-2">
+                <Label className="text-sm font-semibold flex items-center gap-2">
+                  <span className="w-6 h-6 rounded-full gradient-ghs text-primary-foreground flex items-center justify-center text-xs">
+                    3
+                  </span>
+                  {selectedVaccine ? `Children Due for ${selectedVaccine}` : "Select a Vaccine First"}
+                </Label>
+              </div>
+              
+              {selectedVaccine && (
+                <>
+                  <div className="flex items-center gap-2 mb-2">
+                    <Badge variant="destructive" className="text-xs">
+                      <AlertCircle className="w-3 h-3 mr-1" />
+                      {stats.overdueCount} Overdue
+                    </Badge>
+                    <Badge variant="secondary" className="text-xs">
+                      <Clock className="w-3 h-3 mr-1" />
+                      {stats.dueCount} Due
+                    </Badge>
+                    <Badge variant="outline" className="text-xs">
+                      <Users className="w-3 h-3 mr-1" />
+                      {stats.total} Total
+                    </Badge>
+                  </div>
+                  
+                  <div className="flex items-center gap-2">
+                    <div className="relative flex-1">
+                      <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                      <Input
+                        placeholder="Search by name, reg no, caregiver..."
+                        value={searchTerm}
+                        onChange={(e) => setSearchTerm(e.target.value)}
+                        className="pl-10 h-8 text-sm"
+                        maxLength={100}
+                      />
+                    </div>
+                    <Button variant="outline" size="sm" onClick={selectAll} disabled={filteredChildren.length === 0} className="h-8 text-xs">
+                      Select All
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={clearSelection}
+                      disabled={selectedChildren.size === 0}
+                      className="h-8 text-xs"
+                    >
+                      Clear
+                    </Button>
+                  </div>
+                </>
+              )}
+            </div>
+
+            {/* Children List */}
+            <ScrollArea className="flex-1 min-h-[300px]">
+              {!selectedVaccine ? (
+                <div className="p-8 text-center">
+                  <Syringe className="w-12 h-12 text-muted-foreground/30 mx-auto mb-3" />
                   <p className="text-sm font-medium text-muted-foreground">
-                    No children are eligible for this vaccine
+                    Select a vaccine to see eligible children
+                  </p>
+                  <p className="text-xs text-muted-foreground mt-1">
+                    The list will show only children who are due or overdue
+                  </p>
+                </div>
+              ) : filteredChildren.length === 0 ? (
+                <div className="p-8 text-center">
+                  <AlertTriangle className="w-10 h-10 text-amber-500 mx-auto mb-2" />
+                  <p className="text-sm font-medium text-muted-foreground">
+                    No children are eligible for {selectedVaccine}
                   </p>
                   <p className="text-xs text-muted-foreground mt-1">
                     {outreachSite !== "all" && "Try selecting 'All Communities' or "}
@@ -561,94 +621,104 @@ export function BulkVaccinationModal({
                   </p>
                 </div>
               ) : (
-                <ScrollArea className="h-48 border rounded-lg">
-                  <div className="p-2 space-y-1">
-                    {filteredChildren.map(({ child, eligibility }) => {
-                      const isSelected = selectedChildren.has(child.id);
+                <div className="p-2 space-y-1">
+                  {filteredChildren.map(({ child, eligibility }) => {
+                    const isSelected = selectedChildren.has(child.id);
 
-                      return (
-                        <div
-                          key={child.id}
-                          onClick={() => toggleChild(child.id)}
-                          className={cn(
-                            "flex items-center gap-3 p-3 rounded-lg border cursor-pointer transition-all",
-                            isSelected
-                              ? "bg-primary/10 border-primary"
-                              : "hover:bg-muted border-border"
+                    return (
+                      <div
+                        key={child.id}
+                        onClick={() => toggleChild(child.id)}
+                        className={cn(
+                          "flex items-center gap-3 p-3 rounded-lg border cursor-pointer transition-all",
+                          isSelected
+                            ? "bg-primary/10 border-primary shadow-sm"
+                            : "hover:bg-muted border-border"
+                        )}
+                      >
+                        <Checkbox
+                          checked={isSelected}
+                          onCheckedChange={() => toggleChild(child.id)}
+                        />
+                        <div className="flex-1 min-w-0">
+                          <p className="font-medium text-sm truncate">
+                            {child.name}
+                          </p>
+                          <p className="text-xs text-muted-foreground truncate">
+                            {child.regNo} • {child.motherName}
+                          </p>
+                          {child.community && (
+                            <p className="text-[10px] text-muted-foreground flex items-center gap-1 mt-0.5">
+                              <MapPin className="w-3 h-3" />
+                              {child.community}
+                            </p>
                           )}
-                        >
-                          <Checkbox
-                            checked={isSelected}
-                            onCheckedChange={() => toggleChild(child.id)}
-                          />
-                          <div className="flex-1 min-w-0">
-                            <p className="font-medium text-sm truncate">
-                              {child.name}
-                            </p>
-                            <p className="text-xs text-muted-foreground">
-                              {child.regNo} • Caregiver: {child.motherName}
-                              {child.community && ` • ${child.community}`}
-                            </p>
-                          </div>
-                          <div className="flex flex-col items-end gap-1">
-                            <Badge
-                              variant={eligibility.status === "overdue" ? "destructive" : "secondary"}
-                              className="text-xs"
-                            >
-                              {eligibility.status === "overdue" ? "Overdue" : "Due"}
-                            </Badge>
-                            {eligibility.daysOverdue && eligibility.daysOverdue > 0 && (
-                              <span className="text-[10px] text-destructive">
-                                {eligibility.daysOverdue} days
-                              </span>
-                            )}
-                          </div>
                         </div>
-                      );
-                    })}
-                  </div>
-                </ScrollArea>
-              )}
-
-              {selectedChildren.size > 0 && (
-                <div className="flex items-center gap-2 p-2 rounded-lg bg-primary/10 border border-primary/20">
-                  <Users className="w-4 h-4 text-primary" />
-                  <span className="text-sm font-medium">
-                    {selectedChildren.size} children selected for vaccination
-                  </span>
+                        <div className="flex flex-col items-end gap-1 shrink-0">
+                          <Badge
+                            variant={eligibility.status === "overdue" ? "destructive" : "secondary"}
+                            className="text-xs"
+                          >
+                            {eligibility.status === "overdue" ? "Overdue" : "Due"}
+                          </Badge>
+                          {eligibility.daysOverdue && eligibility.daysOverdue > 0 && (
+                            <span className="text-[10px] text-destructive font-medium">
+                              {eligibility.daysOverdue} days overdue
+                            </span>
+                          )}
+                          {eligibility.reason && (
+                            <span className="text-[10px] text-muted-foreground max-w-[100px] text-right truncate">
+                              {eligibility.reason}
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                    );
+                  })}
                 </div>
               )}
-            </div>
-          )}
+            </ScrollArea>
+          </div>
         </div>
 
-        <DialogFooter className="border-t pt-4">
-          <Button variant="outline" onClick={handleClose}>
-            Cancel
-          </Button>
-          <Button
-            onClick={handleSubmit}
-            disabled={
-              selectedChildren.size === 0 || 
-              !selectedVaccine || 
-              !batchNumber || 
-              !validateBatchNumber(batchNumber) ||
-              isSubmitting
-            }
-            className="gradient-ghs text-primary-foreground"
-          >
-            {isSubmitting ? (
-              <>
-                <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin mr-2" />
-                Processing...
-              </>
-            ) : (
-              <>
-                <Syringe className="w-4 h-4 mr-2" />
-                Administer to {selectedChildren.size} Children
-              </>
-            )}
-          </Button>
+        <DialogFooter className="border-t pt-4 mt-4">
+          <div className="flex items-center justify-between w-full">
+            <div className="text-xs text-muted-foreground">
+              {selectedVaccine && stats.total > 0 && (
+                <span>
+                  Showing {filteredChildren.length} of {stats.total} eligible children
+                </span>
+              )}
+            </div>
+            <div className="flex gap-2">
+              <Button variant="outline" onClick={handleClose}>
+                Cancel
+              </Button>
+              <Button
+                onClick={handleSubmit}
+                disabled={
+                  selectedChildren.size === 0 || 
+                  !selectedVaccine || 
+                  !batchNumber || 
+                  !validateBatchNumber(batchNumber) ||
+                  isSubmitting
+                }
+                className="gradient-ghs text-primary-foreground"
+              >
+                {isSubmitting ? (
+                  <>
+                    <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin mr-2" />
+                    Processing...
+                  </>
+                ) : (
+                  <>
+                    <Syringe className="w-4 h-4 mr-2" />
+                    Administer to {selectedChildren.size} Children
+                  </>
+                )}
+              </Button>
+            </div>
+          </div>
         </DialogFooter>
       </DialogContent>
     </Dialog>
