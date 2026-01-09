@@ -45,6 +45,9 @@ export interface VaccineRecord {
   administeredBy?: string;
   administeredByUserId?: string;
   status: 'pending' | 'completed' | 'overdue';
+  // Outreach session tracking
+  outreachSessionId?: string;
+  outreachSite?: string;
 }
 
 export interface Defaulter {
