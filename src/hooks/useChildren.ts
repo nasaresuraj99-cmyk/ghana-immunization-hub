@@ -778,7 +778,14 @@ export function useChildren(options: UseChildrenOptions = {}) {
     vaccineName: string,
     givenDate: string,
     batchNumber: string,
-    userName?: string
+    userName?: string,
+    outreachDetails?: {
+      sessionId: string;
+      outreachSite: string;
+      sessionDate: string;
+      vaccineName: string;
+      batchNumber: string;
+    }
   ) => {
     setChildren(prev => {
       const updated = prev.map(child => {
@@ -796,6 +803,9 @@ export function useChildren(options: UseChildrenOptions = {}) {
                   batchNumber,
                   administeredBy: userName || 'Current User',
                   administeredByUserId: currentUserIdRef.current,
+                  // Add outreach session tracking
+                  outreachSessionId: outreachDetails?.sessionId,
+                  outreachSite: outreachDetails?.outreachSite,
                 }
               : vaccine
           ),
@@ -810,16 +820,28 @@ export function useChildren(options: UseChildrenOptions = {}) {
       return updated;
     });
 
-    // Log bulk administration activity
+    // Log bulk administration activity with outreach details
     if (currentFacilityIdRef.current && currentUserIdRef.current) {
+      const activityDescription = outreachDetails 
+        ? `Outreach Session at ${outreachDetails.outreachSite}: Administered ${vaccineName} to ${childIds.length} children`
+        : `Administered ${vaccineName} to ${childIds.length} children`;
+      
       logActivity(
         currentFacilityIdRef.current,
         currentUserIdRef.current,
         userName || 'Unknown',
         'bulk_administer',
         'vaccine',
-        vaccineName,
-        `Administered ${vaccineName} to ${childIds.length} children`
+        outreachDetails?.sessionId || vaccineName,
+        activityDescription,
+        undefined,
+        outreachDetails ? {
+          sessionId: outreachDetails.sessionId,
+          outreachSite: outreachDetails.outreachSite,
+          vaccineName,
+          batchNumber,
+          childCount: childIds.length,
+        } : undefined
       );
     }
   }, [syncToFirebase]);

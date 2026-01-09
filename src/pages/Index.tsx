@@ -328,7 +328,14 @@ export default function Index() {
     childIds: string[],
     vaccineName: string,
     date: string,
-    batchNumber: string
+    batchNumber: string,
+    outreachDetails?: {
+      sessionId: string;
+      outreachSite: string;
+      sessionDate: string;
+      vaccineName: string;
+      batchNumber: string;
+    }
   ) => {
     if (!permissions.canAdministerVaccines) {
       toast({
@@ -339,10 +346,10 @@ export default function Index() {
       return;
     }
     
-    await bulkAdministerVaccine(childIds, vaccineName, date, batchNumber, user?.name);
+    await bulkAdministerVaccine(childIds, vaccineName, date, batchNumber, user?.name, outreachDetails);
     toast({
-      title: "Bulk Vaccination Complete",
-      description: `${vaccineName} administered to ${childIds.length} children.`,
+      title: "Outreach Session Complete",
+      description: `${vaccineName} administered to ${childIds.length} children${outreachDetails?.outreachSite ? ` at ${outreachDetails.outreachSite}` : ''}.`,
     });
   };
 
