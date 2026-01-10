@@ -1,5 +1,5 @@
 import { useState, useMemo, useEffect } from "react";
-import { Search, Download, FileText, Edit, Trash2, Syringe, CreditCard, Users, Eye, EyeOff, ChevronDown, ChevronUp, Filter } from "lucide-react";
+import { Search, Download, FileText, Edit, Trash2, Syringe, CreditCard, Users, Eye, EyeOff, ChevronDown, ChevronUp, Filter, History } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
@@ -17,6 +17,7 @@ interface ChildRegisterSectionProps {
   onDelete: (childId: string) => void;
   onViewVaccines: (child: Child) => void;
   onBulkVaccination?: () => void;
+  onViewOutreachHistory?: () => void;
   canEdit?: boolean;
   canDelete?: boolean;
   canAdministerVaccines?: boolean;
@@ -29,6 +30,7 @@ export function ChildRegisterSection({
   onDelete, 
   onViewVaccines, 
   onBulkVaccination,
+  onViewOutreachHistory,
   canEdit = true, 
   canDelete = true,
   canAdministerVaccines = true,
@@ -181,6 +183,16 @@ export function ChildRegisterSection({
               >
                 <Users className="w-4 h-4 mr-2" />
                 Outreach Session
+              </Button>
+            )}
+            {onViewOutreachHistory && (
+              <Button 
+                onClick={onViewOutreachHistory}
+                variant="outline"
+                size="sm"
+              >
+                <History className="w-4 h-4 mr-2" />
+                History
               </Button>
             )}
             <Button variant="secondary" size="sm">
