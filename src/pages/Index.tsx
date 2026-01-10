@@ -10,6 +10,7 @@ import { ReportingSection } from "@/components/sections/ReportingSection";
 import { SettingsSection } from "@/components/sections/SettingsSection";
 import { ImmunizationScheduleSection } from "@/components/sections/ImmunizationScheduleSection";
 import { UserManualSection } from "@/components/sections/UserManualSection";
+import { OutreachHistorySection } from "@/components/sections/OutreachHistorySection";
 import { VaccineAdministrationModal } from "@/components/modals/VaccineAdministrationModal";
 import { ChildProfileModal } from "@/components/modals/ChildProfileModal";
 import { ImmunizationStatusView } from "@/components/modals/ImmunizationStatusView";
@@ -36,7 +37,7 @@ import { Child, VaccineRecord } from "@/types/child";
 import { ROLE_PERMISSIONS } from "@/types/facility";
 import { Loader2 } from "lucide-react";
 
-type Section = 'home' | 'registration' | 'register' | 'defaulters' | 'dashboard' | 'reporting' | 'settings' | 'schedule' | 'archive' | 'users' | 'activity' | 'admin' | 'help';
+type Section = 'home' | 'registration' | 'register' | 'defaulters' | 'dashboard' | 'reporting' | 'settings' | 'schedule' | 'archive' | 'users' | 'activity' | 'admin' | 'help' | 'outreach-history';
 
 export default function Index() {
   const { user, loading: authLoading, login, signup, logout, forgotPassword, updateFacility, isAuthenticated, refreshUser, needsOnboarding, completeOnboarding } = useAuth();
@@ -498,6 +499,7 @@ export default function Index() {
             onDelete={handleDeleteChild}
             onViewVaccines={handleViewVaccines}
             onBulkVaccination={() => setShowBulkVaccination(true)}
+            onViewOutreachHistory={() => setCurrentSection('outreach-history')}
             canEdit={permissions.canEdit}
             canDelete={permissions.canSoftDelete}
             canAdministerVaccines={permissions.canAdministerVaccines}
@@ -538,6 +540,14 @@ export default function Index() {
 
         {currentSection === 'schedule' && (
           <ImmunizationScheduleSection />
+        )}
+
+        {currentSection === 'outreach-history' && (
+          <OutreachHistorySection
+            children={children}
+            facilityName={user?.facility || "Health Facility"}
+            onBack={() => setCurrentSection('home')}
+          />
         )}
 
         {currentSection === 'help' && (

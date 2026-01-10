@@ -385,8 +385,8 @@ export function BulkVaccinationModal({
 
   return (
     <Dialog open={isOpen} onOpenChange={handleClose}>
-      <DialogContent className="max-w-5xl max-h-[95vh] overflow-hidden flex flex-col">
-        <DialogHeader>
+      <DialogContent className="max-w-6xl w-[95vw] h-[90vh] max-h-[900px] overflow-hidden flex flex-col p-0">
+        <DialogHeader className="p-6 pb-4 border-b shrink-0">
           <DialogTitle className="flex items-center gap-2 text-lg">
             <div className="p-2 rounded-lg gradient-ghs">
               <Syringe className="w-5 h-5 text-primary-foreground" />
@@ -401,9 +401,9 @@ export function BulkVaccinationModal({
           </p>
         </DialogHeader>
 
-        <div className="flex-1 overflow-hidden grid grid-cols-1 lg:grid-cols-2 gap-4">
+        <div className="flex-1 overflow-hidden grid grid-cols-1 lg:grid-cols-2 gap-4 p-6 pt-4">
           {/* Left Column - Session Setup */}
-          <div className="space-y-4 overflow-y-auto pr-2">
+          <div className="space-y-4 overflow-y-auto pr-2 max-h-full">
             {/* Step 1: Session Details */}
             <div className="space-y-3 p-4 border rounded-lg bg-muted/30">
               <Label className="text-sm font-semibold flex items-center gap-2">
@@ -553,8 +553,8 @@ export function BulkVaccinationModal({
           </div>
 
           {/* Right Column - Children List (Always Visible) */}
-          <div className="flex flex-col border rounded-lg bg-background overflow-hidden">
-            <div className="p-3 border-b bg-muted/50">
+          <div className="flex flex-col border rounded-lg bg-background overflow-hidden h-full min-h-0">
+            <div className="p-3 border-b bg-muted/50 shrink-0">
               <div className="flex items-center justify-between mb-2">
                 <Label className="text-sm font-semibold flex items-center gap-2">
                   <span className="w-6 h-6 rounded-full gradient-ghs text-primary-foreground flex items-center justify-center text-xs">
@@ -609,8 +609,8 @@ export function BulkVaccinationModal({
               )}
             </div>
 
-            {/* Children List */}
-            <ScrollArea className="flex-1 min-h-[300px]">
+            {/* Children List - Full Height */}
+            <ScrollArea className="flex-1 min-h-0">
               {!selectedVaccine ? (
                 <div className="p-8 text-center">
                   <Syringe className="w-12 h-12 text-muted-foreground/30 mx-auto mb-3" />
@@ -693,7 +693,7 @@ export function BulkVaccinationModal({
           </div>
         </div>
 
-        <DialogFooter className="border-t pt-4 mt-4">
+        <DialogFooter className="border-t p-6 pt-4 shrink-0">
           <div className="flex items-center justify-between w-full">
             <div className="text-xs text-muted-foreground">
               {selectedVaccine && stats.total > 0 && (
