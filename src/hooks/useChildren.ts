@@ -785,11 +785,25 @@ export function useChildren(options: UseChildrenOptions = {}) {
       sessionDate: string;
       vaccineName: string;
       batchNumber: string;
+      status?: 'in_progress' | 'completed';
+      childCount?: number;
+      maleCount?: number;
+      femaleCount?: number;
     }
   ) => {
+    const administeredChildren: string[] = [];
+    
     setChildren(prev => {
       const updated = prev.map(child => {
         if (!childIds.includes(child.id)) return child;
+        
+        // Check if this vaccine should be administered (not already completed)
+        const vaccineToUpdate = child.vaccines.find(v => v.name === vaccineName);
+        if (vaccineToUpdate?.status === 'completed') {
+          return child; // Skip already completed vaccines
+        }
+        
+        administeredChildren.push(child.id);
         
         const updatedChild = {
           ...child,
@@ -820,10 +834,12 @@ export function useChildren(options: UseChildrenOptions = {}) {
       return updated;
     });
 
-    // Log bulk administration activity with outreach details
+    // Log bulk administration activity with enhanced outreach details
     if (currentFacilityIdRef.current && currentUserIdRef.current) {
+      const maleCount = outreachDetails?.maleCount ?? 0;
+      const femaleCount = outreachDetails?.femaleCount ?? 0;
       const activityDescription = outreachDetails 
-        ? `Outreach Session at ${outreachDetails.outreachSite}: Administered ${vaccineName} to ${childIds.length} children`
+        ? `Outreach Session at ${outreachDetails.outreachSite}: Administered ${vaccineName} to ${childIds.length} children (${maleCount}M/${femaleCount}F)`
         : `Administered ${vaccineName} to ${childIds.length} children`;
       
       logActivity(
@@ -838,9 +854,13 @@ export function useChildren(options: UseChildrenOptions = {}) {
         outreachDetails ? {
           sessionId: outreachDetails.sessionId,
           outreachSite: outreachDetails.outreachSite,
+          sessionDate: outreachDetails.sessionDate,
           vaccineName,
           batchNumber,
           childCount: childIds.length,
+          maleCount,
+          femaleCount,
+          status: outreachDetails.status || 'completed',
         } : undefined
       );
     }
