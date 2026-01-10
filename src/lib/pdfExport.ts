@@ -875,17 +875,20 @@ export interface OutreachVaccinationRecord {
   vaccine: string;
   dateGiven: string;
   batchNumber: string;
+  dateOfBirth?: string; // For age calculation
 }
 
 export function exportOutreachSessionReport(
   records: OutreachVaccinationRecord[],
   sessionDetails: {
+    sessionId?: string;
     vaccineName: string;
     sessionDate: string;
     batchNumber: string;
     totalChildren: number;
     totalMales?: number;
     totalFemales?: number;
+    outreachSite?: string;
   },
   options: PDFOptions = {}
 ) {
@@ -916,6 +919,11 @@ export function exportOutreachSessionReport(
     ["Batch Number:", sessionDetails.batchNumber],
     ["Total Children Vaccinated:", sessionDetails.totalChildren.toString()],
   ];
+
+  // Add outreach site if available
+  if (sessionDetails.outreachSite) {
+    sessionInfo.push(["Outreach Site:", sessionDetails.outreachSite]);
+  }
 
   // Add gender breakdown if available
   if (sessionDetails.totalMales !== undefined && sessionDetails.totalFemales !== undefined) {

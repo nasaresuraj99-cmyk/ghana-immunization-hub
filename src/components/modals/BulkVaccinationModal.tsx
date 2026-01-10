@@ -59,13 +59,17 @@ interface BulkVaccinationModalProps {
   facilityName?: string;
 }
 
-interface OutreachSessionDetails {
+export interface OutreachSessionDetails {
   sessionId: string;
   outreachSite: string;
   sessionDate: string;
   vaccineName: string;
   batchNumber: string;
   conductedBy?: string;
+  status: 'in_progress' | 'completed';
+  childCount: number;
+  maleCount: number;
+  femaleCount: number;
 }
 
 interface EligibleChild {
@@ -241,6 +245,10 @@ export function BulkVaccinationModal({
         sessionDate: date.toISOString(),
         vaccineName: selectedVaccine,
         batchNumber: batchNumber.trim(),
+        status: 'completed',
+        childCount: selectedChildren.size,
+        maleCount: totalMales,
+        femaleCount: totalFemales,
       };
       
       await onAdminister(
@@ -261,6 +269,7 @@ export function BulkVaccinationModal({
         vaccine: selectedVaccine,
         dateGiven: date.toISOString(),
         batchNumber: batchNumber.trim(),
+        dateOfBirth: child.dateOfBirth,
       }));
       
       setLastSessionData({
@@ -387,6 +396,9 @@ export function BulkVaccinationModal({
               Ghana EPI Compliant
             </Badge>
           </DialogTitle>
+          <p className="text-xs text-muted-foreground mt-1">
+            Automatically filters children based on age, previous doses, and minimum intervals per Ghana EPI schedule.
+          </p>
         </DialogHeader>
 
         <div className="flex-1 overflow-hidden grid grid-cols-1 lg:grid-cols-2 gap-4">

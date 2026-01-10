@@ -1,4 +1,4 @@
-# Firebase Security Rules
+# Firebase Security Rules - Ghana Immunization Tracker
 
 ## Firestore Security Rules
 
@@ -10,48 +10,235 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
     
-    // Helper function to check if user is authenticated
+    // ====================================================
+    // HELPER FUNCTIONS
+    // ====================================================
+    
+    // Check if user is authenticated
     function isAuthenticated() {
       return request.auth != null;
     }
     
-    // Helper function to check if user owns the resource
+    // Check if user owns the resource
     function isOwner(userId) {
       return isAuthenticated() && request.auth.uid == userId;
     }
     
-    // Children collection - users can only access their own children
+    // Check if user belongs to a facility
+    function belongsToFacility(facilityId) {
+      return isAuthenticated() && 
+        exists(/databases/$(database)/documents/userRoles/$(request.auth.uid + '_' + facilityId));
+    }
+    
+    // Check if user has a specific role in a facility
+    function hasRole(facilityId, role) {
+      return isAuthenticated() && 
+        get(/databases/$(database)/documents/userRoles/$(request.auth.uid + '_' + facilityId)).data.role == role;
+    }
+    
+    // Check if user is a facility admin
+    function isFacilityAdmin(facilityId) {
+      return hasRole(facilityId, 'facility_admin');
+    }
+    
+    // Check if user is staff or admin (can write data)
+    function canWriteData(facilityId) {
+      let roleDoc = get(/databases/$(database)/documents/userRoles/$(request.auth.uid + '_' + facilityId));
+      return roleDoc.data.role == 'facility_admin' || roleDoc.data.role == 'staff';
+    }
+    
+    // Validate string field
+    function isValidString(field, minLen, maxLen) {
+      return field is string && field.size() >= minLen && field.size() <= maxLen;
+    }
+    
+    // Validate date format (YYYY-MM-DD)
+    function isValidDateString(dateStr) {
+      return dateStr is string && dateStr.matches('^[0-9]{4}-[0-9]{2}-[0-9]{2}$');
+    }
+    
+    // ====================================================
+    // CHILDREN COLLECTION
+    // ====================================================
     match /children/{childId} {
-      // Allow read if authenticated (for now, since children don't have userId field)
-      // TODO: Add userId field to children documents for proper ownership
+      // Allow read if user belongs to the child's facility
+      allow read: if isAuthenticated() && 
+        belongsToFacility(resource.data.facilityId);
+      
+      // Allow create if authenticated and belongs to facility (not read-only)
+      allow create: if isAuthenticated() && 
+        belongsToFacility(request.resource.data.facilityId) &&
+        canWriteData(request.resource.data.facilityId) &&
+        // Validate required fields
+        isValidString(request.resource.data.name, 1, 200) &&
+        isValidString(request.resource.data.motherName, 1, 200) &&
+        isValidDateString(request.resource.data.dateOfBirth) &&
+        request.resource.data.sex in ['male', 'female', 'Male', 'Female', 'M', 'F'] &&
+        // Ensure user sets themselves as creator
+        request.resource.data.createdByUserId == request.auth.uid;
+      
+      // Allow update if user can write and belongs to facility
+      allow update: if isAuthenticated() && 
+        belongsToFacility(resource.data.facilityId) &&
+        canWriteData(resource.data.facilityId) &&
+        // Prevent changing critical fields
+        request.resource.data.facilityId == resource.data.facilityId &&
+        request.resource.data.createdByUserId == resource.data.createdByUserId;
+      
+      // Only facility admins can permanently delete
+      allow delete: if isAuthenticated() && 
+        isFacilityAdmin(resource.data.facilityId);
+    }
+    
+    // ====================================================
+    // FACILITIES COLLECTION
+    // ====================================================
+    match /facilities/{facilityId} {
+      // Allow read if user belongs to facility
+      allow read: if isAuthenticated() && belongsToFacility(facilityId);
+      
+      // Only facility admins can update facility info
+      allow update: if isAuthenticated() && isFacilityAdmin(facilityId);
+      
+      // Facility creation handled by backend/admin
+      allow create, delete: if false;
+    }
+    
+    // ====================================================
+    // USER ROLES COLLECTION
+    // ====================================================
+    match /userRoles/{roleId} {
+      // Users can read their own role
+      allow read: if isAuthenticated() && 
+        resource.data.userId == request.auth.uid;
+      
+      // Facility admins can read all roles in their facility
+      allow read: if isAuthenticated() && 
+        isFacilityAdmin(resource.data.facilityId);
+      
+      // Only facility admins can manage roles
+      allow create, update, delete: if isAuthenticated() && 
+        isFacilityAdmin(request.resource.data.facilityId);
+    }
+    
+    // ====================================================
+    // USER PROFILES COLLECTION
+    // ====================================================
+    match /profiles/{userId} {
+      // Anyone authenticated can read profiles (for display names)
       allow read: if isAuthenticated();
       
-      // Allow write if authenticated
-      allow create: if isAuthenticated();
-      allow update: if isAuthenticated();
-      allow delete: if isAuthenticated();
+      // Users can only write their own profile
+      allow create, update: if isOwner(userId) &&
+        isValidString(request.resource.data.displayName, 1, 100);
+      
+      // Users can delete their own profile
+      allow delete: if isOwner(userId);
     }
     
-    // User profiles (if you add them later)
-    match /profiles/{userId} {
-      allow read: if isAuthenticated();
-      allow write: if isOwner(userId);
+    // ====================================================
+    // ACTIVITY LOGS COLLECTION
+    // ====================================================
+    match /activityLogs/{logId} {
+      // Users can read logs from their facility
+      allow read: if isAuthenticated() && 
+        belongsToFacility(resource.data.facilityId);
+      
+      // Staff and admins can create logs
+      allow create: if isAuthenticated() && 
+        belongsToFacility(request.resource.data.facilityId) &&
+        // Ensure user sets themselves as the actor
+        request.resource.data.userId == request.auth.uid;
+      
+      // Activity logs are immutable - no updates or deletes
+      allow update, delete: if false;
     }
     
-    // Settings per user (if you add them later)
+    // ====================================================
+    // OUTREACH SESSIONS COLLECTION
+    // ====================================================
+    match /outreachSessions/{sessionId} {
+      // Users can read sessions from their facility
+      allow read: if isAuthenticated() && 
+        belongsToFacility(resource.data.facilityId);
+      
+      // Staff and admins can create sessions
+      allow create: if isAuthenticated() && 
+        belongsToFacility(request.resource.data.facilityId) &&
+        canWriteData(request.resource.data.facilityId) &&
+        // Validate required fields
+        isValidString(request.resource.data.vaccineName, 1, 100) &&
+        isValidString(request.resource.data.batchNumber, 3, 50) &&
+        request.resource.data.conductedBy == request.auth.uid;
+      
+      // Staff and admins can update (e.g., mark complete)
+      allow update: if isAuthenticated() && 
+        belongsToFacility(resource.data.facilityId) &&
+        canWriteData(resource.data.facilityId) &&
+        // Prevent changing critical fields
+        request.resource.data.facilityId == resource.data.facilityId &&
+        request.resource.data.conductedBy == resource.data.conductedBy;
+      
+      // Only facility admins can delete sessions
+      allow delete: if isAuthenticated() && 
+        isFacilityAdmin(resource.data.facilityId);
+    }
+    
+    // ====================================================
+    // SYNC HISTORY COLLECTION
+    // ====================================================
+    match /syncHistory/{historyId} {
+      // Users can read their own sync history
+      allow read: if isAuthenticated() && 
+        resource.data.userId == request.auth.uid;
+      
+      // Users can create their own sync history
+      allow create: if isAuthenticated() && 
+        request.resource.data.userId == request.auth.uid;
+      
+      // Users can update their own sync history
+      allow update: if isAuthenticated() && 
+        resource.data.userId == request.auth.uid;
+      
+      // No deletion of sync history
+      allow delete: if false;
+    }
+    
+    // ====================================================
+    // SETTINGS COLLECTION (per user)
+    // ====================================================
     match /settings/{userId} {
       allow read, write: if isOwner(userId);
     }
     
-    // Vaccination records audit log (if you add them later)
-    match /audit_logs/{logId} {
-      allow read: if isAuthenticated();
-      allow create: if isAuthenticated();
-      // Audit logs should not be updated or deleted
-      allow update, delete: if false;
+    // ====================================================
+    // TRANSFER REQUESTS COLLECTION
+    // ====================================================
+    match /transferRequests/{requestId} {
+      // Both sending and receiving facilities can read
+      allow read: if isAuthenticated() && 
+        (belongsToFacility(resource.data.fromFacilityId) || 
+         belongsToFacility(resource.data.toFacilityId));
+      
+      // Staff can create transfer requests
+      allow create: if isAuthenticated() && 
+        belongsToFacility(request.resource.data.fromFacilityId) &&
+        canWriteData(request.resource.data.fromFacilityId);
+      
+      // Both facilities can update (for approval workflow)
+      allow update: if isAuthenticated() && 
+        (belongsToFacility(resource.data.fromFacilityId) || 
+         belongsToFacility(resource.data.toFacilityId)) &&
+        canWriteData(resource.data.fromFacilityId);
+      
+      // Only admins can delete transfer requests
+      allow delete: if isAuthenticated() && 
+        isFacilityAdmin(resource.data.fromFacilityId);
     }
     
-    // Deny all other access by default
+    // ====================================================
+    // DEFAULT DENY ALL
+    // ====================================================
     match /{document=**} {
       allow read, write: if false;
     }
@@ -59,82 +246,99 @@ service cloud.firestore {
 }
 ```
 
-## Recommended Improvements
+## Firebase Storage Rules
 
-### 1. Add User Ownership to Children Documents
-
-Currently, children documents don't have a `userId` field. Add this to properly restrict access:
-
-```javascript
-// When creating a child
-const newChild = {
-  ...childData,
-  userId: auth.currentUser.uid, // Add this line
-  id: `child-${Date.now()}`,
-  registeredAt: new Date().toISOString(),
-  vaccines: getVaccineSchedule(childData.dateOfBirth),
-};
-```
-
-Then update rules:
-
-```javascript
-match /children/{childId} {
-  allow read: if isAuthenticated() && 
-    resource.data.userId == request.auth.uid;
-  allow create: if isAuthenticated() && 
-    request.resource.data.userId == request.auth.uid;
-  allow update, delete: if isAuthenticated() && 
-    resource.data.userId == request.auth.uid;
-}
-```
-
-### 2. Add Data Validation
-
-```javascript
-match /children/{childId} {
-  // Validate required fields on create
-  allow create: if isAuthenticated() &&
-    request.resource.data.name is string &&
-    request.resource.data.name.size() > 0 &&
-    request.resource.data.dateOfBirth is string &&
-    request.resource.data.userId == request.auth.uid;
-    
-  // Prevent changing userId on update
-  allow update: if isAuthenticated() &&
-    resource.data.userId == request.auth.uid &&
-    request.resource.data.userId == resource.data.userId;
-}
-```
-
-### 3. Rate Limiting (Optional)
-
-Firebase doesn't have built-in rate limiting in rules, but you can implement it with Cloud Functions or use Firebase App Check.
-
-## Firebase Authentication Rules
-
-Ensure these settings in Firebase Console → Authentication → Settings:
-
-1. **Email/Password**: Enabled
-2. **Email verification**: Optional but recommended
-3. **Password requirements**: Minimum 6 characters (Firebase default)
-
-## Storage Rules (if using Firebase Storage)
+Copy these rules to Firebase Console → Storage → Rules:
 
 ```javascript
 rules_version = '2';
 
 service firebase.storage {
   match /b/{bucket}/o {
-    // User uploads
-    match /users/{userId}/{allPaths=**} {
-      allow read: if request.auth != null;
-      allow write: if request.auth != null && 
-        request.auth.uid == userId &&
-        request.resource.size < 5 * 1024 * 1024; // 5MB limit
+    
+    // ====================================================
+    // HELPER FUNCTIONS
+    // ====================================================
+    
+    function isAuthenticated() {
+      return request.auth != null;
     }
     
-    // Deny all other access
+    function isOwner(userId) {
+      return request.auth.uid == userId;
+    }
+    
+    // Validate file size (max 5MB)
+    function isValidFileSize() {
+      return request.resource.size < 5 * 1024 * 1024;
+    }
+    
+    // Validate image content type
+    function isImage() {
+      return request.resource.contentType.matches('image/.*');
+    }
+    
+    // Validate PDF content type
+    function isPDF() {
+      return request.resource.contentType == 'application/pdf';
+    }
+    
+    // ====================================================
+    // USER UPLOADS (avatars, etc.)
+    // ====================================================
+    match /users/{userId}/{allPaths=**} {
+      // Users can read any user's public files
+      allow read: if isAuthenticated();
+      
+      // Users can only write to their own directory
+      allow write: if isAuthenticated() && 
+        isOwner(userId) && 
+        isValidFileSize() &&
+        (isImage() || isPDF());
+    }
+    
+    // ====================================================
+    // FACILITY FILES
+    // ====================================================
+    match /facilities/{facilityId}/{allPaths=**} {
+      // Authenticated users can read facility files
+      allow read: if isAuthenticated();
+      
+      // Only authenticated users can upload (add more restrictions as needed)
+      allow write: if isAuthenticated() && 
+        isValidFileSize();
+    }
+    
+    // ====================================================
+    // IMMUNIZATION CERTIFICATES
+    // ====================================================
+    match /certificates/{childId}/{fileName} {
+      // Allow reading certificates with proper auth
+      allow read: if isAuthenticated();
+      
+      // Allow creating certificates
+      allow create: if isAuthenticated() && 
+        isValidFileSize() &&
+        isPDF();
+      
+      // No updates or deletes to prevent tampering
+      allow update, delete: if false;
+    }
+    
+    // ====================================================
+    // OUTREACH SESSION REPORTS
+    // ====================================================
+    match /outreach-reports/{facilityId}/{fileName} {
+      allow read: if isAuthenticated();
+      allow create: if isAuthenticated() && 
+        isValidFileSize() &&
+        isPDF();
+      allow update, delete: if false;
+    }
+    
+    // ====================================================
+    // DEFAULT DENY
+    // ====================================================
     match /{allPaths=**} {
       allow read, write: if false;
     }
@@ -142,19 +346,96 @@ service firebase.storage {
 }
 ```
 
+## Security Best Practices Checklist
+
+### Immediate Actions
+- [ ] Enable Firebase App Check in production
+- [ ] Use environment variables for Firebase config
+- [ ] Enable email verification for new users
+- [ ] Set up Firebase Security Rules monitoring alerts
+
+### Authentication Settings
+1. Go to Firebase Console → Authentication → Settings
+2. Enable Email/Password authentication
+3. Set password requirements (minimum 6 characters)
+4. Consider enabling Multi-Factor Authentication (MFA) for admins
+
+### Database Indexes
+Add these indexes for optimal query performance:
+
+```javascript
+// In Firebase Console → Firestore → Indexes
+// Children by facility and creation date
+{ 
+  collectionGroup: "children",
+  fields: [
+    { fieldPath: "facilityId", order: "ASCENDING" },
+    { fieldPath: "createdAt", order: "DESCENDING" }
+  ]
+}
+
+// Activity logs by facility and date
+{
+  collectionGroup: "activityLogs",
+  fields: [
+    { fieldPath: "facilityId", order: "ASCENDING" },
+    { fieldPath: "createdAt", order: "DESCENDING" }
+  ]
+}
+
+// Outreach sessions by facility and date
+{
+  collectionGroup: "outreachSessions",
+  fields: [
+    { fieldPath: "facilityId", order: "ASCENDING" },
+    { fieldPath: "sessionDate", order: "DESCENDING" }
+  ]
+}
+```
+
+### Monitoring & Alerts
+1. Set up Firebase Alerts for:
+   - Rules deployment failures
+   - Unusual read/write patterns
+   - Authentication failures
+   
+2. Enable Cloud Logging for security events
+
+### Regular Maintenance
+- [ ] Review security rules monthly
+- [ ] Audit user roles quarterly
+- [ ] Update rules when adding new features
+- [ ] Test rules changes in Firebase Emulator first
+
 ## Testing Your Rules
 
-Use the Firebase Emulator or Rules Playground to test:
+Use the Firebase Rules Playground:
 
 1. Go to Firebase Console → Firestore → Rules
 2. Click "Rules Playground"
-3. Simulate requests to verify access control
+3. Test scenarios:
 
-## Security Checklist
+```javascript
+// Test: Authenticated user reading their facility's children
+// Expected: ALLOW
+{
+  "auth": { "uid": "user123" },
+  "path": "/children/child456",
+  "resource": { "data": { "facilityId": "fac789" } }
+}
 
-- [ ] Enable Firebase App Check for production
-- [ ] Use environment variables for Firebase config (not in code)
-- [ ] Enable email verification for new users
-- [ ] Set up Firebase Security Rules monitoring
-- [ ] Review and update rules when adding new collections
-- [ ] Add `userId` field to all user-owned documents
+// Test: Unauthenticated user trying to read
+// Expected: DENY
+{
+  "auth": null,
+  "path": "/children/child456"
+}
+
+// Test: Read-only user trying to write
+// Expected: DENY
+{
+  "auth": { "uid": "readonly_user" },
+  "method": "create",
+  "path": "/children/newChild"
+}
+```
