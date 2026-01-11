@@ -153,6 +153,53 @@ export type Database = {
         }
         Relationships: []
       }
+      inventory_transactions: {
+        Row: {
+          child_id: string | null
+          created_at: string
+          facility_id: string
+          id: string
+          inventory_id: string
+          performed_by_user_id: string
+          quantity: number
+          reason: string | null
+          session_id: string | null
+          transaction_type: string
+        }
+        Insert: {
+          child_id?: string | null
+          created_at?: string
+          facility_id: string
+          id?: string
+          inventory_id: string
+          performed_by_user_id: string
+          quantity: number
+          reason?: string | null
+          session_id?: string | null
+          transaction_type: string
+        }
+        Update: {
+          child_id?: string | null
+          created_at?: string
+          facility_id?: string
+          id?: string
+          inventory_id?: string
+          performed_by_user_id?: string
+          quantity?: number
+          reason?: string | null
+          session_id?: string | null
+          transaction_type?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "inventory_transactions_inventory_id_fkey"
+            columns: ["inventory_id"]
+            isOneToOne: false
+            referencedRelation: "vaccine_inventory"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       profiles: {
         Row: {
           created_at: string
@@ -266,6 +313,66 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      vaccine_inventory: {
+        Row: {
+          batch_number: string
+          created_at: string
+          created_by_user_id: string
+          expiry_date: string
+          facility_id: string
+          id: string
+          initial_quantity: number
+          is_active: boolean
+          notes: string | null
+          quantity: number
+          received_date: string
+          storage_location: string | null
+          supplier: string | null
+          temperature_requirement: string | null
+          unit: string
+          updated_at: string
+          vaccine_name: string
+        }
+        Insert: {
+          batch_number: string
+          created_at?: string
+          created_by_user_id: string
+          expiry_date: string
+          facility_id: string
+          id?: string
+          initial_quantity: number
+          is_active?: boolean
+          notes?: string | null
+          quantity?: number
+          received_date?: string
+          storage_location?: string | null
+          supplier?: string | null
+          temperature_requirement?: string | null
+          unit?: string
+          updated_at?: string
+          vaccine_name: string
+        }
+        Update: {
+          batch_number?: string
+          created_at?: string
+          created_by_user_id?: string
+          expiry_date?: string
+          facility_id?: string
+          id?: string
+          initial_quantity?: number
+          is_active?: boolean
+          notes?: string | null
+          quantity?: number
+          received_date?: string
+          storage_location?: string | null
+          supplier?: string | null
+          temperature_requirement?: string | null
+          unit?: string
+          updated_at?: string
+          vaccine_name?: string
+        }
+        Relationships: []
       }
     }
     Views: {
