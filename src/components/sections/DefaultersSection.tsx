@@ -349,7 +349,20 @@ export function DefaultersSection({ children, onRefresh, canExport = true, onVie
 
               {/* Actions */}
               <div className="flex gap-2 pt-2">
+                {onViewVaccines && (
+                  <Button
+                    className="flex-1 gradient-ghs text-primary-foreground"
+                    onClick={() => {
+                      onViewVaccines(selectedDefaulter.child);
+                      setSelectedDefaulter(null);
+                    }}
+                  >
+                    <Eye className="w-4 h-4 mr-2" />
+                    Administer Vaccine
+                  </Button>
+                )}
                 <Button
+                  variant="outline"
                   className="flex-1"
                   onClick={() => {
                     const phone = selectedDefaulter.child.telephoneAddress;
@@ -362,7 +375,7 @@ export function DefaultersSection({ children, onRefresh, canExport = true, onVie
                   Call Parent
                 </Button>
                 <Button
-                  variant="outline"
+                  variant="ghost"
                   onClick={() => setSelectedDefaulter(null)}
                 >
                   Close
