@@ -148,7 +148,11 @@ export function RegistrationSection({ editingChild, onSave, onCancel, onBack, ex
                 id="childName"
                 placeholder="Enter full name"
                 value={formData.name}
-                onChange={(e) => setFormData(prev => ({ ...prev, name: e.target.value }))}
+                onChange={(e) => {
+                  const value = e.target.value.replace(/[^a-zA-Z\s\-']/g, '').slice(0, 100);
+                  setFormData(prev => ({ ...prev, name: value }));
+                }}
+                maxLength={100}
                 required
               />
             </div>
@@ -205,7 +209,11 @@ export function RegistrationSection({ editingChild, onSave, onCancel, onBack, ex
                 id="motherName"
                 placeholder="Enter caregiver/parent name"
                 value={formData.motherName}
-                onChange={(e) => setFormData(prev => ({ ...prev, motherName: e.target.value }))}
+                onChange={(e) => {
+                  const value = e.target.value.replace(/[^a-zA-Z\s\-']/g, '').slice(0, 100);
+                  setFormData(prev => ({ ...prev, motherName: value }));
+                }}
+                maxLength={100}
                 required
               />
             </div>
@@ -216,7 +224,11 @@ export function RegistrationSection({ editingChild, onSave, onCancel, onBack, ex
                 id="telephone"
                 placeholder="024XXXXXXX or House No./Street"
                 value={formData.telephoneAddress}
-                onChange={(e) => setFormData(prev => ({ ...prev, telephoneAddress: e.target.value }))}
+                onChange={(e) => {
+                  const value = e.target.value.slice(0, 50);
+                  setFormData(prev => ({ ...prev, telephoneAddress: value }));
+                }}
+                maxLength={50}
                 required
               />
             </div>
@@ -227,7 +239,11 @@ export function RegistrationSection({ editingChild, onSave, onCancel, onBack, ex
                 id="community"
                 placeholder="Enter community"
                 value={formData.community}
-                onChange={(e) => setFormData(prev => ({ ...prev, community: e.target.value }))}
+                onChange={(e) => {
+                  const value = e.target.value.slice(0, 100);
+                  setFormData(prev => ({ ...prev, community: value }));
+                }}
+                maxLength={100}
               />
             </div>
 
@@ -237,7 +253,11 @@ export function RegistrationSection({ editingChild, onSave, onCancel, onBack, ex
                 id="healthFacilityName"
                 placeholder="Enter health facility name"
                 value={formData.healthFacilityName}
-                onChange={(e) => setFormData(prev => ({ ...prev, healthFacilityName: e.target.value }))}
+                onChange={(e) => {
+                  const value = e.target.value.slice(0, 150);
+                  setFormData(prev => ({ ...prev, healthFacilityName: value }));
+                }}
+                maxLength={150}
               />
             </div>
 
@@ -247,7 +267,11 @@ export function RegistrationSection({ editingChild, onSave, onCancel, onBack, ex
                 id="regionDistrict"
                 placeholder="Enter region/district"
                 value={formData.regionDistrict}
-                onChange={(e) => setFormData(prev => ({ ...prev, regionDistrict: e.target.value }))}
+                onChange={(e) => {
+                  const value = e.target.value.slice(0, 100);
+                  setFormData(prev => ({ ...prev, regionDistrict: value }));
+                }}
+                maxLength={100}
               />
             </div>
           </div>
