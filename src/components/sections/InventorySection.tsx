@@ -26,50 +26,32 @@ import {
   Clock,
   Thermometer,
   MapPin,
-  RefreshCw,
-  FileText,
-  MapPinned
+  RefreshCw
 } from 'lucide-react';
 import { useInventory } from '@/hooks/useInventory';
-import { GHANA_EPI_VACCINES, STOCK_SOURCES, type InventoryFormData, type VaccineInventory } from '@/types/inventory';
+import { GHANA_EPI_VACCINES, type InventoryFormData, type VaccineInventory } from '@/types/inventory';
 import { format, differenceInDays, isAfter, isBefore, parseISO } from 'date-fns';
 import { toast } from 'sonner';
-import { InventoryAlerts } from '@/components/inventory/InventoryAlerts';
-import { WastageRecordModal } from '@/components/inventory/WastageRecordModal';
-import { OutreachSessionManager } from '@/components/inventory/OutreachSessionManager';
-import { InventoryReports } from '@/components/inventory/InventoryReports';
 
 export function InventorySection() {
   const {
     inventory,
     transactions,
-    outreachSessions,
-    allocations,
-    wastageRecords,
     loading,
-    stockAlerts,
-    criticalAlerts,
     addInventoryItem,
     updateInventoryQuantity,
     deleteInventoryItem,
-    recordWastage,
-    createOutreachSession,
-    allocateToOutreach,
-    reconcileOutreachAllocation,
     getStockSummary,
     getConsumptionRate,
-    getWastageRate,
     getLowStockAlerts,
     getExpiryAlerts,
-    refetch,
-    refetchAll
+    refetch
   } = useInventory();
 
   const [searchTerm, setSearchTerm] = useState('');
   const [filterVaccine, setFilterVaccine] = useState<string>('all');
   const [showAddDialog, setShowAddDialog] = useState(false);
   const [showTransactionDialog, setShowTransactionDialog] = useState(false);
-  const [showWastageDialog, setShowWastageDialog] = useState(false);
   const [selectedItem, setSelectedItem] = useState<VaccineInventory | null>(null);
   const [activeTab, setActiveTab] = useState('overview');
 
@@ -77,12 +59,10 @@ export function InventorySection() {
   const [formData, setFormData] = useState<InventoryFormData>({
     vaccine_name: '',
     batch_number: '',
-    manufacturer: '',
     quantity: 0,
     expiry_date: '',
     received_date: new Date().toISOString().split('T')[0],
     supplier: '',
-    source: 'GHS',
     storage_location: '',
     temperature_requirement: '2-8°C',
     notes: ''
@@ -232,13 +212,9 @@ export function InventorySection() {
           <p className="text-muted-foreground">Track stock levels, expiry dates, and consumption</p>
         </div>
         <div className="flex gap-2">
-          <Button variant="outline" onClick={() => refetchAll()}>
+          <Button variant="outline" onClick={refetch}>
             <RefreshCw className="h-4 w-4 mr-2" />
             Refresh
-          </Button>
-          <Button variant="outline" onClick={() => setShowWastageDialog(true)} className="text-destructive">
-            <Trash2 className="h-4 w-4 mr-2" />
-            Record Wastage
           </Button>
           <Button variant="outline" onClick={exportInventoryReport}>
             <Download className="h-4 w-4 mr-2" />
@@ -415,19 +391,12 @@ export function InventorySection() {
         </div>
       )}
 
-      {/* Critical Alerts */}
-      {criticalAlerts.length > 0 && (
-        <InventoryAlerts alerts={criticalAlerts} compact maxAlerts={5} />
-      )}
-
       {/* Tabs */}
       <Tabs value={activeTab} onValueChange={setActiveTab}>
-        <TabsList className="grid w-full grid-cols-6">
+        <TabsList className="grid w-full grid-cols-4">
           <TabsTrigger value="overview">Overview</TabsTrigger>
           <TabsTrigger value="inventory">Inventory</TabsTrigger>
           <TabsTrigger value="transactions">Transactions</TabsTrigger>
-          <TabsTrigger value="outreach">Outreach</TabsTrigger>
-          <TabsTrigger value="reports">Reports</TabsTrigger>
           <TabsTrigger value="analytics">Analytics</TabsTrigger>
         </TabsList>
 
@@ -757,39 +726,7 @@ export function InventorySection() {
             </Card>
           </div>
         </TabsContent>
-
-        {/* Outreach Tab */}
-        <TabsContent value="outreach">
-          <OutreachSessionManager
-            sessions={outreachSessions}
-            allocations={allocations}
-            inventory={inventory}
-            onCreateSession={createOutreachSession}
-            onAllocateInventory={allocateToOutreach}
-            onReconcileAllocation={reconcileOutreachAllocation}
-          />
-        </TabsContent>
-
-        {/* Reports Tab */}
-        <TabsContent value="reports">
-          <InventoryReports
-            inventory={inventory}
-            transactions={transactions}
-            wastageRecords={wastageRecords}
-            getStockSummary={getStockSummary}
-            getConsumptionRate={getConsumptionRate}
-            getWastageRate={getWastageRate}
-          />
-        </TabsContent>
       </Tabs>
-
-      {/* Wastage Modal */}
-      <WastageRecordModal
-        isOpen={showWastageDialog}
-        onClose={() => setShowWastageDialog(false)}
-        inventory={inventory}
-        onRecordWastage={recordWastage}
-      />
 
       {/* Transaction Dialog */}
       <Dialog open={showTransactionDialog} onOpenChange={setShowTransactionDialog}>

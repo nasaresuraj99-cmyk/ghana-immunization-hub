@@ -153,61 +153,13 @@ export type Database = {
         }
         Relationships: []
       }
-      inventory_stock_settings: {
-        Row: {
-          created_at: string
-          critical_expiry_warning_days: number
-          default_critical_stock: number
-          default_minimum_stock: number
-          facility_id: string
-          id: string
-          near_expiry_warning_days: number
-          updated_at: string
-          vaccine_specific_settings: Json | null
-        }
-        Insert: {
-          created_at?: string
-          critical_expiry_warning_days?: number
-          default_critical_stock?: number
-          default_minimum_stock?: number
-          facility_id: string
-          id?: string
-          near_expiry_warning_days?: number
-          updated_at?: string
-          vaccine_specific_settings?: Json | null
-        }
-        Update: {
-          created_at?: string
-          critical_expiry_warning_days?: number
-          default_critical_stock?: number
-          default_minimum_stock?: number
-          facility_id?: string
-          id?: string
-          near_expiry_warning_days?: number
-          updated_at?: string
-          vaccine_specific_settings?: Json | null
-        }
-        Relationships: [
-          {
-            foreignKeyName: "inventory_stock_settings_facility_id_fkey"
-            columns: ["facility_id"]
-            isOneToOne: true
-            referencedRelation: "facilities"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
       inventory_transactions: {
         Row: {
-          batch_number: string | null
           child_id: string | null
           created_at: string
           facility_id: string
           id: string
           inventory_id: string
-          new_quantity: number | null
-          old_quantity: number | null
-          outreach_session_id: string | null
           performed_by_user_id: string
           quantity: number
           reason: string | null
@@ -215,15 +167,11 @@ export type Database = {
           transaction_type: string
         }
         Insert: {
-          batch_number?: string | null
           child_id?: string | null
           created_at?: string
           facility_id: string
           id?: string
           inventory_id: string
-          new_quantity?: number | null
-          old_quantity?: number | null
-          outreach_session_id?: string | null
           performed_by_user_id: string
           quantity: number
           reason?: string | null
@@ -231,15 +179,11 @@ export type Database = {
           transaction_type: string
         }
         Update: {
-          batch_number?: string | null
           child_id?: string | null
           created_at?: string
           facility_id?: string
           id?: string
           inventory_id?: string
-          new_quantity?: number | null
-          old_quantity?: number | null
-          outreach_session_id?: string | null
           performed_by_user_id?: string
           quantity?: number
           reason?: string | null
@@ -252,129 +196,6 @@ export type Database = {
             columns: ["inventory_id"]
             isOneToOne: false
             referencedRelation: "vaccine_inventory"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "inventory_transactions_outreach_session_id_fkey"
-            columns: ["outreach_session_id"]
-            isOneToOne: false
-            referencedRelation: "outreach_sessions"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      outreach_inventory_allocations: {
-        Row: {
-          allocated_quantity: number
-          created_at: string
-          created_by_user_id: string
-          facility_id: string
-          id: string
-          inventory_id: string
-          notes: string | null
-          outreach_session_id: string
-          reconciled_at: string | null
-          reconciled_by_user_id: string | null
-          returned_quantity: number
-          status: string
-          updated_at: string
-          used_quantity: number
-          wasted_quantity: number
-        }
-        Insert: {
-          allocated_quantity: number
-          created_at?: string
-          created_by_user_id: string
-          facility_id: string
-          id?: string
-          inventory_id: string
-          notes?: string | null
-          outreach_session_id: string
-          reconciled_at?: string | null
-          reconciled_by_user_id?: string | null
-          returned_quantity?: number
-          status?: string
-          updated_at?: string
-          used_quantity?: number
-          wasted_quantity?: number
-        }
-        Update: {
-          allocated_quantity?: number
-          created_at?: string
-          created_by_user_id?: string
-          facility_id?: string
-          id?: string
-          inventory_id?: string
-          notes?: string | null
-          outreach_session_id?: string
-          reconciled_at?: string | null
-          reconciled_by_user_id?: string | null
-          returned_quantity?: number
-          status?: string
-          updated_at?: string
-          used_quantity?: number
-          wasted_quantity?: number
-        }
-        Relationships: [
-          {
-            foreignKeyName: "outreach_inventory_allocations_inventory_id_fkey"
-            columns: ["inventory_id"]
-            isOneToOne: false
-            referencedRelation: "vaccine_inventory"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "outreach_inventory_allocations_outreach_session_id_fkey"
-            columns: ["outreach_session_id"]
-            isOneToOne: false
-            referencedRelation: "outreach_sessions"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      outreach_sessions: {
-        Row: {
-          created_at: string
-          created_by_user_id: string
-          facility_id: string
-          id: string
-          location: string | null
-          notes: string | null
-          session_date: string
-          session_name: string
-          status: string
-          updated_at: string
-        }
-        Insert: {
-          created_at?: string
-          created_by_user_id: string
-          facility_id: string
-          id?: string
-          location?: string | null
-          notes?: string | null
-          session_date: string
-          session_name: string
-          status?: string
-          updated_at?: string
-        }
-        Update: {
-          created_at?: string
-          created_by_user_id?: string
-          facility_id?: string
-          id?: string
-          location?: string | null
-          notes?: string | null
-          session_date?: string
-          session_name?: string
-          status?: string
-          updated_at?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "outreach_sessions_facility_id_fkey"
-            columns: ["facility_id"]
-            isOneToOne: false
-            referencedRelation: "facilities"
             referencedColumns: ["id"]
           },
         ]
@@ -498,19 +319,14 @@ export type Database = {
           batch_number: string
           created_at: string
           created_by_user_id: string
-          critical_stock_level: number | null
           expiry_date: string
           facility_id: string
           id: string
           initial_quantity: number
           is_active: boolean
-          manufacturer: string | null
-          minimum_stock_level: number | null
           notes: string | null
           quantity: number
           received_date: string
-          source: string | null
-          status: string | null
           storage_location: string | null
           supplier: string | null
           temperature_requirement: string | null
@@ -522,19 +338,14 @@ export type Database = {
           batch_number: string
           created_at?: string
           created_by_user_id: string
-          critical_stock_level?: number | null
           expiry_date: string
           facility_id: string
           id?: string
           initial_quantity: number
           is_active?: boolean
-          manufacturer?: string | null
-          minimum_stock_level?: number | null
           notes?: string | null
           quantity?: number
           received_date?: string
-          source?: string | null
-          status?: string | null
           storage_location?: string | null
           supplier?: string | null
           temperature_requirement?: string | null
@@ -546,19 +357,14 @@ export type Database = {
           batch_number?: string
           created_at?: string
           created_by_user_id?: string
-          critical_stock_level?: number | null
           expiry_date?: string
           facility_id?: string
           id?: string
           initial_quantity?: number
           is_active?: boolean
-          manufacturer?: string | null
-          minimum_stock_level?: number | null
           notes?: string | null
           quantity?: number
           received_date?: string
-          source?: string | null
-          status?: string | null
           storage_location?: string | null
           supplier?: string | null
           temperature_requirement?: string | null
@@ -567,60 +373,6 @@ export type Database = {
           vaccine_name?: string
         }
         Relationships: []
-      }
-      vaccine_wastage: {
-        Row: {
-          created_at: string
-          facility_id: string
-          id: string
-          inventory_id: string
-          notes: string | null
-          outreach_session_id: string | null
-          quantity: number
-          reason: string
-          recorded_by_user_id: string
-          wastage_type: string
-        }
-        Insert: {
-          created_at?: string
-          facility_id: string
-          id?: string
-          inventory_id: string
-          notes?: string | null
-          outreach_session_id?: string | null
-          quantity: number
-          reason: string
-          recorded_by_user_id: string
-          wastage_type: string
-        }
-        Update: {
-          created_at?: string
-          facility_id?: string
-          id?: string
-          inventory_id?: string
-          notes?: string | null
-          outreach_session_id?: string | null
-          quantity?: number
-          reason?: string
-          recorded_by_user_id?: string
-          wastage_type?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "vaccine_wastage_inventory_id_fkey"
-            columns: ["inventory_id"]
-            isOneToOne: false
-            referencedRelation: "vaccine_inventory"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "vaccine_wastage_outreach_session_id_fkey"
-            columns: ["outreach_session_id"]
-            isOneToOne: false
-            referencedRelation: "outreach_sessions"
-            referencedColumns: ["id"]
-          },
-        ]
       }
     }
     Views: {
