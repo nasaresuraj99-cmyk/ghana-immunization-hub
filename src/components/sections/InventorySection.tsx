@@ -26,10 +26,12 @@ import {
   Clock,
   Thermometer,
   MapPin,
-  RefreshCw
+  RefreshCw,
+  AlertCircle
 } from 'lucide-react';
 import { useInventory } from '@/hooks/useInventory';
 import { GHANA_EPI_VACCINES, type InventoryFormData, type VaccineInventory } from '@/types/inventory';
+import { VaccineWastageModal, type WastageFormData } from '@/components/modals/VaccineWastageModal';
 import { format, differenceInDays, isAfter, isBefore, parseISO } from 'date-fns';
 import { toast } from 'sonner';
 
@@ -37,14 +39,17 @@ export function InventorySection() {
   const {
     inventory,
     transactions,
+    wastageRecords,
     loading,
     addInventoryItem,
     updateInventoryQuantity,
     deleteInventoryItem,
+    recordWastage,
     getStockSummary,
     getConsumptionRate,
     getLowStockAlerts,
     getExpiryAlerts,
+    getWastageSummary,
     refetch
   } = useInventory();
 
@@ -52,6 +57,7 @@ export function InventorySection() {
   const [filterVaccine, setFilterVaccine] = useState<string>('all');
   const [showAddDialog, setShowAddDialog] = useState(false);
   const [showTransactionDialog, setShowTransactionDialog] = useState(false);
+  const [showWastageModal, setShowWastageModal] = useState(false);
   const [selectedItem, setSelectedItem] = useState<VaccineInventory | null>(null);
   const [activeTab, setActiveTab] = useState('overview');
 
@@ -78,6 +84,12 @@ export function InventorySection() {
   const consumptionRate = useMemo(() => getConsumptionRate(), [getConsumptionRate]);
   const lowStockAlerts = useMemo(() => getLowStockAlerts(50), [getLowStockAlerts]);
   const expiryAlerts = useMemo(() => getExpiryAlerts(), [getExpiryAlerts]);
+  const wastageSummary = useMemo(() => getWastageSummary(), [getWastageSummary]);
+
+  // Calculate total wastage
+  const totalWastage = useMemo(() => {
+    return Object.values(wastageSummary).reduce((sum, data) => sum + data.total, 0);
+  }, [wastageSummary]);
 
   // Filtered inventory
   const filteredInventory = useMemo(() => {
@@ -211,7 +223,7 @@ export function InventorySection() {
           </h2>
           <p className="text-muted-foreground">Track stock levels, expiry dates, and consumption</p>
         </div>
-        <div className="flex gap-2">
+        <div className="flex flex-wrap gap-2">
           <Button variant="outline" onClick={refetch}>
             <RefreshCw className="h-4 w-4 mr-2" />
             Refresh
@@ -219,6 +231,10 @@ export function InventorySection() {
           <Button variant="outline" onClick={exportInventoryReport}>
             <Download className="h-4 w-4 mr-2" />
             Export
+          </Button>
+          <Button variant="outline" className="text-destructive border-destructive/50 hover:bg-destructive/10" onClick={() => setShowWastageModal(true)}>
+            <Trash2 className="h-4 w-4 mr-2" />
+            Record Wastage
           </Button>
           <Dialog open={showAddDialog} onOpenChange={setShowAddDialog}>
             <DialogTrigger asChild>
@@ -393,10 +409,11 @@ export function InventorySection() {
 
       {/* Tabs */}
       <Tabs value={activeTab} onValueChange={setActiveTab}>
-        <TabsList className="grid w-full grid-cols-4">
+        <TabsList className="grid w-full grid-cols-5">
           <TabsTrigger value="overview">Overview</TabsTrigger>
           <TabsTrigger value="inventory">Inventory</TabsTrigger>
           <TabsTrigger value="transactions">Transactions</TabsTrigger>
+          <TabsTrigger value="wastage">Wastage</TabsTrigger>
           <TabsTrigger value="analytics">Analytics</TabsTrigger>
         </TabsList>
 
@@ -665,6 +682,165 @@ export function InventorySection() {
           </Card>
         </TabsContent>
 
+        {/* Wastage Tab */}
+        <TabsContent value="wastage" className="space-y-4">
+          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+            <Card>
+              <CardHeader className="pb-2">
+                <CardTitle className="text-sm font-medium text-muted-foreground">Total Wastage</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold text-destructive">{totalWastage}</div>
+                <p className="text-xs text-muted-foreground">Total doses wasted</p>
+              </CardContent>
+            </Card>
+            <Card>
+              <CardHeader className="pb-2">
+                <CardTitle className="text-sm font-medium text-muted-foreground">Expired</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold text-orange-600">
+                  {Object.values(wastageSummary).reduce((sum, data) => sum + data.expired, 0)}
+                </div>
+                <p className="text-xs text-muted-foreground">Doses expired</p>
+              </CardContent>
+            </Card>
+            <Card>
+              <CardHeader className="pb-2">
+                <CardTitle className="text-sm font-medium text-muted-foreground">Cold Chain</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold text-blue-600">
+                  {Object.values(wastageSummary).reduce((sum, data) => sum + data.cold_chain_failure, 0)}
+                </div>
+                <p className="text-xs text-muted-foreground">Cold chain failures</p>
+              </CardContent>
+            </Card>
+            <Card>
+              <CardHeader className="pb-2">
+                <CardTitle className="text-sm font-medium text-muted-foreground">Broken/Other</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold text-gray-600">
+                  {Object.values(wastageSummary).reduce((sum, data) => sum + data.broken_vial + data.other, 0)}
+                </div>
+                <p className="text-xs text-muted-foreground">Physical damage & other</p>
+              </CardContent>
+            </Card>
+          </div>
+
+          {/* Wastage by Vaccine */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-lg flex items-center gap-2">
+                <AlertCircle className="h-5 w-5 text-destructive" />
+                Wastage by Vaccine
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              {Object.keys(wastageSummary).length === 0 ? (
+                <div className="text-center py-8 text-muted-foreground">
+                  <Trash2 className="h-12 w-12 mx-auto mb-4 opacity-50" />
+                  <p>No wastage records found</p>
+                  <p className="text-sm">Record wastage using the "Record Wastage" button</p>
+                </div>
+              ) : (
+                <div className="space-y-4">
+                  {Object.entries(wastageSummary)
+                    .sort((a, b) => b[1].total - a[1].total)
+                    .map(([vaccine, data]) => (
+                      <div key={vaccine} className="p-3 border rounded-lg">
+                        <div className="flex justify-between items-center mb-2">
+                          <span className="font-medium">{vaccine}</span>
+                          <Badge variant="destructive">{data.total} doses</Badge>
+                        </div>
+                        <div className="grid grid-cols-2 md:grid-cols-5 gap-2 text-sm">
+                          <div className="flex items-center gap-1">
+                            <div className="w-2 h-2 rounded-full bg-orange-500" />
+                            <span className="text-muted-foreground">Expired:</span>
+                            <span>{data.expired}</span>
+                          </div>
+                          <div className="flex items-center gap-1">
+                            <div className="w-2 h-2 rounded-full bg-red-500" />
+                            <span className="text-muted-foreground">Broken:</span>
+                            <span>{data.broken_vial}</span>
+                          </div>
+                          <div className="flex items-center gap-1">
+                            <div className="w-2 h-2 rounded-full bg-blue-500" />
+                            <span className="text-muted-foreground">Cold Chain:</span>
+                            <span>{data.cold_chain_failure}</span>
+                          </div>
+                          <div className="flex items-center gap-1">
+                            <div className="w-2 h-2 rounded-full bg-yellow-500" />
+                            <span className="text-muted-foreground">Open Vial:</span>
+                            <span>{data.open_vial_policy}</span>
+                          </div>
+                          <div className="flex items-center gap-1">
+                            <div className="w-2 h-2 rounded-full bg-gray-500" />
+                            <span className="text-muted-foreground">Other:</span>
+                            <span>{data.other}</span>
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                </div>
+              )}
+            </CardContent>
+          </Card>
+
+          {/* Recent Wastage Records */}
+          <Card>
+            <CardHeader>
+              <CardTitle>Recent Wastage Records</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <ScrollArea className="h-[300px]">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Date</TableHead>
+                      <TableHead>Vaccine</TableHead>
+                      <TableHead>Batch</TableHead>
+                      <TableHead>Type</TableHead>
+                      <TableHead>Quantity</TableHead>
+                      <TableHead>Reason</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {wastageRecords.length === 0 ? (
+                      <TableRow>
+                        <TableCell colSpan={6} className="text-center py-8 text-muted-foreground">
+                          No wastage records
+                        </TableCell>
+                      </TableRow>
+                    ) : (
+                      wastageRecords.map(record => {
+                        const inventoryItem = inventory.find(i => i.id === record.inventory_id);
+                        return (
+                          <TableRow key={record.id}>
+                            <TableCell>{format(parseISO(record.created_at), 'dd MMM yyyy HH:mm')}</TableCell>
+                            <TableCell>{inventoryItem?.vaccine_name || 'Unknown'}</TableCell>
+                            <TableCell className="font-mono text-sm">{inventoryItem?.batch_number || '-'}</TableCell>
+                            <TableCell>
+                              <Badge variant="outline" className="capitalize">
+                                {record.wastage_type.replace('_', ' ')}
+                              </Badge>
+                            </TableCell>
+                            <TableCell className="text-destructive font-medium">-{record.quantity}</TableCell>
+                            <TableCell className="text-muted-foreground max-w-[200px] truncate">
+                              {record.reason}
+                            </TableCell>
+                          </TableRow>
+                        );
+                      })
+                    )}
+                  </TableBody>
+                </Table>
+              </ScrollArea>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
         {/* Analytics Tab */}
         <TabsContent value="analytics" className="space-y-4">
           <div className="grid gap-4 md:grid-cols-2">
@@ -789,6 +965,14 @@ export function InventorySection() {
           )}
         </DialogContent>
       </Dialog>
+
+      {/* Wastage Modal */}
+      <VaccineWastageModal
+        isOpen={showWastageModal}
+        onClose={() => setShowWastageModal(false)}
+        inventory={inventory}
+        onRecordWastage={recordWastage}
+      />
     </div>
   );
 }
