@@ -34,8 +34,10 @@ import { MobileBottomNav } from "@/components/MobileBottomNav";
 import { useChildren } from "@/hooks/useChildren";
 import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
+import { useInventory } from "@/hooks/useInventory";
 import { Child, VaccineRecord } from "@/types/child";
 import { ROLE_PERMISSIONS } from "@/types/facility";
+import { getInventoryVaccineName } from "@/types/inventory";
 import { Loader2 } from "lucide-react";
 
 type Section = 'home' | 'registration' | 'register' | 'defaulters' | 'dashboard' | 'reporting' | 'settings' | 'schedule' | 'archive' | 'users' | 'activity' | 'admin' | 'help' | 'outreach-history' | 'inventory';
@@ -85,6 +87,9 @@ export default function Index() {
     userId: user?.uid, 
     facilityId: user?.facilityId 
   });
+  
+  // Inventory management hook for automatic deduction on vaccine administration
+  const { recordAdministration, inventory } = useInventory();
   
   const { toast } = useToast();
   
@@ -267,7 +272,7 @@ export default function Index() {
     setProfileModalChild(child);
   };
 
-  const handleAdministerVaccine = (childId: string, vaccineName: string, givenDate: string, batchNumber: string) => {
+  const handleAdministerVaccine = async (childId: string, vaccineName: string, givenDate: string, batchNumber: string) => {
     if (!permissions.canAdministerVaccines) {
       toast({
         title: "Permission Denied",
@@ -277,10 +282,21 @@ export default function Index() {
       return;
     }
     
+    // Map vaccine name to inventory base name (e.g., "BCG at Birth" -> "BCG")
+    const baseVaccineName = getInventoryVaccineName(vaccineName);
+    
+    // Attempt to deduct from inventory automatically using FIFO
+    const inventoryDeducted = baseVaccineName ? await recordAdministration(baseVaccineName, 1, childId) : false;
+    
+    if (!inventoryDeducted && inventory.length > 0) {
+      // Warn user if inventory exists but deduction failed (low stock)
+      console.warn(`Could not deduct ${baseVaccineName} from inventory - insufficient stock or no matching batch`);
+    }
+    
     updateVaccine(childId, vaccineName, givenDate, batchNumber, user?.name);
     toast({
       title: "Vaccine Administered",
-      description: `${vaccineName} has been recorded successfully.`,
+      description: `${vaccineName} has been recorded successfully.${inventoryDeducted ? ' Inventory updated.' : ''}`,
     });
     // Refresh the child in all modals that might be open
     const updatedChild = children.find(c => c.id === childId);
@@ -352,10 +368,31 @@ export default function Index() {
       return;
     }
     
+    // Map vaccine name to inventory base name (e.g., "BCG at Birth" -> "BCG")
+    const baseVaccineName = getInventoryVaccineName(vaccineName);
+    
+    // Deduct from inventory for each child vaccinated
+    let inventoryDeductedCount = 0;
+    if (baseVaccineName) {
+      for (let i = 0; i < childIds.length; i++) {
+        const deducted = await recordAdministration(
+          baseVaccineName, 
+          1, 
+          childIds[i],
+          outreachDetails?.sessionId
+        );
+        if (deducted) inventoryDeductedCount++;
+      }
+    }
+    
+    if (inventoryDeductedCount < childIds.length && inventory.length > 0) {
+      console.warn(`Only ${inventoryDeductedCount}/${childIds.length} vaccines deducted from inventory for ${baseVaccineName}`);
+    }
+    
     await bulkAdministerVaccine(childIds, vaccineName, date, batchNumber, user?.name, outreachDetails);
     toast({
       title: "Outreach Session Complete",
-      description: `${vaccineName} administered to ${childIds.length} children (${outreachDetails?.maleCount || 0}M/${outreachDetails?.femaleCount || 0}F)${outreachDetails?.outreachSite ? ` at ${outreachDetails.outreachSite}` : ''}.`,
+      description: `${vaccineName} administered to ${childIds.length} children (${outreachDetails?.maleCount || 0}M/${outreachDetails?.femaleCount || 0}F)${outreachDetails?.outreachSite ? ` at ${outreachDetails.outreachSite}` : ''}.${inventoryDeductedCount > 0 ? ` ${inventoryDeductedCount} doses deducted from inventory.` : ''}`,
     });
   };
 
