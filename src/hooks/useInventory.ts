@@ -3,6 +3,20 @@ import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from './useAuth';
 import { toast } from 'sonner';
 import type { VaccineInventory, InventoryTransaction, InventoryFormData, TransactionFormData } from '@/types/inventory';
+import type { WastageFormData } from '@/components/modals/VaccineWastageModal';
+
+export interface VaccineWastageRecord {
+  id: string;
+  facility_id: string;
+  inventory_id: string;
+  quantity: number;
+  wastage_type: string;
+  reason: string;
+  notes?: string;
+  recorded_by_user_id: string;
+  outreach_session_id?: string;
+  created_at: string;
+}
 
 export function useInventory() {
   const { user } = useAuth();
@@ -11,6 +25,7 @@ export function useInventory() {
   
   const [inventory, setInventory] = useState<VaccineInventory[]>([]);
   const [transactions, setTransactions] = useState<InventoryTransaction[]>([]);
+  const [wastageRecords, setWastageRecords] = useState<VaccineWastageRecord[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -62,12 +77,32 @@ export function useInventory() {
     }
   }, [facilityId]);
 
+  // Fetch wastage records
+  const fetchWastageRecords = useCallback(async () => {
+    if (!facilityId) return;
+    
+    try {
+      const { data, error: fetchError } = await supabase
+        .from('vaccine_wastage')
+        .select('*')
+        .eq('facility_id', facilityId)
+        .order('created_at', { ascending: false })
+        .limit(100);
+
+      if (fetchError) throw fetchError;
+      setWastageRecords((data as VaccineWastageRecord[]) || []);
+    } catch (err: any) {
+      console.error('Error fetching wastage records:', err);
+    }
+  }, [facilityId]);
+
   useEffect(() => {
     if (facilityId) {
       fetchInventory();
       fetchTransactions();
+      fetchWastageRecords();
     }
-  }, [facilityId, fetchInventory, fetchTransactions]);
+  }, [facilityId, fetchInventory, fetchTransactions, fetchWastageRecords]);
 
   // Add new inventory item
   const addInventoryItem = async (data: InventoryFormData): Promise<boolean> => {
@@ -317,19 +352,148 @@ export function useInventory() {
     }).sort((a, b) => new Date(a.expiry_date).getTime() - new Date(b.expiry_date).getTime());
   }, [inventory]);
 
+  // Record vaccine wastage with automatic inventory deduction
+  const recordWastage = async (data: WastageFormData): Promise<boolean> => {
+    if (!facilityId || !userId) {
+      toast.error('Please log in to record wastage');
+      return false;
+    }
+
+    try {
+      const item = inventory.find(i => i.id === data.inventory_id);
+      if (!item) {
+        toast.error('Inventory item not found');
+        return false;
+      }
+
+      // Validate quantity
+      if (data.quantity <= 0) {
+        toast.error('Quantity must be greater than 0');
+        return false;
+      }
+
+      if (data.quantity > item.quantity) {
+        toast.error(`Cannot waste more than available stock (${item.quantity} doses)`);
+        return false;
+      }
+
+      // Calculate new quantity
+      const newQuantity = item.quantity - data.quantity;
+
+      // Update inventory quantity (atomic operation)
+      const { error: updateError } = await supabase
+        .from('vaccine_inventory')
+        .update({ quantity: newQuantity })
+        .eq('id', data.inventory_id)
+        .eq('quantity', item.quantity); // Optimistic concurrency check
+
+      if (updateError) throw updateError;
+
+      // Record wastage in vaccine_wastage table
+      const { error: wastageError } = await supabase
+        .from('vaccine_wastage')
+        .insert({
+          facility_id: facilityId,
+          inventory_id: data.inventory_id,
+          quantity: data.quantity,
+          wastage_type: data.wastage_type,
+          reason: data.reason,
+          notes: data.notes || null,
+          recorded_by_user_id: userId
+        });
+
+      if (wastageError) throw wastageError;
+
+      // Log the transaction
+      await supabase.from('inventory_transactions').insert({
+        facility_id: facilityId,
+        inventory_id: data.inventory_id,
+        transaction_type: 'wasted',
+        quantity: data.quantity,
+        old_quantity: item.quantity,
+        new_quantity: newQuantity,
+        batch_number: item.batch_number,
+        reason: `${data.wastage_type}: ${data.reason}`,
+        performed_by_user_id: userId
+      });
+
+      toast.success(`Recorded ${data.quantity} dose(s) wastage for ${item.vaccine_name}`);
+      await fetchInventory();
+      await fetchTransactions();
+      await fetchWastageRecords();
+      return true;
+    } catch (err: any) {
+      toast.error(`Failed to record wastage: ${err.message}`);
+      return false;
+    }
+  };
+
+  // Get wastage summary
+  const getWastageSummary = useCallback(() => {
+    const summary: Record<string, { 
+      total: number; 
+      expired: number; 
+      broken_vial: number; 
+      cold_chain_failure: number; 
+      open_vial_policy: number;
+      other: number;
+    }> = {};
+
+    wastageRecords.forEach(record => {
+      const inventoryItem = inventory.find(i => i.id === record.inventory_id);
+      const vaccineName = inventoryItem?.vaccine_name || 'Unknown';
+
+      if (!summary[vaccineName]) {
+        summary[vaccineName] = { 
+          total: 0, 
+          expired: 0, 
+          broken_vial: 0, 
+          cold_chain_failure: 0, 
+          open_vial_policy: 0,
+          other: 0 
+        };
+      }
+
+      summary[vaccineName].total += record.quantity;
+      
+      switch (record.wastage_type) {
+        case 'expired':
+          summary[vaccineName].expired += record.quantity;
+          break;
+        case 'broken_vial':
+          summary[vaccineName].broken_vial += record.quantity;
+          break;
+        case 'cold_chain_failure':
+          summary[vaccineName].cold_chain_failure += record.quantity;
+          break;
+        case 'open_vial_policy':
+          summary[vaccineName].open_vial_policy += record.quantity;
+          break;
+        default:
+          summary[vaccineName].other += record.quantity;
+      }
+    });
+
+    return summary;
+  }, [wastageRecords, inventory]);
+
   return {
     inventory,
     transactions,
+    wastageRecords,
     loading,
     error,
     addInventoryItem,
     updateInventoryQuantity,
     recordAdministration,
+    recordWastage,
     deleteInventoryItem,
     getStockSummary,
     getConsumptionRate,
     getLowStockAlerts,
     getExpiryAlerts,
-    refetch: fetchInventory
+    getWastageSummary,
+    refetch: fetchInventory,
+    refetchWastage: fetchWastageRecords
   };
 }
