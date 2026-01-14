@@ -24,9 +24,13 @@ export interface InventoryTransaction {
   inventory_id: string;
   transaction_type: 'received' | 'administered' | 'wasted' | 'expired' | 'transferred' | 'adjusted';
   quantity: number;
-  child_id?: string;
-  session_id?: string;
-  reason?: string;
+  child_id?: string | null;
+  session_id?: string | null;
+  outreach_session_id?: string | null;
+  batch_number?: string | null;
+  old_quantity?: number | null;
+  new_quantity?: number | null;
+  reason?: string | null;
   performed_by_user_id: string;
   created_at: string;
 }

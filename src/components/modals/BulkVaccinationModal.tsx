@@ -35,6 +35,7 @@ import {
   Info,
 } from "lucide-react";
 import { format } from "date-fns";
+import { toast } from "sonner";
 import { Child, VaccineRecord } from "@/types/child";
 import { cn, formatDate } from "@/lib/utils";
 import { exportOutreachSessionReport, OutreachVaccinationRecord } from "@/lib/pdfExport";
@@ -212,18 +213,27 @@ export function BulkVaccinationModal({
   }, []);
 
   const validateBatchNumber = (value: string): boolean => {
-    // Basic validation: must be non-empty and follow pattern
-    if (!value.trim()) return false;
-    // Allow alphanumeric with hyphens and underscores, 3-50 chars
-    return /^[A-Za-z0-9\-_]{3,50}$/.test(value.trim());
+    const trimmed = value.trim();
+    if (!trimmed) return false;
+    // Allow common batch/lot formats: alphanumeric + hyphen/underscore/slash/spaces, 3-50 chars
+    return /^[A-Za-z0-9][A-Za-z0-9\-_\/ ]{2,49}$/.test(trimmed);
   };
 
   const handleSubmit = async () => {
-    if (selectedChildren.size === 0 || !selectedVaccine || !batchNumber) return;
-    
+    if (selectedChildren.size === 0 || !selectedVaccine) {
+      toast.error("Select a vaccine and at least one child before administering.");
+      return;
+    }
+
+    if (!batchNumber.trim()) {
+      toast.error("Batch/Lot number is required.");
+      return;
+    }
+
     // Validate batch number
     if (!validateBatchNumber(batchNumber)) {
-      return; // Could show toast here
+      toast.error("Invalid batch/lot number. Use 3–50 characters (letters/numbers, hyphen, underscore, slash, spaces)." );
+      return;
     }
 
     setIsSubmitting(true);
@@ -650,6 +660,7 @@ export function BulkVaccinationModal({
                       >
                         <Checkbox
                           checked={isSelected}
+                          onClick={(e) => e.stopPropagation()}
                           onCheckedChange={() => toggleChild(child.id)}
                         />
                         <div className="flex-1 min-w-0">
