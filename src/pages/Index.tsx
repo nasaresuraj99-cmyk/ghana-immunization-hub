@@ -285,18 +285,24 @@ export default function Index() {
     // Map vaccine name to inventory base name (e.g., "BCG at Birth" -> "BCG")
     const baseVaccineName = getInventoryVaccineName(vaccineName);
     
-    // Attempt to deduct from inventory automatically using FIFO
-    const inventoryDeducted = baseVaccineName ? await recordAdministration(baseVaccineName, 1, childId) : false;
+    // Attempt to deduct from inventory automatically using atomic FEFO
+    let inventoryDeducted = false;
+    let deductionBatch: string | undefined;
     
-    if (!inventoryDeducted && inventory.length > 0) {
-      // Warn user if inventory exists but deduction failed (low stock)
-      console.warn(`Could not deduct ${baseVaccineName} from inventory - insufficient stock or no matching batch`);
+    if (baseVaccineName) {
+      const result = await recordAdministration(baseVaccineName, 1, childId);
+      inventoryDeducted = result.success;
+      deductionBatch = result.batchNumber;
+      
+      if (!result.success && inventory.length > 0) {
+        console.warn(`Could not deduct ${baseVaccineName} from inventory: ${result.reason}`);
+      }
     }
     
     updateVaccine(childId, vaccineName, givenDate, batchNumber, user?.name);
     toast({
       title: "Vaccine Administered",
-      description: `${vaccineName} has been recorded successfully.${inventoryDeducted ? ' Inventory updated.' : ''}`,
+      description: `${vaccineName} has been recorded successfully.${inventoryDeducted ? ` Inventory updated (Batch: ${deductionBatch}).` : ''}`,
     });
     // Refresh the child in all modals that might be open
     const updatedChild = children.find(c => c.id === childId);
@@ -371,22 +377,28 @@ export default function Index() {
     // Map vaccine name to inventory base name (e.g., "BCG at Birth" -> "BCG")
     const baseVaccineName = getInventoryVaccineName(vaccineName);
     
-    // Deduct from inventory for each child vaccinated
+    // Deduct from inventory for each child vaccinated using atomic FEFO
     let inventoryDeductedCount = 0;
+    const failedReasons: string[] = [];
+    
     if (baseVaccineName) {
       for (let i = 0; i < childIds.length; i++) {
-        const deducted = await recordAdministration(
+        const result = await recordAdministration(
           baseVaccineName, 
           1, 
           childIds[i],
           outreachDetails?.sessionId
         );
-        if (deducted) inventoryDeductedCount++;
+        if (result.success) {
+          inventoryDeductedCount++;
+        } else if (result.reason && !failedReasons.includes(result.reason)) {
+          failedReasons.push(result.reason);
+        }
       }
     }
     
     if (inventoryDeductedCount < childIds.length && inventory.length > 0) {
-      console.warn(`Only ${inventoryDeductedCount}/${childIds.length} vaccines deducted from inventory for ${baseVaccineName}`);
+      console.warn(`Only ${inventoryDeductedCount}/${childIds.length} vaccines deducted from inventory for ${baseVaccineName}. Reasons: ${failedReasons.join(', ')}`);
     }
     
     await bulkAdministerVaccine(childIds, vaccineName, date, batchNumber, user?.name, outreachDetails);

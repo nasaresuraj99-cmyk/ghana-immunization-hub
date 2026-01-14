@@ -207,60 +207,85 @@ export function useInventory() {
     }
   };
 
-  // Record vaccine administration (deduct from inventory)
+  // Record vaccine administration using atomic FEFO deduction (concurrency-safe)
   const recordAdministration = async (
     vaccineName: string,
     quantity: number = 1,
     childId?: string,
     sessionId?: string
-  ): Promise<boolean> => {
-    if (!facilityId || !userId) return false;
+  ): Promise<{ success: boolean; batchNumber?: string; reason?: string }> => {
+    if (!facilityId || !userId) {
+      return { success: false, reason: 'not_authenticated' };
+    }
 
     try {
-      // Find the oldest non-expired batch with sufficient stock (FEFO - First Expiry First Out)
-      const today = new Date().toISOString().split('T')[0];
-      const availableBatch = inventory
-        .filter(i => 
-          i.vaccine_name === vaccineName && 
-          i.quantity >= quantity && 
-          i.expiry_date >= today &&
-          i.is_active
-        )
-        .sort((a, b) => new Date(a.expiry_date).getTime() - new Date(b.expiry_date).getTime())[0];
-
-      if (!availableBatch) {
-        console.warn(`No available stock for ${vaccineName}`);
-        return false;
-      }
-
-      const newQuantity = availableBatch.quantity - quantity;
-
-      // Update inventory
-      const { error: updateError } = await supabase
-        .from('vaccine_inventory')
-        .update({ quantity: newQuantity })
-        .eq('id', availableBatch.id);
-
-      if (updateError) throw updateError;
-
-      // Log transaction
-      await supabase.from('inventory_transactions').insert({
-        facility_id: facilityId,
-        inventory_id: availableBatch.id,
-        transaction_type: 'administered',
-        quantity: quantity,
-        child_id: childId || null,
-        session_id: sessionId || null,
-        reason: `Vaccine administered`,
-        performed_by_user_id: userId
+      // Call the atomic FEFO deduction function
+      const { data, error } = await supabase.rpc('deduct_vaccine_fefo', {
+        p_facility_id: facilityId,
+        p_vaccine_name: vaccineName,
+        p_quantity: quantity,
+        p_child_id: childId || null,
+        p_session_id: sessionId || null,
+        p_performed_by_user_id: userId
       });
 
-      return true;
+      if (error) {
+        console.error('FEFO deduction error:', error);
+        return { success: false, reason: 'database_error' };
+      }
+
+      const result = data as {
+        success: boolean;
+        reason?: string;
+        batch_number?: string;
+        inventory_id?: string;
+        available_stock?: number;
+        message?: string;
+      };
+
+      if (result.success) {
+        // Refresh inventory after successful deduction
+        await fetchInventory();
+        await fetchTransactions();
+        return { 
+          success: true, 
+          batchNumber: result.batch_number 
+        };
+      } else {
+        console.warn(`FEFO deduction failed: ${result.reason}`, result);
+        return { 
+          success: false, 
+          reason: result.reason || 'unknown_error'
+        };
+      }
     } catch (err: any) {
-      console.error('Error recording administration:', err);
-      return false;
+      console.error('Error in recordAdministration:', err);
+      return { success: false, reason: 'exception' };
     }
   };
+
+  // Get inventory status for a specific vaccine (for debug panel)
+  const getVaccineInventoryStatus = async (vaccineName: string) => {
+    if (!facilityId) return null;
+
+    try {
+      const { data, error } = await supabase.rpc('get_vaccine_inventory_status', {
+        p_facility_id: facilityId,
+        p_vaccine_name: vaccineName
+      });
+
+      if (error) {
+        console.error('Error getting vaccine inventory status:', error);
+        return null;
+      }
+
+      return data;
+    } catch (err) {
+      console.error('Exception getting vaccine inventory status:', err);
+      return null;
+    }
+  };
+
 
   // Delete inventory item (soft delete)
   const deleteInventoryItem = async (inventoryId: string): Promise<boolean> => {
@@ -493,6 +518,7 @@ export function useInventory() {
     getLowStockAlerts,
     getExpiryAlerts,
     getWastageSummary,
+    getVaccineInventoryStatus,
     refetch: fetchInventory,
     refetchWastage: fetchWastageRecords
   };
