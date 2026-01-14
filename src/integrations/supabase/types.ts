@@ -627,7 +627,22 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      deduct_vaccine_fefo: {
+        Args: {
+          p_child_id?: string
+          p_facility_id: string
+          p_performed_by_user_id?: string
+          p_quantity: number
+          p_session_id?: string
+          p_vaccine_name: string
+        }
+        Returns: Json
+      }
       get_user_facility_id: { Args: { _user_id: string }; Returns: string }
+      get_vaccine_inventory_status: {
+        Args: { p_facility_id: string; p_vaccine_name: string }
+        Returns: Json
+      }
       has_role: {
         Args: {
           _role: Database["public"]["Enums"]["app_role"]

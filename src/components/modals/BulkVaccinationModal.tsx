@@ -33,6 +33,7 @@ import {
   Clock,
   AlertCircle,
   Info,
+  Bug,
 } from "lucide-react";
 import { format } from "date-fns";
 import { toast } from "sonner";
@@ -45,6 +46,26 @@ import {
   EligibilityResult,
   getNextDueVaccines 
 } from "@/lib/ghanaEpiSchedule";
+import { getInventoryVaccineName } from "@/types/inventory";
+import { OutreachDebugPanel } from "@/components/OutreachDebugPanel";
+
+interface InventoryBatch {
+  id: string;
+  batch_number: string;
+  quantity: number;
+  expiry_date: string;
+  days_until_expiry: number;
+}
+
+interface VaccineInventoryStatus {
+  vaccine_name: string;
+  total_stock: number;
+  available_stock: number;
+  expired_stock: number;
+  near_expiry_stock: number;
+  batch_count: number;
+  available_batches: InventoryBatch[] | null;
+}
 
 interface BulkVaccinationModalProps {
   children: Child[];
@@ -58,6 +79,8 @@ interface BulkVaccinationModalProps {
     outreachDetails?: OutreachSessionDetails
   ) => Promise<void>;
   facilityName?: string;
+  inventoryStatus?: Record<string, VaccineInventoryStatus>;
+  onRefreshInventoryStatus?: (vaccineName: string) => Promise<void>;
 }
 
 export interface OutreachSessionDetails {
@@ -95,6 +118,8 @@ export function BulkVaccinationModal({
   onClose,
   onAdminister,
   facilityName = "Health Facility",
+  inventoryStatus = {},
+  onRefreshInventoryStatus,
 }: BulkVaccinationModalProps) {
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedVaccine, setSelectedVaccine] = useState("");
@@ -397,15 +422,23 @@ export function BulkVaccinationModal({
     <Dialog open={isOpen} onOpenChange={handleClose}>
       <DialogContent className="max-w-6xl w-[95vw] h-[90vh] max-h-[900px] overflow-hidden flex flex-col p-0">
         <DialogHeader className="p-6 pb-4 border-b shrink-0">
-          <DialogTitle className="flex items-center gap-2 text-lg">
-            <div className="p-2 rounded-lg gradient-ghs">
-              <Syringe className="w-5 h-5 text-primary-foreground" />
-            </div>
-            Outreach Vaccination Session
-            <Badge variant="secondary" className="ml-2">
-              Ghana EPI Compliant
-            </Badge>
-          </DialogTitle>
+          <div className="flex items-center justify-between">
+            <DialogTitle className="flex items-center gap-2 text-lg">
+              <div className="p-2 rounded-lg gradient-ghs">
+                <Syringe className="w-5 h-5 text-primary-foreground" />
+              </div>
+              Outreach Vaccination Session
+              <Badge variant="secondary" className="ml-2">
+                Ghana EPI Compliant
+              </Badge>
+            </DialogTitle>
+            <OutreachDebugPanel
+              children={children}
+              inventoryStatus={inventoryStatus}
+              selectedVaccine={selectedVaccine}
+              onRefreshInventoryStatus={onRefreshInventoryStatus}
+            />
+          </div>
           <p className="text-xs text-muted-foreground mt-1">
             Automatically filters children based on age, previous doses, and minimum intervals per Ghana EPI schedule.
           </p>
