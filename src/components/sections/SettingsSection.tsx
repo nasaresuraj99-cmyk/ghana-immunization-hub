@@ -1,10 +1,11 @@
 import { useState } from "react";
-import { Save, User, Building, Lock, AlertTriangle, Bell, Database, History, Archive, Users, Activity } from "lucide-react";
+import { Save, User, Building, Lock, AlertTriangle, Bell, Database, History, Archive, Users, Activity, Package } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
 import { NotificationSettings } from "@/components/NotificationSettings";
+import { StockAlertSettings } from "@/components/StockAlertSettings";
 import { DataExportButton } from "@/components/DataExportButton";
 import { DataImportButton } from "@/components/DataImportButton";
 import { SyncHistoryLog } from "@/components/SyncHistoryLog";
