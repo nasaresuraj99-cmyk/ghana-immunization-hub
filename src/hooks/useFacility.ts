@@ -12,6 +12,7 @@ import {
 import { supabase } from '@/integrations/supabase/client';
 import { isUuid } from '@/lib/validation';
 import { Facility, AppRole, FacilityUser } from '@/types/facility';
+import { useRolesSync } from '@/hooks/useRolesSync';
 
 const FACILITY_LOCAL_KEY = 'immunization_current_facility';
 
@@ -20,6 +21,7 @@ export function useFacility(userId?: string, userFacilityId?: string) {
   const [facilityUsers, setFacilityUsers] = useState<FacilityUser[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const { syncUserRole, syncUserProfile, removeUserRole } = useRolesSync();
 
   // Load facility data
   useEffect(() => {
@@ -296,11 +298,18 @@ export function useFacility(userId?: string, userFacilityId?: string) {
 
   const updateUserRole = useCallback(async (targetUserId: string, newRole: AppRole) => {
     try {
+      // Update in Firebase
       const profileRef = doc(db, 'userProfiles', targetUserId);
       await setDoc(profileRef, {
         role: newRole,
         updatedAt: new Date().toISOString(),
       }, { merge: true });
+
+      // Sync to backend user_roles table
+      if (userFacilityId && isUuid(userFacilityId)) {
+        await syncUserRole(targetUserId, userFacilityId, newRole);
+        console.log(`Role synced to backend: ${targetUserId} -> ${newRole}`);
+      }
 
       // Update local state
       setFacilityUsers(prev => prev.map(u => 
@@ -310,10 +319,11 @@ export function useFacility(userId?: string, userFacilityId?: string) {
       console.error('Error updating user role:', err);
       throw new Error('Failed to update user role');
     }
-  }, []);
+  }, [userFacilityId, syncUserRole]);
 
   const removeUserFromFacility = useCallback(async (targetUserId: string) => {
     try {
+      // Update in Firebase
       const profileRef = doc(db, 'userProfiles', targetUserId);
       await setDoc(profileRef, {
         facilityId: null,
@@ -321,13 +331,19 @@ export function useFacility(userId?: string, userFacilityId?: string) {
         updatedAt: new Date().toISOString(),
       }, { merge: true });
 
+      // Remove role from backend
+      if (userFacilityId && isUuid(userFacilityId)) {
+        await removeUserRole(targetUserId, userFacilityId);
+        console.log(`Role removed from backend: ${targetUserId}`);
+      }
+
       // Update local state
       setFacilityUsers(prev => prev.filter(u => u.id !== targetUserId));
     } catch (err) {
       console.error('Error removing user from facility:', err);
       throw new Error('Failed to remove user from facility');
     }
-  }, []);
+  }, [userFacilityId, removeUserRole]);
 
   const refreshUsers = useCallback(async () => {
     if (!userFacilityId) return;
