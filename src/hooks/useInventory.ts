@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from './useAuth';
 import { toast } from 'sonner';
+import { isUuid } from '@/lib/validation';
 import type { VaccineInventory, InventoryTransaction, InventoryFormData, TransactionFormData } from '@/types/inventory';
 import type { WastageFormData } from '@/components/modals/VaccineWastageModal';
 
@@ -22,6 +23,7 @@ export function useInventory() {
   const { user } = useAuth();
   const facilityId = user?.facilityId;
   const userId = user?.uid;
+  const hasValidFacility = !!facilityId && isUuid(facilityId);
   
   const [inventory, setInventory] = useState<VaccineInventory[]>([]);
   const [transactions, setTransactions] = useState<InventoryTransaction[]>([]);
@@ -31,8 +33,7 @@ export function useInventory() {
 
   // Fetch inventory
   const fetchInventory = useCallback(async () => {
-    if (!facilityId) return;
-    
+    if (!facilityId || !isUuid(facilityId)) return;
     try {
       setLoading(true);
       const { data, error: fetchError } = await supabase
@@ -54,8 +55,7 @@ export function useInventory() {
 
   // Fetch transactions
   const fetchTransactions = useCallback(async (inventoryId?: string) => {
-    if (!facilityId) return;
-    
+    if (!facilityId || !isUuid(facilityId)) return;
     try {
       let query = supabase
         .from('inventory_transactions')
@@ -79,8 +79,7 @@ export function useInventory() {
 
   // Fetch wastage records
   const fetchWastageRecords = useCallback(async () => {
-    if (!facilityId) return;
-    
+    if (!facilityId || !isUuid(facilityId)) return;
     try {
       const { data, error: fetchError } = await supabase
         .from('vaccine_wastage')
@@ -106,8 +105,8 @@ export function useInventory() {
 
   // Add new inventory item
   const addInventoryItem = async (data: InventoryFormData): Promise<boolean> => {
-    if (!facilityId || !userId) {
-      toast.error('Please log in to add inventory');
+    if (!facilityId || !hasValidFacility || !userId) {
+      toast.error('Please complete facility setup (valid facility) and log in to add inventory');
       return false;
     }
 
@@ -158,8 +157,8 @@ export function useInventory() {
     inventoryId: string,
     transactionData: TransactionFormData
   ): Promise<boolean> => {
-    if (!facilityId || !userId) {
-      toast.error('Please log in to update inventory');
+    if (!facilityId || !hasValidFacility || !userId) {
+      toast.error('Please complete facility setup (valid facility) and log in to update inventory');
       return false;
     }
 
@@ -214,8 +213,8 @@ export function useInventory() {
     childId?: string,
     sessionId?: string
   ): Promise<{ success: boolean; batchNumber?: string; reason?: string }> => {
-    if (!facilityId || !userId) {
-      return { success: false, reason: 'not_authenticated' };
+    if (!facilityId || !hasValidFacility || !userId) {
+      return { success: false, reason: 'facility_not_set' };
     }
 
     try {
@@ -266,7 +265,7 @@ export function useInventory() {
 
   // Get inventory status for a specific vaccine (for debug panel)
   const getVaccineInventoryStatus = async (vaccineName: string) => {
-    if (!facilityId) return null;
+    if (!facilityId || !isUuid(facilityId)) return null;
 
     try {
       const { data, error } = await supabase.rpc('get_vaccine_inventory_status', {
@@ -289,8 +288,8 @@ export function useInventory() {
 
   // Delete inventory item (soft delete)
   const deleteInventoryItem = async (inventoryId: string): Promise<boolean> => {
-    if (!facilityId || !userId) {
-      toast.error('Please log in to delete inventory');
+    if (!facilityId || !hasValidFacility || !userId) {
+      toast.error('Please complete facility setup (valid facility) and log in to delete inventory');
       return false;
     }
 
@@ -379,8 +378,8 @@ export function useInventory() {
 
   // Record vaccine wastage with automatic inventory deduction
   const recordWastage = async (data: WastageFormData): Promise<boolean> => {
-    if (!facilityId || !userId) {
-      toast.error('Please log in to record wastage');
+    if (!facilityId || !hasValidFacility || !userId) {
+      toast.error('Please complete facility setup (valid facility) and log in to record wastage');
       return false;
     }
 
