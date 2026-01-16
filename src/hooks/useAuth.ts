@@ -1,8 +1,8 @@
 import { useState, useEffect, useCallback } from "react";
-import { 
-  loginWithEmail, 
-  signupWithEmail, 
-  logout as firebaseLogout, 
+import {
+  loginWithEmail,
+  signupWithEmail,
+  logout as firebaseLogout,
   resetPassword,
   onAuthChange,
   auth,
@@ -14,8 +14,9 @@ import {
   query,
   where,
   getDocs,
-  User
+  User,
 } from "@/lib/firebase";
+import { isUuid } from "@/lib/validation";
 import { AppRole } from "@/types/facility";
 
 export interface AuthUser {
@@ -55,8 +56,8 @@ export function useAuth() {
       if (profileSnap.exists()) {
         const profile = profileSnap.data() as UserProfile;
         
-        if (!profile.facilityId) {
-          // User exists but has no facility - needs onboarding
+        if (!profile.facilityId || !isUuid(profile.facilityId)) {
+          // User exists but has no valid facility - needs onboarding
           setNeedsOnboarding(true);
           return {
             uid: firebaseUser.uid,
@@ -214,7 +215,10 @@ export function useAuth() {
 
   const updateFacility = useCallback(async (facilityId: string, facilityName: string, role?: AppRole) => {
     if (!user) return;
-    
+    if (!isUuid(facilityId)) {
+      throw new Error("Invalid facility. Please complete facility setup again.");
+    }
+
     try {
       const profileRef = doc(db, 'userProfiles', user.uid);
       await setDoc(profileRef, {

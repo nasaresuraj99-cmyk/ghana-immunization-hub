@@ -100,6 +100,13 @@ export function isValidDateString(dateString: string): boolean {
 }
 
 /**
+ * Validates UUID (v4-compatible) format
+ */
+export function isUuid(value: string): boolean {
+  if (!value || typeof value !== 'string') return false;
+  return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(value);
+}
+/**
  * Check if date of birth is valid for EPI (0-59 months old)
  */
 export function isValidEPIDateOfBirth(dob: string): { valid: boolean; message: string; ageMonths?: number } {
