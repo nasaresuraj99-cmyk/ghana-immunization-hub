@@ -15,8 +15,7 @@ import {
   ArrowUpRight,
   ArrowDownRight,
   UserCheck,
-  UserX,
-  Database
+  UserX
 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -25,7 +24,6 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { ActivityLogViewer } from '@/components/ActivityLogViewer';
 import { UserManagementPanel } from '@/components/UserManagementPanel';
-import { LegacyMigrationTool } from '@/components/LegacyMigrationTool';
 import { AppRole, ActivityLog, FacilityUser } from '@/types/facility';
 import { cn } from '@/lib/utils';
 
@@ -243,7 +241,7 @@ export function AdminDashboard({
 
       {/* Tabs for Different Views */}
       <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4">
-        <TabsList className="grid grid-cols-5 gap-2 bg-muted/50 p-1">
+        <TabsList className="grid grid-cols-4 gap-2 bg-muted/50 p-1">
           <TabsTrigger value="overview" className="gap-2 data-[state=active]:gradient-ghs data-[state=active]:text-primary-foreground">
             <TrendingUp className="w-4 h-4" />
             <span className="hidden sm:inline">Overview</span>
@@ -259,10 +257,6 @@ export function AdminDashboard({
           <TabsTrigger value="activity" className="gap-2 data-[state=active]:gradient-ghs data-[state=active]:text-primary-foreground">
             <Activity className="w-4 h-4" />
             <span className="hidden sm:inline">Activity</span>
-          </TabsTrigger>
-          <TabsTrigger value="migration" className="gap-2 data-[state=active]:gradient-ghs data-[state=active]:text-primary-foreground">
-            <Database className="w-4 h-4" />
-            <span className="hidden sm:inline">Migration</span>
           </TabsTrigger>
         </TabsList>
 
@@ -457,11 +451,6 @@ export function AdminDashboard({
         {/* Activity Tab */}
         <TabsContent value="activity">
           <ActivityLogViewer facilityId={facilityId} />
-        </TabsContent>
-
-        {/* Migration Tab */}
-        <TabsContent value="migration">
-          <LegacyMigrationTool />
         </TabsContent>
       </Tabs>
     </div>

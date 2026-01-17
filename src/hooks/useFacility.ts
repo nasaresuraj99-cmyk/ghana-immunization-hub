@@ -1,18 +1,15 @@
 import { useState, useCallback, useEffect } from 'react';
-import {
-  db,
-  collection,
-  doc,
-  getDocs,
+import { 
+  db, 
+  collection, 
+  doc, 
+  getDocs, 
   getDoc,
-  setDoc,
-  query,
-  where,
+  setDoc, 
+  query, 
+  where 
 } from '@/lib/firebase';
-import { supabase } from '@/integrations/supabase/client';
-import { isUuid } from '@/lib/validation';
-import { Facility, AppRole, FacilityUser } from '@/types/facility';
-import { useRolesSync } from '@/hooks/useRolesSync';
+import { Facility, AppRole, FacilityUser, ROLE_PERMISSIONS } from '@/types/facility';
 
 const FACILITY_LOCAL_KEY = 'immunization_current_facility';
 
@@ -21,7 +18,6 @@ export function useFacility(userId?: string, userFacilityId?: string) {
   const [facilityUsers, setFacilityUsers] = useState<FacilityUser[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const { syncUserRole, syncUserProfile, removeUserRole } = useRolesSync();
 
   // Load facility data
   useEffect(() => {
@@ -33,11 +29,9 @@ export function useFacility(userId?: string, userFacilityId?: string) {
     const loadFacility = async () => {
       try {
         setIsLoading(true);
-
-        // 1) Try Firebase (fast path / offline cache)
         const facilityRef = doc(db, 'facilities', userFacilityId);
         const facilitySnap = await getDoc(facilityRef);
-
+        
         if (facilitySnap.exists()) {
           const data = facilitySnap.data();
           const facilityData: Facility = {
@@ -51,42 +45,16 @@ export function useFacility(userId?: string, userFacilityId?: string) {
           };
           setFacility(facilityData);
           localStorage.setItem(FACILITY_LOCAL_KEY, JSON.stringify(facilityData));
-          return;
-        }
-
-        // 2) Fallback: load from backend by UUID
-        if (isUuid(userFacilityId)) {
-          const { data, error: dbError } = await supabase
-            .from('facilities')
-            .select('*')
-            .eq('id', userFacilityId)
-            .maybeSingle();
-
-          if (dbError) throw dbError;
-
-          if (data) {
-            const facilityData: Facility = {
-              id: data.id,
-              name: data.name,
-              code: data.code,
-              address: data.address || '',
-              createdAt: data.created_at,
-              updatedAt: data.updated_at,
-              createdBy: undefined,
-            };
-            setFacility(facilityData);
-            localStorage.setItem(FACILITY_LOCAL_KEY, JSON.stringify(facilityData));
-            return;
+        } else {
+          // Try loading from cache
+          const cached = localStorage.getItem(FACILITY_LOCAL_KEY);
+          if (cached) {
+            setFacility(JSON.parse(cached));
           }
-        }
-
-        // 3) Last resort: try local cache
-        const cached = localStorage.getItem(FACILITY_LOCAL_KEY);
-        if (cached) {
-          setFacility(JSON.parse(cached));
         }
       } catch (err) {
         console.error('Error loading facility:', err);
+        // Try loading from cache
         const cached = localStorage.getItem(FACILITY_LOCAL_KEY);
         if (cached) {
           setFacility(JSON.parse(cached));
@@ -134,104 +102,40 @@ export function useFacility(userId?: string, userFacilityId?: string) {
   const createFacility = useCallback(async (name: string, code: string): Promise<string> => {
     if (!userId) throw new Error('User must be logged in');
 
-    const normalizedCode = code.toUpperCase().trim();
-    if (!normalizedCode) throw new Error('Facility code is required');
-
     try {
-      // Enforce unique code (best-effort)
-      const { data: existing, error: existingError } = await supabase
-        .from('facilities')
-        .select('id')
-        .eq('code', normalizedCode)
-        .maybeSingle();
-
-      if (existingError) throw existingError;
-      if (existing) {
-        throw new Error('A facility with this code already exists. Please choose a different code.');
-      }
-
-      // Create facility in backend (UUID)
-      const { data: created, error: createError } = await supabase
-        .from('facilities')
-        .insert({
-          name: name.trim(),
-          code: normalizedCode,
-          address: '',
-        })
-        .select('*')
-        .single();
-
-      if (createError) throw createError;
-
-      const facilityId = created.id as string;
+      const facilityId = `facility-${Date.now()}`;
       const newFacility: Facility = {
         id: facilityId,
-        name: created.name,
-        code: created.code,
-        address: created.address || '',
-        createdAt: created.created_at,
-        updatedAt: created.updated_at,
+        name,
+        code: code.toUpperCase(),
+        address: '',
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
         createdBy: userId,
       };
 
-      // Mirror in Firebase for offline + user management screens
       const facilityRef = doc(db, 'facilities', facilityId);
       await setDoc(facilityRef, newFacility);
-
+      
       setFacility(newFacility);
       localStorage.setItem(FACILITY_LOCAL_KEY, JSON.stringify(newFacility));
-
+      
       return facilityId;
-    } catch (err: any) {
+    } catch (err) {
       console.error('Error creating facility:', err);
-      throw new Error(err?.message || 'Failed to create facility');
+      throw new Error('Failed to create facility');
     }
   }, [userId]);
 
   const joinFacility = useCallback(async (facilityCode: string): Promise<{ facilityId: string; facilityName: string } | null> => {
     if (!userId) throw new Error('User must be logged in');
 
-    const normalizedCode = facilityCode.toUpperCase().trim();
-    if (!normalizedCode) return null;
-
     try {
-      // 1) Prefer backend source of truth
-      const { data: dbFacility, error: dbError } = await supabase
-        .from('facilities')
-        .select('*')
-        .eq('code', normalizedCode)
-        .maybeSingle();
-
-      if (dbError) throw dbError;
-
-      if (dbFacility) {
-        const facilityData: Facility = {
-          id: dbFacility.id,
-          name: dbFacility.name,
-          code: dbFacility.code,
-          address: dbFacility.address || '',
-          createdAt: dbFacility.created_at,
-          updatedAt: dbFacility.updated_at,
-          createdBy: undefined,
-        };
-
-        // Mirror to Firebase for offline + user management screens
-        await setDoc(doc(db, 'facilities', facilityData.id), {
-          ...facilityData,
-          createdBy: facilityData.createdBy ?? null,
-        } as any, { merge: true });
-
-        setFacility(facilityData);
-        localStorage.setItem(FACILITY_LOCAL_KEY, JSON.stringify(facilityData));
-
-        return { facilityId: facilityData.id, facilityName: facilityData.name };
-      }
-
-      // 2) Backward compatibility: legacy Firebase-only facilities
+      // Find facility by code
       const facilitiesRef = collection(db, 'facilities');
-      const facilityQuery = query(facilitiesRef, where('code', '==', normalizedCode));
+      const facilityQuery = query(facilitiesRef, where('code', '==', facilityCode.toUpperCase()));
       const snapshot = await getDocs(facilityQuery);
-
+      
       if (snapshot.empty) {
         setError('No facility found with this code');
         return null;
@@ -239,41 +143,8 @@ export function useFacility(userId?: string, userFacilityId?: string) {
 
       const facilityDoc = snapshot.docs[0];
       const data = facilityDoc.data();
-
-      // If legacy ID is not a UUID, migrate it by creating a backend facility
-      const legacyId = facilityDoc.id;
-      if (!isUuid(legacyId)) {
-        const { data: migrated, error: migrateError } = await supabase
-          .from('facilities')
-          .insert({
-            name: (data.name || '').toString().trim(),
-            code: normalizedCode,
-            address: (data.address || '').toString(),
-          })
-          .select('*')
-          .single();
-
-        if (migrateError) throw migrateError;
-
-        const migratedFacility: Facility = {
-          id: migrated.id,
-          name: migrated.name,
-          code: migrated.code,
-          address: migrated.address || '',
-          createdAt: migrated.created_at,
-          updatedAt: migrated.updated_at,
-          createdBy: data.createdBy,
-        };
-
-        await setDoc(doc(db, 'facilities', migratedFacility.id), migratedFacility, { merge: true });
-        setFacility(migratedFacility);
-        localStorage.setItem(FACILITY_LOCAL_KEY, JSON.stringify(migratedFacility));
-
-        return { facilityId: migratedFacility.id, facilityName: migratedFacility.name };
-      }
-
       const facilityData: Facility = {
-        id: legacyId,
+        id: facilityDoc.id,
         name: data.name,
         code: data.code,
         address: data.address,
@@ -281,35 +152,28 @@ export function useFacility(userId?: string, userFacilityId?: string) {
         updatedAt: data.updatedAt,
         createdBy: data.createdBy,
       };
-
+      
       setFacility(facilityData);
       localStorage.setItem(FACILITY_LOCAL_KEY, JSON.stringify(facilityData));
-
+      
       return {
         facilityId: facilityDoc.id,
         facilityName: data.name,
       };
-    } catch (err: any) {
+    } catch (err) {
       console.error('Error joining facility:', err);
-      setError(err?.message || 'Failed to join facility');
+      setError('Failed to join facility');
       return null;
     }
   }, [userId]);
 
   const updateUserRole = useCallback(async (targetUserId: string, newRole: AppRole) => {
     try {
-      // Update in Firebase
       const profileRef = doc(db, 'userProfiles', targetUserId);
       await setDoc(profileRef, {
         role: newRole,
         updatedAt: new Date().toISOString(),
       }, { merge: true });
-
-      // Sync to backend user_roles table
-      if (userFacilityId && isUuid(userFacilityId)) {
-        await syncUserRole(targetUserId, userFacilityId, newRole);
-        console.log(`Role synced to backend: ${targetUserId} -> ${newRole}`);
-      }
 
       // Update local state
       setFacilityUsers(prev => prev.map(u => 
@@ -319,11 +183,10 @@ export function useFacility(userId?: string, userFacilityId?: string) {
       console.error('Error updating user role:', err);
       throw new Error('Failed to update user role');
     }
-  }, [userFacilityId, syncUserRole]);
+  }, []);
 
   const removeUserFromFacility = useCallback(async (targetUserId: string) => {
     try {
-      // Update in Firebase
       const profileRef = doc(db, 'userProfiles', targetUserId);
       await setDoc(profileRef, {
         facilityId: null,
@@ -331,19 +194,13 @@ export function useFacility(userId?: string, userFacilityId?: string) {
         updatedAt: new Date().toISOString(),
       }, { merge: true });
 
-      // Remove role from backend
-      if (userFacilityId && isUuid(userFacilityId)) {
-        await removeUserRole(targetUserId, userFacilityId);
-        console.log(`Role removed from backend: ${targetUserId}`);
-      }
-
       // Update local state
       setFacilityUsers(prev => prev.filter(u => u.id !== targetUserId));
     } catch (err) {
       console.error('Error removing user from facility:', err);
       throw new Error('Failed to remove user from facility');
     }
-  }, [userFacilityId, removeUserRole]);
+  }, []);
 
   const refreshUsers = useCallback(async () => {
     if (!userFacilityId) return;

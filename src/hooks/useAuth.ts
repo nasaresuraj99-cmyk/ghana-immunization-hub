@@ -1,8 +1,8 @@
 import { useState, useEffect, useCallback } from "react";
-import {
-  loginWithEmail,
-  signupWithEmail,
-  logout as firebaseLogout,
+import { 
+  loginWithEmail, 
+  signupWithEmail, 
+  logout as firebaseLogout, 
   resetPassword,
   onAuthChange,
   auth,
@@ -10,10 +10,12 @@ import {
   doc,
   getDoc,
   setDoc,
-  User,
+  collection,
+  query,
+  where,
+  getDocs,
+  User
 } from "@/lib/firebase";
-import { supabase } from "@/integrations/supabase/client";
-import { isUuid } from "@/lib/validation";
 import { AppRole } from "@/types/facility";
 
 export interface AuthUser {
@@ -37,7 +39,7 @@ interface UserProfile {
   updatedAt: string;
 }
 
-
+const ONBOARDING_KEY = 'facility_onboarding_required';
 
 export function useAuth() {
   const [user, setUser] = useState<AuthUser | null>(null);
@@ -53,8 +55,8 @@ export function useAuth() {
       if (profileSnap.exists()) {
         const profile = profileSnap.data() as UserProfile;
         
-        if (!profile.facilityId || !isUuid(profile.facilityId)) {
-          // User exists but has no valid facility - needs onboarding
+        if (!profile.facilityId) {
+          // User exists but has no facility - needs onboarding
           setNeedsOnboarding(true);
           return {
             uid: firebaseUser.uid,
@@ -212,69 +214,21 @@ export function useAuth() {
 
   const updateFacility = useCallback(async (facilityId: string, facilityName: string, role?: AppRole) => {
     if (!user) return;
-    if (!isUuid(facilityId)) {
-      throw new Error("Invalid facility. Please complete facility setup again.");
-    }
-
-    const finalRole = role || user.role;
-
+    
     try {
-      // Update Firebase profile
       const profileRef = doc(db, 'userProfiles', user.uid);
       await setDoc(profileRef, {
         facilityId,
         facilityName,
-        role: finalRole,
+        role: role || user.role,
         updatedAt: new Date().toISOString(),
       }, { merge: true });
-
-      // Sync profile to backend
-      const { data: existingProfile } = await supabase
-        .from('profiles')
-        .select('id')
-        .eq('user_id', user.uid)
-        .maybeSingle();
-
-      const profileData = {
-        user_id: user.uid,
-        display_name: user.name,
-        email: user.email,
-        facility_id: facilityId,
-      };
-
-      if (existingProfile) {
-        await supabase.from('profiles').update(profileData).eq('id', existingProfile.id);
-      } else {
-        await supabase.from('profiles').insert(profileData);
-      }
-
-      // Sync role to backend user_roles table
-      const { data: existingRole } = await supabase
-        .from('user_roles')
-        .select('id, role')
-        .eq('user_id', user.uid)
-        .eq('facility_id', facilityId)
-        .maybeSingle();
-
-      if (existingRole) {
-        if (existingRole.role !== finalRole) {
-          await supabase.from('user_roles').update({ role: finalRole }).eq('id', existingRole.id);
-        }
-      } else {
-        await supabase.from('user_roles').insert({
-          user_id: user.uid,
-          facility_id: facilityId,
-          role: finalRole,
-        });
-      }
-
-      console.log('User profile and role synced to backend');
       
       setUser(prev => prev ? { 
         ...prev, 
         facilityId, 
         facility: facilityName,
-        role: finalRole
+        role: role || prev.role
       } : null);
       setNeedsOnboarding(false);
     } catch (error) {
