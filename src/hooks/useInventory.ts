@@ -106,48 +106,91 @@ export function useInventory() {
 
   // Add new inventory item
   const addInventoryItem = async (data: InventoryFormData): Promise<boolean> => {
-    if (!facilityId || !userId) {
+    // Validate user and facility
+    if (!userId) {
       toast.error('Please log in to add inventory');
+      return false;
+    }
+    
+    if (!facilityId || facilityId.trim() === '') {
+      toast.error('Please complete facility onboarding first');
+      return false;
+    }
+
+    // Validate required fields
+    if (!data.vaccine_name?.trim()) {
+      toast.error('Vaccine name is required');
+      return false;
+    }
+    if (!data.batch_number?.trim()) {
+      toast.error('Batch number is required');
+      return false;
+    }
+    if (!data.quantity || data.quantity <= 0) {
+      toast.error('Quantity must be greater than 0');
+      return false;
+    }
+    if (!data.expiry_date) {
+      toast.error('Expiry date is required');
       return false;
     }
 
     try {
+      console.log('Adding inventory item:', { 
+        facility_id: facilityId, 
+        user_id: userId,
+        vaccine_name: data.vaccine_name,
+        batch_number: data.batch_number,
+        quantity: data.quantity
+      });
+
       const { data: newItem, error: insertError } = await supabase
         .from('vaccine_inventory')
         .insert({
           facility_id: facilityId,
-          vaccine_name: data.vaccine_name,
-          batch_number: data.batch_number,
+          vaccine_name: data.vaccine_name.trim(),
+          batch_number: data.batch_number.trim(),
           quantity: data.quantity,
           initial_quantity: data.quantity,
           expiry_date: data.expiry_date,
           received_date: data.received_date || new Date().toISOString().split('T')[0],
-          supplier: data.supplier || null,
-          storage_location: data.storage_location || null,
+          supplier: data.supplier?.trim() || null,
+          storage_location: data.storage_location?.trim() || null,
           temperature_requirement: data.temperature_requirement || '2-8°C',
-          notes: data.notes || null,
+          notes: data.notes?.trim() || null,
           created_by_user_id: userId
         })
         .select()
         .single();
 
-      if (insertError) throw insertError;
+      if (insertError) {
+        console.error('Insert error:', insertError);
+        throw insertError;
+      }
+
+      console.log('Inventory item added successfully:', newItem);
 
       // Log the transaction
-      await supabase.from('inventory_transactions').insert({
+      const { error: transactionError } = await supabase.from('inventory_transactions').insert({
         facility_id: facilityId,
         inventory_id: newItem.id,
         transaction_type: 'received',
         quantity: data.quantity,
-        reason: `Initial stock received from ${data.supplier || 'supplier'}`,
+        reason: `Initial stock received from ${data.supplier?.trim() || 'supplier'}`,
         performed_by_user_id: userId
       });
+
+      if (transactionError) {
+        console.error('Transaction log error:', transactionError);
+        // Don't throw here - inventory was added successfully
+      }
 
       toast.success('Inventory item added successfully');
       await fetchInventory();
       await fetchTransactions();
       return true;
     } catch (err: any) {
+      console.error('Failed to add inventory:', err);
       toast.error(`Failed to add inventory: ${err.message}`);
       return false;
     }
@@ -158,8 +201,18 @@ export function useInventory() {
     inventoryId: string,
     transactionData: TransactionFormData
   ): Promise<boolean> => {
-    if (!facilityId || !userId) {
+    if (!userId) {
       toast.error('Please log in to update inventory');
+      return false;
+    }
+    
+    if (!facilityId || facilityId.trim() === '') {
+      toast.error('Please complete facility onboarding first');
+      return false;
+    }
+
+    if (!inventoryId) {
+      toast.error('Invalid inventory item');
       return false;
     }
 
@@ -188,7 +241,7 @@ export function useInventory() {
       if (updateError) throw updateError;
 
       // Log the transaction
-      await supabase.from('inventory_transactions').insert({
+      const { error: transactionError } = await supabase.from('inventory_transactions').insert({
         facility_id: facilityId,
         inventory_id: inventoryId,
         transaction_type: transactionData.transaction_type,
@@ -197,11 +250,16 @@ export function useInventory() {
         performed_by_user_id: userId
       });
 
+      if (transactionError) {
+        console.error('Transaction log error:', transactionError);
+      }
+
       toast.success('Inventory updated successfully');
       await fetchInventory();
       await fetchTransactions();
       return true;
     } catch (err: any) {
+      console.error('Failed to update inventory:', err);
       toast.error(`Failed to update inventory: ${err.message}`);
       return false;
     }
