@@ -170,12 +170,15 @@ export function useInventory() {
 
       console.log('Inventory item added successfully:', newItem);
 
-      // Log the transaction
+      // Log the transaction with full audit details
       const { error: transactionError } = await supabase.from('inventory_transactions').insert({
         facility_id: facilityId,
         inventory_id: newItem.id,
         transaction_type: 'received',
         quantity: data.quantity,
+        old_quantity: 0,
+        new_quantity: data.quantity,
+        batch_number: data.batch_number.trim(),
         reason: `Initial stock received from ${data.supplier?.trim() || 'supplier'}`,
         performed_by_user_id: userId
       });
@@ -240,12 +243,15 @@ export function useInventory() {
 
       if (updateError) throw updateError;
 
-      // Log the transaction
+      // Log the transaction with full audit details
       const { error: transactionError } = await supabase.from('inventory_transactions').insert({
         facility_id: facilityId,
         inventory_id: inventoryId,
         transaction_type: transactionData.transaction_type,
         quantity: transactionData.quantity,
+        old_quantity: item.quantity,
+        new_quantity: newQuantity,
+        batch_number: item.batch_number,
         reason: transactionData.reason || null,
         performed_by_user_id: userId
       });

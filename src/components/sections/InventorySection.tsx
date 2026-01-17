@@ -27,11 +27,15 @@ import {
   Thermometer,
   MapPin,
   RefreshCw,
-  AlertCircle
+  AlertCircle,
+  History,
+  Upload
 } from 'lucide-react';
 import { useInventory } from '@/hooks/useInventory';
 import { GHANA_EPI_VACCINES, type InventoryFormData, type VaccineInventory } from '@/types/inventory';
 import { VaccineWastageModal, type WastageFormData } from '@/components/modals/VaccineWastageModal';
+import { InventoryCsvImport } from '@/components/InventoryCsvImport';
+import { InventoryAuditLog } from '@/components/InventoryAuditLog';
 import { format, differenceInDays, isAfter, isBefore, parseISO } from 'date-fns';
 import { toast } from 'sonner';
 
@@ -232,6 +236,8 @@ export function InventorySection() {
             <Download className="h-4 w-4 mr-2" />
             Export
           </Button>
+          <InventoryCsvImport onImport={addInventoryItem} onRefresh={refetch} />
+          <InventoryAuditLog transactions={transactions} inventory={inventory} />
           <Button variant="outline" className="text-destructive border-destructive/50 hover:bg-destructive/10" onClick={() => setShowWastageModal(true)}>
             <Trash2 className="h-4 w-4 mr-2" />
             Record Wastage
