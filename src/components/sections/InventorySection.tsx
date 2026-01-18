@@ -713,24 +713,24 @@ export function InventorySection() {
             </Card>
             <Card>
               <CardHeader className="pb-2">
-                <CardTitle className="text-sm font-medium text-muted-foreground">Cold Chain</CardTitle>
+                <CardTitle className="text-sm font-medium text-muted-foreground">Damaged</CardTitle>
               </CardHeader>
               <CardContent>
                 <div className="text-2xl font-bold text-blue-600">
-                  {Object.values(wastageSummary).reduce((sum, data) => sum + data.cold_chain_failure, 0)}
+                  {Object.values(wastageSummary).reduce((sum, data) => sum + data.damaged, 0)}
                 </div>
-                <p className="text-xs text-muted-foreground">Cold chain failures</p>
+                <p className="text-xs text-muted-foreground">Damaged doses</p>
               </CardContent>
             </Card>
             <Card>
               <CardHeader className="pb-2">
-                <CardTitle className="text-sm font-medium text-muted-foreground">Broken/Other</CardTitle>
+                <CardTitle className="text-sm font-medium text-muted-foreground">Other</CardTitle>
               </CardHeader>
               <CardContent>
                 <div className="text-2xl font-bold text-gray-600">
-                  {Object.values(wastageSummary).reduce((sum, data) => sum + data.broken_vial + data.other, 0)}
+                  {Object.values(wastageSummary).reduce((sum, data) => sum + data.other, 0)}
                 </div>
-                <p className="text-xs text-muted-foreground">Physical damage & other</p>
+                <p className="text-xs text-muted-foreground">Other reasons</p>
               </CardContent>
             </Card>
           </div>
@@ -760,26 +760,21 @@ export function InventorySection() {
                           <span className="font-medium">{vaccine}</span>
                           <Badge variant="destructive">{data.total} doses</Badge>
                         </div>
-                        <div className="grid grid-cols-2 md:grid-cols-5 gap-2 text-sm">
+                        <div className="grid grid-cols-2 md:grid-cols-4 gap-2 text-sm">
                           <div className="flex items-center gap-1">
                             <div className="w-2 h-2 rounded-full bg-orange-500" />
                             <span className="text-muted-foreground">Expired:</span>
                             <span>{data.expired}</span>
                           </div>
                           <div className="flex items-center gap-1">
-                            <div className="w-2 h-2 rounded-full bg-red-500" />
-                            <span className="text-muted-foreground">Broken:</span>
-                            <span>{data.broken_vial}</span>
-                          </div>
-                          <div className="flex items-center gap-1">
-                            <div className="w-2 h-2 rounded-full bg-blue-500" />
-                            <span className="text-muted-foreground">Cold Chain:</span>
-                            <span>{data.cold_chain_failure}</span>
-                          </div>
-                          <div className="flex items-center gap-1">
                             <div className="w-2 h-2 rounded-full bg-yellow-500" />
-                            <span className="text-muted-foreground">Open Vial:</span>
-                            <span>{data.open_vial_policy}</span>
+                            <span className="text-muted-foreground">Opened:</span>
+                            <span>{data.opened}</span>
+                          </div>
+                          <div className="flex items-center gap-1">
+                            <div className="w-2 h-2 rounded-full bg-red-500" />
+                            <span className="text-muted-foreground">Damaged:</span>
+                            <span>{data.damaged}</span>
                           </div>
                           <div className="flex items-center gap-1">
                             <div className="w-2 h-2 rounded-full bg-gray-500" />
