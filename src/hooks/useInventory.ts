@@ -18,9 +18,89 @@ export interface VaccineWastageRecord {
   created_at: string;
 }
 
+// Helper to ensure facility exists in Supabase
+async function ensureFacilityExists(facilityId: string, facilityName: string): Promise<string | null> {
+  if (!facilityId || facilityId.trim() === '') {
+    console.error('No facility ID provided');
+    return null;
+  }
+
+  try {
+    // Check if facility exists
+    const { data: existing, error: checkError } = await supabase
+      .from('facilities')
+      .select('id')
+      .eq('id', facilityId)
+      .maybeSingle();
+
+    if (checkError) {
+      console.error('Error checking facility:', checkError);
+      // If error is about invalid UUID format, we need to create with a proper UUID
+      if (checkError.message?.includes('invalid input syntax for type uuid')) {
+        // Generate a proper UUID for this facility
+        const newFacilityId = crypto.randomUUID();
+        const { data: newFacility, error: insertError } = await supabase
+          .from('facilities')
+          .insert({
+            id: newFacilityId,
+            name: facilityName || 'Health Facility',
+            code: facilityId.substring(0, 10).toUpperCase(), // Use original ID as code
+          })
+          .select('id')
+          .single();
+
+        if (insertError) {
+          console.error('Error creating facility with new UUID:', insertError);
+          return null;
+        }
+        
+        console.log('Created new facility with UUID:', newFacilityId);
+        return newFacilityId;
+      }
+      return null;
+    }
+
+    if (existing) {
+      return existing.id;
+    }
+
+    // Facility doesn't exist - check if facilityId is valid UUID format
+    const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+    let finalFacilityId = facilityId;
+
+    if (!uuidRegex.test(facilityId)) {
+      // Generate a proper UUID
+      finalFacilityId = crypto.randomUUID();
+    }
+
+    // Create the facility
+    const { data: newFacility, error: insertError } = await supabase
+      .from('facilities')
+      .insert({
+        id: finalFacilityId,
+        name: facilityName || 'Health Facility',
+        code: facilityId.substring(0, 10).toUpperCase(),
+      })
+      .select('id')
+      .single();
+
+    if (insertError) {
+      console.error('Error creating facility:', insertError);
+      return null;
+    }
+
+    console.log('Created facility:', newFacility.id);
+    return newFacility.id;
+  } catch (err) {
+    console.error('Error in ensureFacilityExists:', err);
+    return null;
+  }
+}
+
 export function useInventory() {
   const { user } = useAuth();
   const facilityId = user?.facilityId;
+  const facilityName = user?.facility;
   const userId = user?.uid;
   
   const [inventory, setInventory] = useState<VaccineInventory[]>([]);
@@ -28,21 +108,41 @@ export function useInventory() {
   const [wastageRecords, setWastageRecords] = useState<VaccineWastageRecord[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [supabaseFacilityId, setSupabaseFacilityId] = useState<string | null>(null);
+
+  // Initialize facility in Supabase
+  useEffect(() => {
+    if (facilityId && facilityName) {
+      ensureFacilityExists(facilityId, facilityName).then(id => {
+        if (id) {
+          setSupabaseFacilityId(id);
+        }
+      });
+    }
+  }, [facilityId, facilityName]);
 
   // Fetch inventory
   const fetchInventory = useCallback(async () => {
-    if (!facilityId) return;
+    const effectiveFacilityId = supabaseFacilityId || facilityId;
+    if (!effectiveFacilityId) return;
     
     try {
       setLoading(true);
       const { data, error: fetchError } = await supabase
         .from('vaccine_inventory')
         .select('*')
-        .eq('facility_id', facilityId)
+        .eq('facility_id', effectiveFacilityId)
         .eq('is_active', true)
         .order('expiry_date', { ascending: true });
 
-      if (fetchError) throw fetchError;
+      if (fetchError) {
+        // If UUID format error, inventory table might be empty for this facility
+        if (fetchError.message?.includes('invalid input syntax for type uuid')) {
+          setInventory([]);
+          return;
+        }
+        throw fetchError;
+      }
       setInventory((data as VaccineInventory[]) || []);
     } catch (err: any) {
       setError(err.message);
@@ -50,17 +150,18 @@ export function useInventory() {
     } finally {
       setLoading(false);
     }
-  }, [facilityId]);
+  }, [supabaseFacilityId, facilityId]);
 
   // Fetch transactions
   const fetchTransactions = useCallback(async (inventoryId?: string) => {
-    if (!facilityId) return;
+    const effectiveFacilityId = supabaseFacilityId || facilityId;
+    if (!effectiveFacilityId) return;
     
     try {
       let query = supabase
         .from('inventory_transactions')
         .select('*')
-        .eq('facility_id', facilityId)
+        .eq('facility_id', effectiveFacilityId)
         .order('created_at', { ascending: false })
         .limit(100);
 
@@ -70,50 +171,72 @@ export function useInventory() {
 
       const { data, error: fetchError } = await query;
 
-      if (fetchError) throw fetchError;
+      if (fetchError) {
+        if (fetchError.message?.includes('invalid input syntax for type uuid')) {
+          setTransactions([]);
+          return;
+        }
+        throw fetchError;
+      }
       setTransactions((data as InventoryTransaction[]) || []);
     } catch (err: any) {
       console.error('Error fetching transactions:', err);
     }
-  }, [facilityId]);
+  }, [supabaseFacilityId, facilityId]);
 
   // Fetch wastage records
   const fetchWastageRecords = useCallback(async () => {
-    if (!facilityId) return;
+    const effectiveFacilityId = supabaseFacilityId || facilityId;
+    if (!effectiveFacilityId) return;
     
     try {
       const { data, error: fetchError } = await supabase
         .from('vaccine_wastage')
         .select('*')
-        .eq('facility_id', facilityId)
+        .eq('facility_id', effectiveFacilityId)
         .order('created_at', { ascending: false })
         .limit(100);
 
-      if (fetchError) throw fetchError;
+      if (fetchError) {
+        if (fetchError.message?.includes('invalid input syntax for type uuid')) {
+          setWastageRecords([]);
+          return;
+        }
+        throw fetchError;
+      }
       setWastageRecords((data as VaccineWastageRecord[]) || []);
     } catch (err: any) {
       console.error('Error fetching wastage records:', err);
     }
-  }, [facilityId]);
+  }, [supabaseFacilityId, facilityId]);
 
   useEffect(() => {
-    if (facilityId) {
+    if (supabaseFacilityId || facilityId) {
       fetchInventory();
       fetchTransactions();
       fetchWastageRecords();
     }
-  }, [facilityId, fetchInventory, fetchTransactions, fetchWastageRecords]);
+  }, [supabaseFacilityId, facilityId, fetchInventory, fetchTransactions, fetchWastageRecords]);
 
   // Add new inventory item
   const addInventoryItem = async (data: InventoryFormData): Promise<boolean> => {
-    // Validate user and facility
+    // Validate user
     if (!userId) {
       toast.error('Please log in to add inventory');
       return false;
     }
     
-    if (!facilityId || facilityId.trim() === '') {
-      toast.error('Please complete facility onboarding first');
+    // Get or create facility ID
+    let effectiveFacilityId = supabaseFacilityId;
+    if (!effectiveFacilityId && facilityId && facilityName) {
+      effectiveFacilityId = await ensureFacilityExists(facilityId, facilityName);
+      if (effectiveFacilityId) {
+        setSupabaseFacilityId(effectiveFacilityId);
+      }
+    }
+
+    if (!effectiveFacilityId) {
+      toast.error('Please complete facility onboarding first. Go to Settings or logout and login again.');
       return false;
     }
 
@@ -137,7 +260,7 @@ export function useInventory() {
 
     try {
       console.log('Adding inventory item:', { 
-        facility_id: facilityId, 
+        facility_id: effectiveFacilityId, 
         user_id: userId,
         vaccine_name: data.vaccine_name,
         batch_number: data.batch_number,
@@ -147,7 +270,7 @@ export function useInventory() {
       const { data: newItem, error: insertError } = await supabase
         .from('vaccine_inventory')
         .insert({
-          facility_id: facilityId,
+          facility_id: effectiveFacilityId,
           vaccine_name: data.vaccine_name.trim(),
           batch_number: data.batch_number.trim(),
           quantity: data.quantity,
@@ -172,7 +295,7 @@ export function useInventory() {
 
       // Log the transaction with full audit details
       const { error: transactionError } = await supabase.from('inventory_transactions').insert({
-        facility_id: facilityId,
+        facility_id: effectiveFacilityId,
         inventory_id: newItem.id,
         transaction_type: 'received',
         quantity: data.quantity,
@@ -209,7 +332,8 @@ export function useInventory() {
       return false;
     }
     
-    if (!facilityId || facilityId.trim() === '') {
+    const effectiveFacilityId = supabaseFacilityId || facilityId;
+    if (!effectiveFacilityId) {
       toast.error('Please complete facility onboarding first');
       return false;
     }
@@ -245,7 +369,7 @@ export function useInventory() {
 
       // Log the transaction with full audit details
       const { error: transactionError } = await supabase.from('inventory_transactions').insert({
-        facility_id: facilityId,
+        facility_id: effectiveFacilityId,
         inventory_id: inventoryId,
         transaction_type: transactionData.transaction_type,
         quantity: transactionData.quantity,
@@ -278,14 +402,15 @@ export function useInventory() {
     childId?: string,
     sessionId?: string
   ): Promise<{ success: boolean; batchNumber?: string; reason?: string }> => {
-    if (!facilityId || !userId) {
+    const effectiveFacilityId = supabaseFacilityId || facilityId;
+    if (!effectiveFacilityId || !userId) {
       return { success: false, reason: 'not_authenticated' };
     }
 
     try {
       // Call the atomic FEFO deduction function
       const { data, error } = await supabase.rpc('deduct_vaccine_fefo', {
-        p_facility_id: facilityId,
+        p_facility_id: effectiveFacilityId,
         p_vaccine_name: vaccineName,
         p_quantity: quantity,
         p_child_id: childId || null,
@@ -330,11 +455,12 @@ export function useInventory() {
 
   // Get inventory status for a specific vaccine (for debug panel)
   const getVaccineInventoryStatus = async (vaccineName: string) => {
-    if (!facilityId) return null;
+    const effectiveFacilityId = supabaseFacilityId || facilityId;
+    if (!effectiveFacilityId) return null;
 
     try {
       const { data, error } = await supabase.rpc('get_vaccine_inventory_status', {
-        p_facility_id: facilityId,
+        p_facility_id: effectiveFacilityId,
         p_vaccine_name: vaccineName
       });
 
@@ -353,7 +479,8 @@ export function useInventory() {
 
   // Delete inventory item (soft delete)
   const deleteInventoryItem = async (inventoryId: string): Promise<boolean> => {
-    if (!facilityId || !userId) {
+    const effectiveFacilityId = supabaseFacilityId || facilityId;
+    if (!effectiveFacilityId || !userId) {
       toast.error('Please log in to delete inventory');
       return false;
     }
@@ -443,7 +570,8 @@ export function useInventory() {
 
   // Record vaccine wastage with automatic inventory deduction
   const recordWastage = async (data: WastageFormData): Promise<boolean> => {
-    if (!facilityId || !userId) {
+    const effectiveFacilityId = supabaseFacilityId || facilityId;
+    if (!effectiveFacilityId || !userId) {
       toast.error('Please log in to record wastage');
       return false;
     }
@@ -482,7 +610,7 @@ export function useInventory() {
       const { error: wastageError } = await supabase
         .from('vaccine_wastage')
         .insert({
-          facility_id: facilityId,
+          facility_id: effectiveFacilityId,
           inventory_id: data.inventory_id,
           quantity: data.quantity,
           wastage_type: data.wastage_type,
@@ -495,23 +623,24 @@ export function useInventory() {
 
       // Log the transaction
       await supabase.from('inventory_transactions').insert({
-        facility_id: facilityId,
+        facility_id: effectiveFacilityId,
         inventory_id: data.inventory_id,
         transaction_type: 'wasted',
         quantity: data.quantity,
         old_quantity: item.quantity,
         new_quantity: newQuantity,
         batch_number: item.batch_number,
-        reason: `${data.wastage_type}: ${data.reason}`,
+        reason: `${data.wastage_type}: ${data.reason}${data.notes ? ` - ${data.notes}` : ''}`,
         performed_by_user_id: userId
       });
 
-      toast.success(`Recorded ${data.quantity} dose(s) wastage for ${item.vaccine_name}`);
+      toast.success('Wastage recorded successfully');
       await fetchInventory();
-      await fetchTransactions();
       await fetchWastageRecords();
+      await fetchTransactions();
       return true;
     } catch (err: any) {
+      console.error('Failed to record wastage:', err);
       toast.error(`Failed to record wastage: ${err.message}`);
       return false;
     }
@@ -519,52 +648,106 @@ export function useInventory() {
 
   // Get wastage summary
   const getWastageSummary = useCallback(() => {
-    const summary: Record<string, { 
-      total: number; 
-      expired: number; 
-      broken_vial: number; 
-      cold_chain_failure: number; 
-      open_vial_policy: number;
-      other: number;
-    }> = {};
-
+    const summary: Record<string, { total: number; opened: number; expired: number; damaged: number; other: number }> = {};
+    
     wastageRecords.forEach(record => {
-      const inventoryItem = inventory.find(i => i.id === record.inventory_id);
-      const vaccineName = inventoryItem?.vaccine_name || 'Unknown';
-
+      const item = inventory.find(i => i.id === record.inventory_id);
+      const vaccineName = item?.vaccine_name || 'Unknown';
+      
       if (!summary[vaccineName]) {
-        summary[vaccineName] = { 
-          total: 0, 
-          expired: 0, 
-          broken_vial: 0, 
-          cold_chain_failure: 0, 
-          open_vial_policy: 0,
-          other: 0 
-        };
+        summary[vaccineName] = { total: 0, opened: 0, expired: 0, damaged: 0, other: 0 };
       }
-
+      
       summary[vaccineName].total += record.quantity;
       
       switch (record.wastage_type) {
+        case 'opened':
+          summary[vaccineName].opened += record.quantity;
+          break;
         case 'expired':
           summary[vaccineName].expired += record.quantity;
           break;
-        case 'broken_vial':
-          summary[vaccineName].broken_vial += record.quantity;
-          break;
-        case 'cold_chain_failure':
-          summary[vaccineName].cold_chain_failure += record.quantity;
-          break;
-        case 'open_vial_policy':
-          summary[vaccineName].open_vial_policy += record.quantity;
+        case 'damaged':
+          summary[vaccineName].damaged += record.quantity;
           break;
         default:
           summary[vaccineName].other += record.quantity;
       }
     });
-
+    
     return summary;
   }, [wastageRecords, inventory]);
+
+  // Reconcile stock - compare physical count with system and adjust
+  const reconcileStock = async (
+    inventoryId: string, 
+    physicalCount: number, 
+    reason: string
+  ): Promise<boolean> => {
+    const effectiveFacilityId = supabaseFacilityId || facilityId;
+    if (!effectiveFacilityId || !userId) {
+      toast.error('Please log in to reconcile stock');
+      return false;
+    }
+
+    try {
+      const item = inventory.find(i => i.id === inventoryId);
+      if (!item) {
+        toast.error('Inventory item not found');
+        return false;
+      }
+
+      if (physicalCount < 0) {
+        toast.error('Physical count cannot be negative');
+        return false;
+      }
+
+      const difference = physicalCount - item.quantity;
+      if (difference === 0) {
+        toast.info('Stock count matches system records');
+        return true;
+      }
+
+      // Update inventory to physical count
+      const { error: updateError } = await supabase
+        .from('vaccine_inventory')
+        .update({ quantity: physicalCount })
+        .eq('id', inventoryId);
+
+      if (updateError) throw updateError;
+
+      // Log the adjustment transaction
+      const { error: transactionError } = await supabase.from('inventory_transactions').insert({
+        facility_id: effectiveFacilityId,
+        inventory_id: inventoryId,
+        transaction_type: 'adjusted',
+        quantity: Math.abs(difference),
+        old_quantity: item.quantity,
+        new_quantity: physicalCount,
+        batch_number: item.batch_number,
+        reason: `Stock reconciliation: ${reason}. ${difference > 0 ? 'Added' : 'Removed'} ${Math.abs(difference)} doses.`,
+        performed_by_user_id: userId
+      });
+
+      if (transactionError) {
+        console.error('Transaction log error:', transactionError);
+      }
+
+      toast.success(`Stock reconciled: ${difference > 0 ? '+' : ''}${difference} doses adjusted`);
+      await fetchInventory();
+      await fetchTransactions();
+      return true;
+    } catch (err: any) {
+      console.error('Failed to reconcile stock:', err);
+      toast.error(`Failed to reconcile stock: ${err.message}`);
+      return false;
+    }
+  };
+
+  // Refetch all data
+  const refetch = useCallback(async () => {
+    await Promise.all([fetchInventory(), fetchTransactions(), fetchWastageRecords()]);
+  }, [fetchInventory, fetchTransactions, fetchWastageRecords]);
 
   return {
     inventory,
@@ -572,18 +755,19 @@ export function useInventory() {
     wastageRecords,
     loading,
     error,
+    facilityId: supabaseFacilityId || facilityId,
     addInventoryItem,
     updateInventoryQuantity,
+    deleteInventoryItem,
     recordAdministration,
     recordWastage,
-    deleteInventoryItem,
+    reconcileStock,
     getStockSummary,
     getConsumptionRate,
     getLowStockAlerts,
     getExpiryAlerts,
     getWastageSummary,
     getVaccineInventoryStatus,
-    refetch: fetchInventory,
-    refetchWastage: fetchWastageRecords
+    refetch,
   };
 }
