@@ -1,8 +1,5 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 
-// Simple email sending using fetch (no Resend dependency needed)
-const RESEND_API_KEY = Deno.env.get("RESEND_API_KEY");
-
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers":
@@ -29,6 +26,25 @@ const handler = async (req: Request): Promise<Response> => {
   }
 
   try {
+    const RESEND_API_KEY = Deno.env.get("RESEND_API_KEY");
+    
+    if (!RESEND_API_KEY) {
+      console.log("RESEND_API_KEY not configured - logging alert instead");
+      const { email, alerts, facilityName, testMode }: StockAlertRequest = await req.json();
+      console.log("Stock alert would be sent to:", email);
+      console.log("Facility:", facilityName);
+      console.log("Alerts:", JSON.stringify(alerts, null, 2));
+      
+      return new Response(
+        JSON.stringify({ 
+          success: true, 
+          message: "Alert logged (email service not configured)",
+          alertCount: alerts?.length || 0
+        }),
+        { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
     const { email, alerts, facilityName, testMode }: StockAlertRequest = await req.json();
 
     if (!email) {
@@ -38,9 +54,9 @@ const handler = async (req: Request): Promise<Response> => {
       );
     }
 
-    const criticalAlerts = alerts.filter(a => a.type === 'critical');
-    const lowStockAlerts = alerts.filter(a => a.type === 'low');
-    const expiringAlerts = alerts.filter(a => a.type === 'expiring');
+    const criticalAlerts = alerts?.filter(a => a.type === 'critical') || [];
+    const lowStockAlerts = alerts?.filter(a => a.type === 'low') || [];
+    const expiringAlerts = alerts?.filter(a => a.type === 'expiring') || [];
 
     const subject = testMode 
       ? `[TEST] Stock Alert - ${facilityName}`
@@ -118,23 +134,42 @@ const handler = async (req: Request): Promise<Response> => {
       </html>
     `;
 
-    const emailResponse = await resend.emails.send({
-      from: "Vaccine Tracker <onboarding@resend.dev>",
-      to: [email],
-      subject: subject,
-      html: htmlContent,
+    // Send email using Resend API via fetch
+    const emailResponse = await fetch("https://api.resend.com/emails", {
+      method: "POST",
+      headers: {
+        "Authorization": `Bearer ${RESEND_API_KEY}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        from: "Vaccine Tracker <onboarding@resend.dev>",
+        to: [email],
+        subject: subject,
+        html: htmlContent,
+      }),
     });
 
-    console.log("Stock alert email sent:", emailResponse);
+    const result = await emailResponse.json();
 
-    return new Response(JSON.stringify(emailResponse), {
+    if (!emailResponse.ok) {
+      console.error("Failed to send email:", result);
+      return new Response(
+        JSON.stringify({ error: "Failed to send email", details: result }),
+        { status: emailResponse.status, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    console.log("Stock alert email sent:", result);
+
+    return new Response(JSON.stringify({ success: true, ...result }), {
       status: 200,
       headers: { "Content-Type": "application/json", ...corsHeaders },
     });
-  } catch (error: any) {
-    console.error("Error in send-stock-alert function:", error);
+  } catch (error: unknown) {
+    const errorMessage = error instanceof Error ? error.message : "Unknown error";
+    console.error("Error in send-stock-alert function:", errorMessage);
     return new Response(
-      JSON.stringify({ error: error.message }),
+      JSON.stringify({ error: errorMessage }),
       { status: 500, headers: { "Content-Type": "application/json", ...corsHeaders } }
     );
   }
