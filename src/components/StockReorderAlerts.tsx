@@ -143,7 +143,7 @@ export function StockReorderAlerts({ inventory, facilityId }: StockReorderAlerts
             default_critical_stock: defaultThresholds.critical_stock,
             near_expiry_warning_days: defaultThresholds.near_expiry_days,
             critical_expiry_warning_days: 7,
-            vaccine_specific_settings: vaccineSettings as unknown as Record<string, unknown>,
+            vaccine_specific_settings: JSON.parse(JSON.stringify(vaccineSettings)),
           })
           .eq('facility_id', facilityId);
         if (error) throw error;
@@ -157,7 +157,7 @@ export function StockReorderAlerts({ inventory, facilityId }: StockReorderAlerts
             default_critical_stock: defaultThresholds.critical_stock,
             near_expiry_warning_days: defaultThresholds.near_expiry_days,
             critical_expiry_warning_days: 7,
-            vaccine_specific_settings: vaccineSettings as unknown as Record<string, unknown>,
+            vaccine_specific_settings: JSON.parse(JSON.stringify(vaccineSettings)),
           });
         if (error) throw error;
       }
