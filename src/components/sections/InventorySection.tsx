@@ -36,6 +36,8 @@ import { GHANA_EPI_VACCINES, type InventoryFormData, type VaccineInventory } fro
 import { VaccineWastageModal, type WastageFormData } from '@/components/modals/VaccineWastageModal';
 import { InventoryCsvImport } from '@/components/InventoryCsvImport';
 import { InventoryAuditLog } from '@/components/InventoryAuditLog';
+import { StockReconciliation } from '@/components/StockReconciliation';
+import { StockReorderAlerts } from '@/components/StockReorderAlerts';
 import { format, differenceInDays, isAfter, isBefore, parseISO } from 'date-fns';
 import { toast } from 'sonner';
 
@@ -45,10 +47,12 @@ export function InventorySection() {
     transactions,
     wastageRecords,
     loading,
+    facilityId,
     addInventoryItem,
     updateInventoryQuantity,
     deleteInventoryItem,
     recordWastage,
+    reconcileStock,
     getStockSummary,
     getConsumptionRate,
     getLowStockAlerts,
@@ -238,6 +242,8 @@ export function InventorySection() {
           </Button>
           <InventoryCsvImport onImport={addInventoryItem} onRefresh={refetch} />
           <InventoryAuditLog transactions={transactions} inventory={inventory} />
+          <StockReconciliation inventory={inventory} onReconcile={reconcileStock} onRefresh={refetch} />
+          <StockReorderAlerts inventory={inventory} facilityId={facilityId} />
           <Button variant="outline" className="text-destructive border-destructive/50 hover:bg-destructive/10" onClick={() => setShowWastageModal(true)}>
             <Trash2 className="h-4 w-4 mr-2" />
             Record Wastage

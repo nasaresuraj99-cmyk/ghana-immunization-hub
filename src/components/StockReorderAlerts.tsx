@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -21,7 +21,12 @@ import {
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { GHANA_EPI_VACCINES, type VaccineInventory } from '@/types/inventory';
-import { supabase } from '@/integrations/supabase/client';
+import { 
+  db, 
+  doc, 
+  getDoc,
+  setDoc 
+} from '@/lib/firebase';
 import { useAuth } from '@/hooks/useAuth';
 
 interface VaccineThreshold {
@@ -53,7 +58,7 @@ export function StockReorderAlerts({ inventory, facilityId }: StockReorderAlerts
   const [defaultThresholds, setDefaultThresholds] = useState(DEFAULT_THRESHOLDS);
   const [vaccineThresholds, setVaccineThresholds] = useState<VaccineThreshold[]>([]);
 
-  // Load settings from database
+  // Load settings from Firebase
   useEffect(() => {
     if (facilityId && open) {
       loadSettings();
@@ -65,46 +70,26 @@ export function StockReorderAlerts({ inventory, facilityId }: StockReorderAlerts
     
     setLoading(true);
     try {
-      const { data, error } = await supabase
-        .from('inventory_stock_settings')
-        .select('*')
-        .eq('facility_id', facilityId)
-        .maybeSingle();
+      const settingsRef = doc(db, 'inventoryStockSettings', facilityId);
+      const settingsSnap = await getDoc(settingsRef);
 
-      if (error && !error.message?.includes('no rows')) {
-        console.error('Error loading settings:', error);
-      }
-
-      if (data) {
+      if (settingsSnap.exists()) {
+        const data = settingsSnap.data();
         setDefaultThresholds({
-          minimum_stock: data.default_minimum_stock,
-          critical_stock: data.default_critical_stock,
-          near_expiry_days: data.near_expiry_warning_days,
+          minimum_stock: data.default_minimum_stock || 50,
+          critical_stock: data.default_critical_stock || 20,
+          near_expiry_days: data.near_expiry_warning_days || 30,
         });
 
         // Parse vaccine-specific settings
         if (data.vaccine_specific_settings && typeof data.vaccine_specific_settings === 'object') {
-          const specific = data.vaccine_specific_settings as unknown as Record<string, VaccineThreshold>;
+          const specific = data.vaccine_specific_settings as Record<string, VaccineThreshold>;
           setVaccineThresholds(Object.values(specific));
         }
       }
 
       // Initialize vaccine thresholds with defaults for any missing vaccines
-      const existingVaccines = new Set(vaccineThresholds.map(v => v.vaccine_name));
-      const newThresholds = [...vaccineThresholds];
-      
-      GHANA_EPI_VACCINES.forEach(vaccine => {
-        if (!existingVaccines.has(vaccine)) {
-          newThresholds.push({
-            vaccine_name: vaccine,
-            minimum_stock: defaultThresholds.minimum_stock,
-            critical_stock: defaultThresholds.critical_stock,
-            near_expiry_days: defaultThresholds.near_expiry_days,
-          });
-        }
-      });
-
-      setVaccineThresholds(newThresholds);
+      initializeVaccineThresholds();
     } catch (err) {
       console.error('Error loading settings:', err);
     } finally {
@@ -112,7 +97,33 @@ export function StockReorderAlerts({ inventory, facilityId }: StockReorderAlerts
     }
   };
 
-  // Save settings
+  const initializeVaccineThresholds = useCallback(() => {
+    const existingVaccines = new Set(vaccineThresholds.map(v => v.vaccine_name));
+    const newThresholds = [...vaccineThresholds];
+    
+    GHANA_EPI_VACCINES.forEach(vaccine => {
+      if (!existingVaccines.has(vaccine)) {
+        newThresholds.push({
+          vaccine_name: vaccine,
+          minimum_stock: defaultThresholds.minimum_stock,
+          critical_stock: defaultThresholds.critical_stock,
+          near_expiry_days: defaultThresholds.near_expiry_days,
+        });
+      }
+    });
+
+    if (newThresholds.length !== vaccineThresholds.length) {
+      setVaccineThresholds(newThresholds);
+    }
+  }, [vaccineThresholds, defaultThresholds]);
+
+  useEffect(() => {
+    if (open && vaccineThresholds.length === 0) {
+      initializeVaccineThresholds();
+    }
+  }, [open, initializeVaccineThresholds, vaccineThresholds.length]);
+
+  // Save settings to Firebase
   const saveSettings = async () => {
     if (!facilityId) {
       toast.error('Facility not found');
@@ -127,40 +138,18 @@ export function StockReorderAlerts({ inventory, facilityId }: StockReorderAlerts
         vaccineSettings[v.vaccine_name] = v;
       });
 
-      // Check if settings exist
-      const { data: existing } = await supabase
-        .from('inventory_stock_settings')
-        .select('id')
-        .eq('facility_id', facilityId)
-        .maybeSingle();
-
-      if (existing) {
-        // Update existing
-        const { error } = await supabase
-          .from('inventory_stock_settings')
-          .update({
-            default_minimum_stock: defaultThresholds.minimum_stock,
-            default_critical_stock: defaultThresholds.critical_stock,
-            near_expiry_warning_days: defaultThresholds.near_expiry_days,
-            critical_expiry_warning_days: 7,
-            vaccine_specific_settings: JSON.parse(JSON.stringify(vaccineSettings)),
-          })
-          .eq('facility_id', facilityId);
-        if (error) throw error;
-      } else {
-        // Insert new
-        const { error } = await supabase
-          .from('inventory_stock_settings')
-          .insert({
-            facility_id: facilityId,
-            default_minimum_stock: defaultThresholds.minimum_stock,
-            default_critical_stock: defaultThresholds.critical_stock,
-            near_expiry_warning_days: defaultThresholds.near_expiry_days,
-            critical_expiry_warning_days: 7,
-            vaccine_specific_settings: JSON.parse(JSON.stringify(vaccineSettings)),
-          });
-        if (error) throw error;
-      }
+      const now = new Date().toISOString();
+      const settingsRef = doc(db, 'inventoryStockSettings', facilityId);
+      
+      await setDoc(settingsRef, {
+        facility_id: facilityId,
+        default_minimum_stock: defaultThresholds.minimum_stock,
+        default_critical_stock: defaultThresholds.critical_stock,
+        near_expiry_warning_days: defaultThresholds.near_expiry_days,
+        critical_expiry_warning_days: 7,
+        vaccine_specific_settings: vaccineSettings,
+        updated_at: now,
+      }, { merge: true });
 
       toast.success('Alert settings saved successfully');
     } catch (err: any) {
@@ -247,30 +236,22 @@ export function StockReorderAlerts({ inventory, facilityId }: StockReorderAlerts
   const lowCount = currentAlerts.filter(a => a.type === 'low').length;
   const expiringCount = currentAlerts.filter(a => a.type === 'expiring').length;
 
-  // Send test email notification
+  // Send test email notification (logs for now - can integrate with email service later)
   const sendTestNotification = async () => {
     if (!notificationEmail) {
       toast.error('Please enter an email address');
       return;
     }
 
-    try {
-      // Call edge function to send email (to be created)
-      const { error } = await supabase.functions.invoke('send-stock-alert', {
-        body: {
-          email: notificationEmail,
-          alerts: currentAlerts,
-          facilityName: user?.facility || 'Health Facility',
-          testMode: true
-        }
-      });
-
-      if (error) throw error;
-      toast.success('Test notification sent');
-    } catch (err: any) {
-      console.error('Error sending test notification:', err);
-      toast.error('Failed to send test notification. Email feature may need setup.');
-    }
+    // Log the alert for now (email service can be added later)
+    console.log('Stock alert notification:', {
+      email: notificationEmail,
+      alerts: currentAlerts,
+      facilityName: user?.facility || 'Health Facility',
+      testMode: true
+    });
+    
+    toast.success('Test notification logged (email service can be configured later)');
   };
 
   return (
