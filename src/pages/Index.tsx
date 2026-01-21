@@ -445,6 +445,7 @@ export default function Index() {
       <FacilityOnboarding
         userId={user?.uid || ''}
         userName={user?.name || ''}
+        pendingFacilityName={user?.pendingFacilityName}
         onComplete={handleOnboardingComplete}
       />
     );
@@ -533,6 +534,7 @@ export default function Index() {
           <RegistrationSection
             editingChild={editingChild}
             existingChildren={children}
+            facilityName={user?.facility || "Health Facility"}
             onSave={handleSaveChild}
             onCancel={() => {
               setEditingChild(null);
