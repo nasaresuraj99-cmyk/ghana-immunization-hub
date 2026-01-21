@@ -26,6 +26,7 @@ export interface AuthUser {
   facilityId: string;
   role: AppRole;
   emailVerified: boolean;
+  pendingFacilityName?: string;
 }
 
 interface UserProfile {
@@ -53,7 +54,7 @@ export function useAuth() {
       const profileSnap = await getDoc(profileRef);
       
       if (profileSnap.exists()) {
-        const profile = profileSnap.data() as UserProfile;
+        const profile = profileSnap.data() as UserProfile & { pendingFacilityName?: string };
         
         if (!profile.facilityId) {
           // User exists but has no facility - needs onboarding
@@ -66,6 +67,7 @@ export function useAuth() {
             facilityId: "",
             role: "staff",
             emailVerified: firebaseUser.emailVerified,
+            pendingFacilityName: profile.pendingFacilityName,
           };
         }
         

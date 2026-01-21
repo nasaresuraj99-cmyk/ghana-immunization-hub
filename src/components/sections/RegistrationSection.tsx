@@ -14,9 +14,10 @@ interface RegistrationSectionProps {
   onCancel: () => void;
   onBack: () => void;
   existingChildren: Child[];
+  facilityName?: string;
 }
 
-export function RegistrationSection({ editingChild, onSave, onCancel, onBack, existingChildren }: RegistrationSectionProps) {
+export function RegistrationSection({ editingChild, onSave, onCancel, onBack, existingChildren, facilityName }: RegistrationSectionProps) {
   const { toast } = useToast();
   const [formData, setFormData] = useState({
     name: "",
@@ -26,7 +27,7 @@ export function RegistrationSection({ editingChild, onSave, onCancel, onBack, ex
     motherName: "", // Caregiver/Parent
     telephoneAddress: "",
     community: "",
-    healthFacilityName: "",
+    healthFacilityName: facilityName || "",
     regionDistrict: "",
   });
   const [ageValidation, setAgeValidation] = useState<{ valid: boolean; message: string }>({ valid: true, message: "" });
@@ -41,7 +42,7 @@ export function RegistrationSection({ editingChild, onSave, onCancel, onBack, ex
         motherName: editingChild.motherName,
         telephoneAddress: editingChild.telephoneAddress,
         community: editingChild.community,
-        healthFacilityName: editingChild.healthFacilityName || '',
+        healthFacilityName: editingChild.healthFacilityName || facilityName || '',
         regionDistrict: editingChild.regionDistrict || '',
       });
     } else {
@@ -49,10 +50,11 @@ export function RegistrationSection({ editingChild, onSave, onCancel, onBack, ex
       const newRegNo = generateRegistrationId(existingChildren);
       setFormData(prev => ({
         ...prev,
-        regNo: newRegNo
+        regNo: newRegNo,
+        healthFacilityName: facilityName || prev.healthFacilityName,
       }));
     }
-  }, [editingChild, existingChildren]);
+  }, [editingChild, existingChildren, facilityName]);
 
   const validateAge = (dob: string) => {
     if (!dob) return;
