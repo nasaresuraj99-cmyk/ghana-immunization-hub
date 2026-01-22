@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Save, User, Building, Lock, AlertTriangle, Bell, Database, History, Archive, Users, Activity, Package } from "lucide-react";
+import { Save, User, Building, Lock, AlertTriangle, Bell, Database, History, Archive, Users, Activity, Package, ShieldCheck, Crown } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -11,6 +11,7 @@ import { DataImportButton } from "@/components/DataImportButton";
 import { SyncHistoryLog } from "@/components/SyncHistoryLog";
 import { Child, DashboardStats } from "@/types/child";
 import { AppRole, ROLE_PERMISSIONS } from "@/types/facility";
+import { Badge } from "@/components/ui/badge";
 
 interface SettingsSectionProps {
   userName: string;
@@ -28,6 +29,7 @@ interface SettingsSectionProps {
   onNavigateToUsers?: () => void;
   onNavigateToActivity?: () => void;
   onNavigateToAdmin?: () => void;
+  onMakeAdmin?: () => Promise<void>;
 }
 
 export function SettingsSection({
@@ -46,6 +48,7 @@ export function SettingsSection({
   onNavigateToUsers,
   onNavigateToActivity,
   onNavigateToAdmin,
+  onMakeAdmin,
 }: SettingsSectionProps) {
   const permissions = ROLE_PERMISSIONS[userRole];
   const { toast } = useToast();
@@ -54,6 +57,28 @@ export function SettingsSection({
   const [currentPassword, setCurrentPassword] = useState("");
   const [newPassword, setNewPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
+  const [isUpgrading, setIsUpgrading] = useState(false);
+
+  const handleUpgradeToAdmin = async () => {
+    if (!onMakeAdmin) return;
+    
+    setIsUpgrading(true);
+    try {
+      await onMakeAdmin();
+      toast({
+        title: "Role Upgraded!",
+        description: "You are now a facility administrator. Refresh the page to see all features.",
+      });
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: "Failed to upgrade role. Please try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsUpgrading(false);
+    }
+  };
 
   const handleUpdateProfile = () => {
     if (!name || !facility) {
@@ -109,7 +134,48 @@ export function SettingsSection({
   return (
     <div className="animate-fade-in max-w-3xl">
       <div className="bg-card rounded-lg p-6 shadow-elevation-1 space-y-8">
-        <h2 className="text-xl font-bold text-foreground">⚙️ Account Settings</h2>
+        <div className="flex items-center justify-between">
+          <h2 className="text-xl font-bold text-foreground">⚙️ Account Settings</h2>
+          <div className="flex items-center gap-2">
+            <Badge variant={userRole === 'facility_admin' ? 'default' : 'secondary'} className="flex items-center gap-1">
+              {userRole === 'facility_admin' ? (
+                <>
+                  <Crown className="w-3 h-3" />
+                  Admin
+                </>
+              ) : userRole === 'staff' ? (
+                <>
+                  <ShieldCheck className="w-3 h-3" />
+                  Staff
+                </>
+              ) : (
+                'Read Only'
+              )}
+            </Badge>
+          </div>
+        </div>
+
+        {/* Upgrade to Admin Section - Show for non-admins */}
+        {userRole !== 'facility_admin' && onMakeAdmin && (
+          <div className="bg-gradient-to-r from-primary/10 to-accent/10 border border-primary/20 rounded-lg p-4 space-y-3">
+            <div className="flex items-center gap-2">
+              <Crown className="w-5 h-5 text-primary" />
+              <h3 className="font-semibold text-foreground">Become Facility Admin</h3>
+            </div>
+            <p className="text-sm text-muted-foreground">
+              Upgrade to facility administrator to access all features including user management, 
+              activity logs, archived records, and admin dashboard.
+            </p>
+            <Button 
+              onClick={handleUpgradeToAdmin} 
+              disabled={isUpgrading}
+              className="gradient-ghs text-primary-foreground"
+            >
+              {isUpgrading ? "Upgrading..." : "Upgrade to Admin"}
+              <Crown className="w-4 h-4 ml-2" />
+            </Button>
+          </div>
+        )}
 
         {/* Profile Section */}
         <div className="space-y-4">

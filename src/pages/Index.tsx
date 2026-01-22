@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { AuthScreen } from "@/components/auth/AuthScreen";
 import { Header } from "@/components/layout/Header";
 import { HomeSection } from "@/components/sections/HomeSection";
@@ -24,7 +24,7 @@ import { OfflineSyncIndicator } from "@/components/OfflineSyncIndicator";
 import { SyncProgressBar } from "@/components/SyncProgressBar";
 import { PendingChangesQueue } from "@/components/PendingChangesQueue";
 import { ConflictResolutionModal } from "@/components/ConflictResolutionModal";
-import { FacilityOnboarding } from "@/components/FacilityOnboarding";
+// FacilityOnboarding removed - users auto-assigned to FIAN URBAN CHPS
 import { UserManagementPanel } from "@/components/UserManagementPanel";
 import { ArchiveSection } from "@/components/ArchiveSection";
 import { ActivityLogViewer } from "@/components/ActivityLogViewer";
@@ -43,7 +43,7 @@ import { Loader2 } from "lucide-react";
 type Section = 'home' | 'registration' | 'register' | 'defaulters' | 'dashboard' | 'reporting' | 'settings' | 'schedule' | 'archive' | 'users' | 'activity' | 'admin' | 'help' | 'outreach-history' | 'inventory';
 
 export default function Index() {
-  const { user, loading: authLoading, login, signup, logout, forgotPassword, updateFacility, isAuthenticated, refreshUser, needsOnboarding, completeOnboarding } = useAuth();
+  const { user, loading: authLoading, login, signup, logout, forgotPassword, updateFacility, isAuthenticated, refreshUser, completeOnboarding, makeCurrentUserAdmin } = useAuth();
   const emailVerified = user?.emailVerified ?? true;
   const refreshAuth = refreshUser;
   const [currentSection, setCurrentSection] = useState<Section>('home');
@@ -63,7 +63,6 @@ export default function Index() {
     stats, 
     addChild, 
     updateChild, 
-    deleteChild,
     softDeleteChild,
     restoreChild,
     permanentDeleteChild,
@@ -71,19 +70,14 @@ export default function Index() {
     updateVaccineRecord,
     bulkAdministerVaccine, 
     importChildren,
-    resetChildVaccines,
-    resetAllVaccines,
-    transferChildOut,
-    transferChildIn,
     isSyncing, 
-    isLoading, 
     syncProgress, 
     conflicts, 
     isConflictModalOpen, 
     setIsConflictModalOpen, 
     handleConflictResolution, 
     getConflictDiffs 
-  } = useChildren({ 
+  } = useChildren({
     userId: user?.uid, 
     facilityId: user?.facilityId 
   });
@@ -439,17 +433,7 @@ export default function Index() {
     );
   }
 
-  // Show facility onboarding if user needs it
-  if (needsOnboarding) {
-    return (
-      <FacilityOnboarding
-        userId={user?.uid || ''}
-        userName={user?.name || ''}
-        pendingFacilityName={user?.pendingFacilityName}
-        onComplete={handleOnboardingComplete}
-      />
-    );
-  }
+  // No onboarding needed - all users auto-assigned to FIAN URBAN CHPS
 
   return (
     <div className="min-h-screen bg-background">
@@ -674,6 +658,7 @@ export default function Index() {
             onNavigateToUsers={() => setCurrentSection('users')}
             onNavigateToActivity={() => setCurrentSection('activity')}
             onNavigateToAdmin={() => setCurrentSection('admin')}
+            onMakeAdmin={makeCurrentUserAdmin}
           />
         )}
       </main>

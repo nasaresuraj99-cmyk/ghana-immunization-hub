@@ -9,7 +9,8 @@ import {
   query, 
   where 
 } from '@/lib/firebase';
-import { Facility, AppRole, FacilityUser, ROLE_PERMISSIONS } from '@/types/facility';
+import { Facility, AppRole, FacilityUser } from '@/types/facility';
+import { FACILITY_CONFIG } from '@/lib/facilityConfig';
 
 const FACILITY_LOCAL_KEY = 'immunization_current_facility';
 
@@ -19,17 +20,12 @@ export function useFacility(userId?: string, userFacilityId?: string) {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  // Load facility data
+  // Load FIAN URBAN CHPS facility
   useEffect(() => {
-    if (!userFacilityId) {
-      setIsLoading(false);
-      return;
-    }
-
     const loadFacility = async () => {
       try {
         setIsLoading(true);
-        const facilityRef = doc(db, 'facilities', userFacilityId);
+        const facilityRef = doc(db, 'facilities', FACILITY_CONFIG.id);
         const facilitySnap = await getDoc(facilityRef);
         
         if (facilitySnap.exists()) {
@@ -46,35 +42,45 @@ export function useFacility(userId?: string, userFacilityId?: string) {
           setFacility(facilityData);
           localStorage.setItem(FACILITY_LOCAL_KEY, JSON.stringify(facilityData));
         } else {
-          // Try loading from cache
-          const cached = localStorage.getItem(FACILITY_LOCAL_KEY);
-          if (cached) {
-            setFacility(JSON.parse(cached));
-          }
+          // Create FIAN URBAN CHPS if doesn't exist
+          const newFacility: Facility = {
+            id: FACILITY_CONFIG.id,
+            name: FACILITY_CONFIG.name,
+            code: FACILITY_CONFIG.code,
+            address: FACILITY_CONFIG.address,
+            createdAt: new Date().toISOString(),
+            updatedAt: new Date().toISOString(),
+          };
+          await setDoc(facilityRef, newFacility);
+          setFacility(newFacility);
+          localStorage.setItem(FACILITY_LOCAL_KEY, JSON.stringify(newFacility));
         }
       } catch (err) {
         console.error('Error loading facility:', err);
-        // Try loading from cache
-        const cached = localStorage.getItem(FACILITY_LOCAL_KEY);
-        if (cached) {
-          setFacility(JSON.parse(cached));
-        }
+        // Use config as fallback
+        const fallbackFacility: Facility = {
+          id: FACILITY_CONFIG.id,
+          name: FACILITY_CONFIG.name,
+          code: FACILITY_CONFIG.code,
+          address: FACILITY_CONFIG.address,
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString(),
+        };
+        setFacility(fallbackFacility);
       } finally {
         setIsLoading(false);
       }
     };
 
     loadFacility();
-  }, [userFacilityId]);
+  }, []);
 
   // Load facility users
   useEffect(() => {
-    if (!userFacilityId) return;
-
     const loadFacilityUsers = async () => {
       try {
         const usersRef = collection(db, 'userProfiles');
-        const usersQuery = query(usersRef, where('facilityId', '==', userFacilityId));
+        const usersQuery = query(usersRef, where('facilityId', '==', FACILITY_CONFIG.id));
         const snapshot = await getDocs(usersQuery);
         
         const users: FacilityUser[] = [];
@@ -97,75 +103,28 @@ export function useFacility(userId?: string, userFacilityId?: string) {
     };
 
     loadFacilityUsers();
-  }, [userFacilityId]);
+  }, []);
 
   const createFacility = useCallback(async (name: string, code: string): Promise<string> => {
-    if (!userId) throw new Error('User must be logged in');
-
-    try {
-      const facilityId = `facility-${Date.now()}`;
-      const newFacility: Facility = {
-        id: facilityId,
-        name,
-        code: code.toUpperCase(),
-        address: '',
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString(),
-        createdBy: userId,
-      };
-
-      const facilityRef = doc(db, 'facilities', facilityId);
-      await setDoc(facilityRef, newFacility);
-      
-      setFacility(newFacility);
-      localStorage.setItem(FACILITY_LOCAL_KEY, JSON.stringify(newFacility));
-      
-      return facilityId;
-    } catch (err) {
-      console.error('Error creating facility:', err);
-      throw new Error('Failed to create facility');
-    }
-  }, [userId]);
+    // Always use FIAN URBAN CHPS - don't allow creating other facilities
+    return FACILITY_CONFIG.id;
+  }, []);
 
   const joinFacility = useCallback(async (facilityCode: string): Promise<{ facilityId: string; facilityName: string } | null> => {
-    if (!userId) throw new Error('User must be logged in');
-
-    try {
-      // Find facility by code
-      const facilitiesRef = collection(db, 'facilities');
-      const facilityQuery = query(facilitiesRef, where('code', '==', facilityCode.toUpperCase()));
-      const snapshot = await getDocs(facilityQuery);
-      
-      if (snapshot.empty) {
-        setError('No facility found with this code');
-        return null;
-      }
-
-      const facilityDoc = snapshot.docs[0];
-      const data = facilityDoc.data();
-      const facilityData: Facility = {
-        id: facilityDoc.id,
-        name: data.name,
-        code: data.code,
-        address: data.address,
-        createdAt: data.createdAt,
-        updatedAt: data.updatedAt,
-        createdBy: data.createdBy,
-      };
-      
-      setFacility(facilityData);
-      localStorage.setItem(FACILITY_LOCAL_KEY, JSON.stringify(facilityData));
-      
+    // Always join FIAN URBAN CHPS
+    if (facilityCode.toUpperCase() === FACILITY_CONFIG.code || facilityCode.toUpperCase().includes('FIAN')) {
       return {
-        facilityId: facilityDoc.id,
-        facilityName: data.name,
+        facilityId: FACILITY_CONFIG.id,
+        facilityName: FACILITY_CONFIG.name,
       };
-    } catch (err) {
-      console.error('Error joining facility:', err);
-      setError('Failed to join facility');
-      return null;
     }
-  }, [userId]);
+    
+    // For any code, redirect to FIAN URBAN CHPS
+    return {
+      facilityId: FACILITY_CONFIG.id,
+      facilityName: FACILITY_CONFIG.name,
+    };
+  }, []);
 
   const updateUserRole = useCallback(async (targetUserId: string, newRole: AppRole) => {
     try {
@@ -203,11 +162,9 @@ export function useFacility(userId?: string, userFacilityId?: string) {
   }, []);
 
   const refreshUsers = useCallback(async () => {
-    if (!userFacilityId) return;
-
     try {
       const usersRef = collection(db, 'userProfiles');
-      const usersQuery = query(usersRef, where('facilityId', '==', userFacilityId));
+      const usersQuery = query(usersRef, where('facilityId', '==', FACILITY_CONFIG.id));
       const snapshot = await getDocs(usersQuery);
       
       const users: FacilityUser[] = [];
@@ -227,7 +184,7 @@ export function useFacility(userId?: string, userFacilityId?: string) {
     } catch (err) {
       console.error('Error refreshing facility users:', err);
     }
-  }, [userFacilityId]);
+  }, []);
 
   return {
     facility,

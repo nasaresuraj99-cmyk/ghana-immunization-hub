@@ -1,10 +1,11 @@
 import { useState } from "react";
-import { Eye, EyeOff, Mail, Lock, User, Building } from "lucide-react";
+import { Eye, EyeOff, Mail, Lock, User, Building, CheckCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
+import { FACILITY_CONFIG } from "@/lib/facilityConfig";
 
 interface SignupFormProps {
   onSignup: (name: string, facility: string, email: string, password: string) => void;
@@ -13,7 +14,6 @@ interface SignupFormProps {
 
 export function SignupForm({ onSignup, onSwitchToLogin }: SignupFormProps) {
   const [name, setName] = useState("");
-  const [facility, setFacility] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
@@ -39,7 +39,7 @@ export function SignupForm({ onSignup, onSwitchToLogin }: SignupFormProps) {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    if (!name || !facility || !email || !password || !confirmPassword) {
+    if (!name || !email || !password || !confirmPassword) {
       toast({
         title: "Error",
         description: "Please fill in all fields",
@@ -68,7 +68,8 @@ export function SignupForm({ onSignup, onSwitchToLogin }: SignupFormProps) {
 
     setIsLoading(true);
     try {
-      await onSignup(name, facility, email, password);
+      // Always use FIAN URBAN CHPS as the facility
+      await onSignup(name, FACILITY_CONFIG.name, email, password);
     } catch (error) {
       toast({
         title: "Signup Failed",
@@ -82,6 +83,17 @@ export function SignupForm({ onSignup, onSwitchToLogin }: SignupFormProps) {
 
   return (
     <form onSubmit={handleSubmit} className="space-y-4">
+      {/* Facility Info Banner */}
+      <div className="bg-primary/10 border border-primary/20 rounded-lg p-3 mb-4">
+        <div className="flex items-center gap-2">
+          <CheckCircle className="w-5 h-5 text-primary" />
+          <div>
+            <p className="text-sm font-medium text-primary">Registering for</p>
+            <p className="text-base font-bold text-foreground">{FACILITY_CONFIG.name}</p>
+          </div>
+        </div>
+      </div>
+
       <div className="space-y-2">
         <Label htmlFor="name">Full Name</Label>
         <div className="relative">
@@ -98,20 +110,23 @@ export function SignupForm({ onSignup, onSwitchToLogin }: SignupFormProps) {
         </div>
       </div>
 
+      {/* Facility display (read-only) */}
       <div className="space-y-2">
-        <Label htmlFor="facility">Health Facility Name</Label>
+        <Label htmlFor="facility">Health Facility</Label>
         <div className="relative">
           <Building className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
           <Input
             id="facility"
             type="text"
-            placeholder="Enter facility name"
-            value={facility}
-            onChange={(e) => setFacility(e.target.value)}
-            className="pl-10"
-            required
+            value={FACILITY_CONFIG.name}
+            className="pl-10 bg-muted cursor-not-allowed"
+            disabled
+            readOnly
           />
         </div>
+        <p className="text-xs text-muted-foreground">
+          This app is exclusive to {FACILITY_CONFIG.name}
+        </p>
       </div>
 
       <div className="space-y-2">
@@ -194,7 +209,7 @@ export function SignupForm({ onSignup, onSwitchToLogin }: SignupFormProps) {
       </div>
 
       <Button type="submit" className="w-full" disabled={isLoading}>
-        {isLoading ? "Creating Account..." : "Create Facility Account"}
+        {isLoading ? "Creating Account..." : "Create Account"}
       </Button>
 
       <div className="text-center text-sm text-muted-foreground">

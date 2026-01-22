@@ -2,7 +2,8 @@ import { useState } from "react";
 import { LoginForm } from "./LoginForm";
 import { SignupForm } from "./SignupForm";
 import { ForgotPasswordForm } from "./ForgotPasswordForm";
-import { Wifi, WifiOff, Sparkles } from "lucide-react";
+import { Wifi, WifiOff, Sparkles, Building } from "lucide-react";
+import { FACILITY_CONFIG } from "@/lib/facilityConfig";
 
 interface AuthScreenProps {
   onLogin: (email: string, password: string) => void;
@@ -55,7 +56,14 @@ export function AuthScreen({ onLogin, onSignup, onForgotPassword }: AuthScreenPr
               <Sparkles className="absolute -top-1 -right-1 w-5 h-5 text-accent animate-pulse" />
             </div>
             <h1 className="text-2xl font-bold text-primary">Immunization Tracker</h1>
-            <p className="text-muted-foreground text-sm mt-2 font-medium">
+            
+            {/* Facility Name Badge */}
+            <div className="mt-3 inline-flex items-center gap-2 bg-primary/10 text-primary px-3 py-1.5 rounded-full">
+              <Building className="w-4 h-4" />
+              <span className="text-sm font-semibold">{FACILITY_CONFIG.name}</span>
+            </div>
+            
+            <p className="text-muted-foreground text-sm mt-3 font-medium">
               Ghana Health Service
             </p>
             <p className="text-xs text-muted-foreground/70 mt-1">
@@ -87,7 +95,7 @@ export function AuthScreen({ onLogin, onSignup, onForgotPassword }: AuthScreenPr
         </div>
 
         <p className="text-center text-primary-foreground/60 text-xs mt-6">
-          © {new Date().getFullYear()} Ghana Health Service - Immunization Tracker
+          © {new Date().getFullYear()} Ghana Health Service - {FACILITY_CONFIG.name}
         </p>
       </div>
     </div>
