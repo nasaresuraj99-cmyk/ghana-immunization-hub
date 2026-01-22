@@ -17,6 +17,7 @@ import {
   User
 } from "@/lib/firebase";
 import { AppRole } from "@/types/facility";
+import { FACILITY_CONFIG } from "@/lib/facilityConfig";
 
 export interface AuthUser {
   uid: string;
@@ -40,34 +41,98 @@ interface UserProfile {
   updatedAt: string;
 }
 
-const ONBOARDING_KEY = 'facility_onboarding_required';
-
 export function useAuth() {
   const [user, setUser] = useState<AuthUser | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [needsOnboarding, setNeedsOnboarding] = useState(false);
 
+  // Ensure FIAN URBAN CHPS facility exists in Firebase
+  const ensureFacilityExists = async () => {
+    try {
+      const facilityRef = doc(db, 'facilities', FACILITY_CONFIG.id);
+      const facilitySnap = await getDoc(facilityRef);
+      
+      if (!facilitySnap.exists()) {
+        // Create the facility if it doesn't exist
+        await setDoc(facilityRef, {
+          id: FACILITY_CONFIG.id,
+          name: FACILITY_CONFIG.name,
+          code: FACILITY_CONFIG.code,
+          address: FACILITY_CONFIG.address,
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString(),
+        });
+        console.log('FIAN URBAN CHPS facility created');
+      }
+    } catch (error) {
+      console.error('Error ensuring facility exists:', error);
+    }
+  };
+
+  // Check if user is the first/only admin for the facility
+  const checkAndAssignAdminRole = async (userId: string): Promise<AppRole> => {
+    try {
+      const usersRef = collection(db, 'userProfiles');
+      const adminQuery = query(
+        usersRef, 
+        where('facilityId', '==', FACILITY_CONFIG.id),
+        where('role', '==', 'facility_admin')
+      );
+      const snapshot = await getDocs(adminQuery);
+      
+      // If no admins exist, make this user the admin
+      if (snapshot.empty) {
+        return 'facility_admin';
+      }
+      
+      // Check if current user is already an admin
+      const currentUserDoc = snapshot.docs.find(d => d.id === userId);
+      if (currentUserDoc) {
+        return 'facility_admin';
+      }
+      
+      return 'staff';
+    } catch (error) {
+      console.error('Error checking admin status:', error);
+      return 'staff';
+    }
+  };
+
   const loadUserProfile = async (firebaseUser: User): Promise<AuthUser | null> => {
     try {
+      // Ensure facility exists first
+      await ensureFacilityExists();
+      
       const profileRef = doc(db, 'userProfiles', firebaseUser.uid);
       const profileSnap = await getDoc(profileRef);
       
       if (profileSnap.exists()) {
         const profile = profileSnap.data() as UserProfile & { pendingFacilityName?: string };
         
-        if (!profile.facilityId) {
-          // User exists but has no facility - needs onboarding
-          setNeedsOnboarding(true);
+        // If user has no facility or wrong facility, auto-assign to FIAN URBAN CHPS
+        if (!profile.facilityId || profile.facilityId !== FACILITY_CONFIG.id) {
+          // Determine role - first user becomes admin
+          const role = await checkAndAssignAdminRole(firebaseUser.uid);
+          
+          // Update profile with correct facility
+          await setDoc(profileRef, {
+            ...profile,
+            facilityId: FACILITY_CONFIG.id,
+            facilityName: FACILITY_CONFIG.name,
+            role: role,
+            updatedAt: new Date().toISOString(),
+          }, { merge: true });
+          
+          setNeedsOnboarding(false);
           return {
             uid: firebaseUser.uid,
             email: firebaseUser.email || "",
             name: profile.displayName || firebaseUser.displayName || "Health Worker",
-            facility: "",
-            facilityId: "",
-            role: "staff",
+            facility: FACILITY_CONFIG.name,
+            facilityId: FACILITY_CONFIG.id,
+            role: role,
             emailVerified: firebaseUser.emailVerified,
-            pendingFacilityName: profile.pendingFacilityName,
           };
         }
         
@@ -76,46 +141,48 @@ export function useAuth() {
           uid: firebaseUser.uid,
           email: firebaseUser.email || "",
           name: profile.displayName || firebaseUser.displayName || "Health Worker",
-          facility: profile.facilityName || "Health Facility",
+          facility: profile.facilityName || FACILITY_CONFIG.name,
           facilityId: profile.facilityId,
           role: profile.role || "staff",
           emailVerified: firebaseUser.emailVerified,
         };
       } else {
-        // No profile exists - create one and mark for onboarding
+        // No profile exists - create one with FIAN URBAN CHPS auto-assigned
+        const role = await checkAndAssignAdminRole(firebaseUser.uid);
+        
         const newProfile: UserProfile = {
           uid: firebaseUser.uid,
           email: firebaseUser.email || "",
           displayName: firebaseUser.displayName || "Health Worker",
-          facilityId: null,
-          facilityName: null,
-          role: "staff",
+          facilityId: FACILITY_CONFIG.id,
+          facilityName: FACILITY_CONFIG.name,
+          role: role,
           createdAt: new Date().toISOString(),
           updatedAt: new Date().toISOString(),
         };
         
         await setDoc(profileRef, newProfile);
-        setNeedsOnboarding(true);
+        setNeedsOnboarding(false);
         
         return {
           uid: firebaseUser.uid,
           email: firebaseUser.email || "",
           name: newProfile.displayName,
-          facility: "",
-          facilityId: "",
-          role: "staff",
+          facility: FACILITY_CONFIG.name,
+          facilityId: FACILITY_CONFIG.id,
+          role: role,
           emailVerified: firebaseUser.emailVerified,
         };
       }
     } catch (error) {
       console.error('Error loading user profile:', error);
-      // Fallback to basic user info
+      // Fallback to basic user info with FIAN URBAN CHPS
       return {
         uid: firebaseUser.uid,
         email: firebaseUser.email || "",
         name: firebaseUser.displayName || "Health Worker",
-        facility: "",
-        facilityId: "",
+        facility: FACILITY_CONFIG.name,
+        facilityId: FACILITY_CONFIG.id,
         role: "staff",
         emailVerified: firebaseUser.emailVerified,
       };
@@ -167,21 +234,27 @@ export function useAuth() {
       const result = await signupWithEmail(email, password, name);
       
       if (result.user) {
-        // Create user profile (without facility - will be set during onboarding)
+        // Ensure facility exists
+        await ensureFacilityExists();
+        
+        // Check if this should be admin
+        const role = await checkAndAssignAdminRole(result.user.uid);
+        
+        // Create user profile with FIAN URBAN CHPS auto-assigned
         const profileRef = doc(db, 'userProfiles', result.user.uid);
         await setDoc(profileRef, {
           uid: result.user.uid,
           email: email,
           displayName: name,
-          facilityId: null,
-          facilityName: null,
-          role: "staff" as AppRole,
-          pendingFacilityName: facility, // Store for onboarding
+          facilityId: FACILITY_CONFIG.id,
+          facilityName: FACILITY_CONFIG.name,
+          role: role,
           createdAt: new Date().toISOString(),
           updatedAt: new Date().toISOString(),
         });
         
-        setNeedsOnboarding(true);
+        // No onboarding needed - auto-assigned to FIAN URBAN CHPS
+        setNeedsOnboarding(false);
       }
     } catch (err: any) {
       const message = getAuthErrorMessage(err.code);
@@ -220,16 +293,16 @@ export function useAuth() {
     try {
       const profileRef = doc(db, 'userProfiles', user.uid);
       await setDoc(profileRef, {
-        facilityId,
-        facilityName,
+        facilityId: FACILITY_CONFIG.id, // Always use FIAN URBAN CHPS
+        facilityName: FACILITY_CONFIG.name,
         role: role || user.role,
         updatedAt: new Date().toISOString(),
       }, { merge: true });
       
       setUser(prev => prev ? { 
         ...prev, 
-        facilityId, 
-        facility: facilityName,
+        facilityId: FACILITY_CONFIG.id, 
+        facility: FACILITY_CONFIG.name,
         role: role || prev.role
       } : null);
       setNeedsOnboarding(false);
@@ -246,15 +319,45 @@ export function useAuth() {
         role: newRole,
         updatedAt: new Date().toISOString(),
       }, { merge: true });
+      
+      // If updating current user's role, refresh
+      if (user && user.uid === userId) {
+        setUser(prev => prev ? { ...prev, role: newRole } : null);
+      }
     } catch (error) {
       console.error('Error updating role:', error);
       throw error;
     }
-  }, []);
+  }, [user]);
 
   const completeOnboarding = useCallback(() => {
     setNeedsOnboarding(false);
   }, []);
+
+  // Make current user an admin (for existing users)
+  const makeCurrentUserAdmin = useCallback(async (): Promise<void> => {
+    if (!user) return;
+    
+    try {
+      const profileRef = doc(db, 'userProfiles', user.uid);
+      await setDoc(profileRef, {
+        role: 'facility_admin',
+        facilityId: FACILITY_CONFIG.id,
+        facilityName: FACILITY_CONFIG.name,
+        updatedAt: new Date().toISOString(),
+      }, { merge: true });
+      
+      setUser(prev => prev ? { 
+        ...prev, 
+        role: 'facility_admin',
+        facilityId: FACILITY_CONFIG.id,
+        facility: FACILITY_CONFIG.name
+      } : null);
+    } catch (error) {
+      console.error('Error making user admin:', error);
+      throw error;
+    }
+  }, [user]);
 
   return {
     user,
@@ -268,8 +371,9 @@ export function useAuth() {
     updateRole,
     refreshUser,
     isAuthenticated: !!user,
-    needsOnboarding,
+    needsOnboarding: false, // Never need onboarding - auto-assigned to FIAN URBAN CHPS
     completeOnboarding,
+    makeCurrentUserAdmin,
   };
 }
 
