@@ -48,6 +48,7 @@ import {
 } from "@/lib/ghanaEpiSchedule";
 import { getInventoryVaccineName } from "@/types/inventory";
 import { OutreachDebugPanel } from "@/components/OutreachDebugPanel";
+import { FACILITY_CONFIG } from "@/lib/facilityConfig";
 
 interface InventoryBatch {
   id: string;
@@ -117,10 +118,12 @@ export function BulkVaccinationModal({
   isOpen,
   onClose,
   onAdminister,
-  facilityName = "Health Facility",
+  facilityName,
   inventoryStatus = {},
   onRefreshInventoryStatus,
 }: BulkVaccinationModalProps) {
+  // Always use FIAN URBAN CHPS for outreach reports
+  const reportFacilityName = facilityName || FACILITY_CONFIG.name;
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedVaccine, setSelectedVaccine] = useState("");
   const [selectedChildren, setSelectedChildren] = useState<Set<string>>(new Set());
