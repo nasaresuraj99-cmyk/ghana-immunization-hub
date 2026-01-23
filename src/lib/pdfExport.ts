@@ -2,12 +2,16 @@ import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
 import QRCode from "qrcode";
 import { Child, DashboardStats, Defaulter } from "@/types/child";
+import { FACILITY_CONFIG } from "@/lib/facilityConfig";
 
 // Ghana Health Service branding colors
 const GHS_GREEN: [number, number, number] = [0, 100, 0];
 const GHS_GOLD: [number, number, number] = [255, 215, 0];
 const GHS_RED: [number, number, number] = [206, 17, 38];
 const GHS_DARK: [number, number, number] = [30, 41, 59];
+
+// Default to FIAN URBAN CHPS for all reports
+const DEFAULT_FACILITY_NAME = FACILITY_CONFIG.name;
 
 interface PDFOptions {
   facilityName?: string;
@@ -31,11 +35,10 @@ function sanitizeFilename(name: string): string {
 
 function addHeader(doc: jsPDF, title: string, options: PDFOptions = {}) {
   const pageWidth = doc.internal.pageSize.getWidth();
-  const { 
-    facilityName = "Health Facility", 
-    reportDate = formatDateDDMMYYYY(new Date()),
-    periodLabel 
-  } = options;
+  // Always use FIAN URBAN CHPS as default
+  const facilityName = options.facilityName || DEFAULT_FACILITY_NAME;
+  const reportDate = options.reportDate || formatDateDDMMYYYY(new Date());
+  const periodLabel = options.periodLabel;
 
   // Green header bar
   doc.setFillColor(...GHS_GREEN);

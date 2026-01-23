@@ -6,7 +6,8 @@ export const FACILITY_CONFIG = {
   name: 'FIAN URBAN CHPS',
   code: 'FUCHPS',
   address: 'Fian Urban, Ghana',
-  region: 'Ghana Health Service',
+  region: 'Ashanti Region, Ghana',
+  districtRegion: 'Ashanti Region, Ghana',
 } as const;
 
 // Lock the app to this facility only
@@ -18,3 +19,7 @@ export const isAuthorizedFacilityName = (facilityName: string | null | undefined
   if (!facilityName) return false;
   return facilityName.toUpperCase().includes('FIAN') && facilityName.toUpperCase().includes('URBAN');
 };
+
+// Get facility name for certificates and reports
+export const getFacilityName = (): string => FACILITY_CONFIG.name;
+export const getDistrictRegion = (): string => FACILITY_CONFIG.districtRegion;

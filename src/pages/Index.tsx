@@ -724,8 +724,6 @@ export default function Index() {
         child={certificateModalChild}
         isOpen={!!certificateModalChild}
         onClose={() => setCertificateModalChild(null)}
-        facilityName={user?.facility || "Health Facility"}
-        districtRegion={user?.facility || "District/Region"}
       />
 
       <ConflictResolutionModal
