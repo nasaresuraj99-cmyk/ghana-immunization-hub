@@ -118,7 +118,7 @@ export function ChildProfileModal({
   const handlePrintCardImage = async () => {
     toast.loading("Generating image card...");
     try {
-      await exportImmunizationCardAsImage(child, { facilityName: facilityName || child.healthFacilityName || "Health Facility" });
+      await exportImmunizationCardAsImage(child);
       toast.dismiss();
       toast.success("Image immunization card downloaded!");
     } catch (error) {

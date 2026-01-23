@@ -2,12 +2,17 @@ import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
 import QRCode from "qrcode";
 import { Child } from "@/types/child";
+import { FACILITY_CONFIG } from "@/lib/facilityConfig";
 
 // Ghana Health Service branding colors
 const GHS_GREEN: [number, number, number] = [0, 100, 0];
 const GHS_GOLD: [number, number, number] = [255, 215, 0];
 const GHS_RED: [number, number, number] = [206, 17, 38];
 const GHS_DARK: [number, number, number] = [30, 41, 59];
+
+// Always use FIAN URBAN CHPS
+const DEFAULT_FACILITY_NAME = FACILITY_CONFIG.name;
+const DEFAULT_DISTRICT_REGION = "Ashanti Region, Ghana";
 
 interface CertificateOptions {
   facilityName?: string;
@@ -76,11 +81,10 @@ export async function generateImmunizationCertificate(
   child: Child,
   options: CertificateOptions = {}
 ): Promise<void> {
-  const {
-    facilityName = "Health Facility",
-    districtRegion = "District/Region",
-    vaccinatorName = "",
-  } = options;
+  // Always use FIAN URBAN CHPS for certificates
+  const facilityName = DEFAULT_FACILITY_NAME;
+  const districtRegion = options.districtRegion || DEFAULT_DISTRICT_REGION;
+  const vaccinatorName = options.vaccinatorName || "";
 
   // Get logo base64
   const logoBase64 = await getLogoBase64();

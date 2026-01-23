@@ -1,8 +1,6 @@
 import { useState } from "react";
 import { 
-  FileText, 
   Download, 
-  Printer, 
   X, 
   Award,
   QrCode,
@@ -27,6 +25,7 @@ import { Child } from "@/types/child";
 import { generateImmunizationCertificate } from "@/lib/certificateExport";
 import { formatDate } from "@/lib/utils";
 import { toast } from "sonner";
+import { FACILITY_CONFIG } from "@/lib/facilityConfig";
 
 interface CertificateModalProps {
   child: Child | null;
@@ -36,12 +35,14 @@ interface CertificateModalProps {
   districtRegion?: string;
 }
 
+// Always use FIAN URBAN CHPS
+const facilityName = FACILITY_CONFIG.name;
+const districtRegion = "Ashanti Region, Ghana";
+
 export function CertificateModal({
   child,
   isOpen,
   onClose,
-  facilityName = "Health Facility",
-  districtRegion = "District/Region",
 }: CertificateModalProps) {
   const [isGenerating, setIsGenerating] = useState(false);
 

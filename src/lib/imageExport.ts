@@ -1,11 +1,12 @@
 import { toPng } from "html-to-image";
 import { Child } from "@/types/child";
+import { FACILITY_CONFIG } from "@/lib/facilityConfig";
 
 export async function exportImmunizationCardAsImage(
-  child: Child,
-  options: { facilityName?: string } = {}
+  child: Child
 ): Promise<void> {
-  const { facilityName = "Health Facility" } = options;
+  // Always use FIAN URBAN CHPS for cards
+  const facilityName = FACILITY_CONFIG.name;
   
   // Create a temporary container for the certificate
   const container = document.createElement("div");
