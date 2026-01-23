@@ -570,7 +570,6 @@ export default function Index() {
           <ReportingSection
             stats={stats}
             children={children}
-            facilityName={user?.facility || "Health Facility"}
           />
         )}
 
@@ -581,7 +580,6 @@ export default function Index() {
         {currentSection === 'outreach-history' && (
           <OutreachHistorySection
             children={children}
-            facilityName={user?.facility || "Health Facility"}
             onBack={() => setCurrentSection('home')}
           />
         )}

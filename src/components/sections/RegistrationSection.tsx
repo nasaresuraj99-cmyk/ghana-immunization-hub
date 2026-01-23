@@ -7,6 +7,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { useToast } from "@/hooks/use-toast";
 import { Child } from "@/types/child";
 import { generateRegistrationId } from "@/lib/registrationId";
+import { FACILITY_CONFIG } from "@/lib/facilityConfig";
 
 interface RegistrationSectionProps {
   editingChild?: Child | null;
@@ -19,6 +20,9 @@ interface RegistrationSectionProps {
 
 export function RegistrationSection({ editingChild, onSave, onCancel, onBack, existingChildren, facilityName }: RegistrationSectionProps) {
   const { toast } = useToast();
+  // Always use FIAN URBAN CHPS for registration
+  const defaultFacilityName = facilityName || FACILITY_CONFIG.name;
+  
   const [formData, setFormData] = useState({
     name: "",
     dateOfBirth: "",
@@ -27,8 +31,8 @@ export function RegistrationSection({ editingChild, onSave, onCancel, onBack, ex
     motherName: "", // Caregiver/Parent
     telephoneAddress: "",
     community: "",
-    healthFacilityName: facilityName || "",
-    regionDistrict: "",
+    healthFacilityName: defaultFacilityName,
+    regionDistrict: FACILITY_CONFIG.districtRegion as string,
   });
   const [ageValidation, setAgeValidation] = useState<{ valid: boolean; message: string }>({ valid: true, message: "" });
 
@@ -42,8 +46,8 @@ export function RegistrationSection({ editingChild, onSave, onCancel, onBack, ex
         motherName: editingChild.motherName,
         telephoneAddress: editingChild.telephoneAddress,
         community: editingChild.community,
-        healthFacilityName: editingChild.healthFacilityName || facilityName || '',
-        regionDistrict: editingChild.regionDistrict || '',
+        healthFacilityName: editingChild.healthFacilityName || defaultFacilityName,
+        regionDistrict: editingChild.regionDistrict || FACILITY_CONFIG.districtRegion,
       });
     } else {
       // Generate new unique registration number
@@ -51,10 +55,11 @@ export function RegistrationSection({ editingChild, onSave, onCancel, onBack, ex
       setFormData(prev => ({
         ...prev,
         regNo: newRegNo,
-        healthFacilityName: facilityName || prev.healthFacilityName,
+        healthFacilityName: defaultFacilityName,
+        regionDistrict: FACILITY_CONFIG.districtRegion,
       }));
     }
-  }, [editingChild, existingChildren, facilityName]);
+  }, [editingChild, existingChildren, defaultFacilityName]);
 
   const validateAge = (dob: string) => {
     if (!dob) return;

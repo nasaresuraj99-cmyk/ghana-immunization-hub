@@ -42,6 +42,7 @@ import { Child, VaccineRecord } from "@/types/child";
 import { cn, formatDate } from "@/lib/utils";
 import { getAllVaccineNames } from "@/lib/ghanaEpiSchedule";
 import { exportOutreachSessionReport, OutreachVaccinationRecord } from "@/lib/pdfExport";
+import { FACILITY_CONFIG } from "@/lib/facilityConfig";
 
 interface OutreachHistorySectionProps {
   children: Child[];
@@ -132,9 +133,11 @@ function getUniqueSites(sessions: OutreachSession[]): string[] {
 
 export function OutreachHistorySection({ 
   children, 
-  facilityName = "Health Facility",
+  facilityName,
   onBack 
 }: OutreachHistorySectionProps) {
+  // Always use FIAN URBAN CHPS for outreach reports
+  const reportFacilityName = facilityName || FACILITY_CONFIG.name;
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedVaccine, setSelectedVaccine] = useState<string>("all");
   const [selectedSite, setSelectedSite] = useState<string>("all");
@@ -264,7 +267,7 @@ export function OutreachHistorySection({
       totalChildren: session.totalChildren,
       totalMales: session.maleCount,
       totalFemales: session.femaleCount,
-    }, { facilityName });
+    }, { facilityName: reportFacilityName });
   };
 
   const handleExportAll = () => {

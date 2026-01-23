@@ -12,6 +12,7 @@ import { Child, DashboardStats, Defaulter } from "@/types/child";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import { format } from "date-fns";
+import { FACILITY_CONFIG } from "@/lib/facilityConfig";
 import {
   exportSummaryReport,
   exportDetailedReport,
@@ -175,7 +176,9 @@ const generateYearOptions = () => {
 const MONTH_OPTIONS = generateMonthOptions();
 const YEAR_OPTIONS = generateYearOptions();
 
-export function ReportingSection({ stats, children, facilityName = "Health Facility" }: ReportingSectionProps) {
+export function ReportingSection({ stats, children, facilityName }: ReportingSectionProps) {
+  // Always use FIAN URBAN CHPS for reports
+  const reportFacilityName = facilityName || FACILITY_CONFIG.name;
   const [activeTab, setActiveTab] = useState<ReportTab>('summary');
   const [periodType, setPeriodType] = useState<'preset' | 'monthly' | 'daterange' | 'yearly' | 'compare'>('preset');
   const [period, setPeriod] = useState('month');
@@ -666,7 +669,7 @@ export function ReportingSection({ stats, children, facilityName = "Health Facil
     try {
       const periodLabel = getFilteredData.periodLabel;
       const options = { 
-        facilityName, 
+        facilityName: reportFacilityName, 
         reportDate: formatDateDDMMYYYY(new Date()),
         periodLabel
       };
@@ -706,7 +709,7 @@ export function ReportingSection({ stats, children, facilityName = "Health Facil
           defaulters: defaultersList,
         },
         { 
-          facilityName, 
+          facilityName: reportFacilityName, 
           reportDate: formatDateDDMMYYYY(new Date()),
           periodLabel
         }
@@ -725,7 +728,7 @@ export function ReportingSection({ stats, children, facilityName = "Health Facil
     }
     try {
       exportMonthComparisonReport(comparisonData, { 
-        facilityName, 
+        facilityName: reportFacilityName, 
         reportDate: formatDateDDMMYYYY(new Date()) 
       });
       toast.success("Comparison PDF exported successfully!");

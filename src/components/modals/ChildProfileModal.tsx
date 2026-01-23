@@ -45,6 +45,7 @@ import { toast } from "sonner";
 import { calculateExactAge } from "@/lib/ageCalculator";
 import { formatDate } from "@/lib/utils";
 import { TransferHistoryTimeline } from "@/components/TransferHistoryTimeline";
+import { FACILITY_CONFIG } from "@/lib/facilityConfig";
 
 interface ChildProfileModalProps {
   child: Child | null;
@@ -110,7 +111,8 @@ export function ChildProfileModal({
 
   const handlePrintCardPDF = async () => {
     toast.loading("Generating PDF card...");
-    await exportImmunizationCard(child, { facilityName: facilityName || child.healthFacilityName || "Health Facility" });
+    // Always use FIAN URBAN CHPS for cards
+    await exportImmunizationCard(child, { facilityName: FACILITY_CONFIG.name });
     toast.dismiss();
     toast.success("PDF immunization card downloaded!");
   };
