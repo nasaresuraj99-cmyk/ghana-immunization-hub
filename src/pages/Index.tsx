@@ -427,7 +427,6 @@ export default function Index() {
     return (
       <AuthScreen
         onLogin={handleLogin}
-        onSignup={handleSignup}
         onForgotPassword={handleForgotPassword}
       />
     );

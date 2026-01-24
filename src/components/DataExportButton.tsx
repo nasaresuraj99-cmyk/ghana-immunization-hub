@@ -19,16 +19,15 @@ import { toast } from "sonner";
 interface DataExportButtonProps {
   children: Child[];
   stats: DashboardStats;
-  facilityName: string;
 }
 
-export function DataExportButton({ children, stats, facilityName }: DataExportButtonProps) {
+export function DataExportButton({ children, stats }: DataExportButtonProps) {
   const handleExportJSON = () => {
     if (children.length === 0) {
       toast.error("No data to export");
       return;
     }
-    exportFullDataJSON(children, stats, facilityName);
+    exportFullDataJSON(children, stats);
     toast.success("Data exported as JSON");
   };
 

@@ -1,5 +1,6 @@
 import { Child, DashboardStats, VaccineRecord } from "@/types/child";
 import { formatDate } from "@/lib/utils";
+import { FACILITY_CONFIG } from "@/lib/facilityConfig";
 
 export interface FullExportData {
   exportDate: string;
@@ -29,12 +30,11 @@ export interface FullExportData {
 
 export function exportFullDataJSON(
   children: Child[],
-  stats: DashboardStats,
-  facilityName: string
+  stats: DashboardStats
 ): void {
   const exportData: FullExportData = {
     exportDate: new Date().toISOString(),
-    facilityName,
+    facilityName: FACILITY_CONFIG.name,
     totalChildren: children.length,
     summary: stats,
     children: children.map(child => ({
@@ -63,7 +63,7 @@ export function exportFullDataJSON(
   const url = URL.createObjectURL(blob);
   const link = document.createElement("a");
   link.href = url;
-  link.download = `GHS_Full_Data_Export_${new Date().toISOString().split("T")[0]}.json`;
+  link.download = `${FACILITY_CONFIG.code}_Full_Data_Export_${new Date().toISOString().split("T")[0]}.json`;
   document.body.appendChild(link);
   link.click();
   document.body.removeChild(link);
@@ -72,6 +72,7 @@ export function exportFullDataJSON(
 
 export function exportFullDataCSV(children: Child[]): void {
   const headers = [
+    "Facility",
     "Reg No",
     "Child Name",
     "Date of Birth",
@@ -101,6 +102,7 @@ export function exportFullDataCSV(children: Child[]): void {
     const completionPct = total > 0 ? Math.round((completed / total) * 100) : 0;
 
     return [
+      FACILITY_CONFIG.name,
       child.regNo,
       child.name,
       formatDate(child.dateOfBirth),
@@ -134,7 +136,7 @@ export function exportFullDataCSV(children: Child[]): void {
   const url = URL.createObjectURL(blob);
   const link = document.createElement("a");
   link.href = url;
-  link.download = `GHS_Full_Children_Data_${new Date().toISOString().split("T")[0]}.csv`;
+  link.download = `${FACILITY_CONFIG.code}_Full_Children_Data_${new Date().toISOString().split("T")[0]}.csv`;
   document.body.appendChild(link);
   link.click();
   document.body.removeChild(link);
@@ -143,6 +145,7 @@ export function exportFullDataCSV(children: Child[]): void {
 
 export function exportVaccinationHistoryCSV(children: Child[]): void {
   const headers = [
+    "Facility",
     "Reg No",
     "Child Name",
     "Vaccine Name",
@@ -166,6 +169,7 @@ export function exportVaccinationHistoryCSV(children: Child[]): void {
       }
 
       rows.push([
+        FACILITY_CONFIG.name,
         child.regNo,
         child.name,
         vaccine.name,
@@ -194,7 +198,7 @@ export function exportVaccinationHistoryCSV(children: Child[]): void {
   const url = URL.createObjectURL(blob);
   const link = document.createElement("a");
   link.href = url;
-  link.download = `GHS_Vaccination_History_${new Date().toISOString().split("T")[0]}.csv`;
+  link.download = `${FACILITY_CONFIG.code}_Vaccination_History_${new Date().toISOString().split("T")[0]}.csv`;
   document.body.appendChild(link);
   link.click();
   document.body.removeChild(link);
