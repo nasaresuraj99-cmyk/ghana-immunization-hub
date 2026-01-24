@@ -625,7 +625,8 @@ export async function exportImmunizationCard(
   
   const pageWidth = doc.internal.pageSize.getWidth();
   const pageHeight = doc.internal.pageSize.getHeight();
-  const { facilityName = "Health Facility" } = options;
+  // Always use FIAN URBAN CHPS (never user-editable)
+  const facilityName = DEFAULT_FACILITY_NAME;
 
   // Generate QR code with verification data
   const verificationData = {
@@ -864,7 +865,7 @@ export async function exportImmunizationCard(
   doc.setTextColor(80, 80, 80);
   doc.text(`Card ID: ${child.regNo} | Issued: ${formatDateDDMMYYYY(new Date())} | Ghana Health Service - EPI Program`, pageWidth / 2, pageHeight - 3, { align: "center" });
 
-  const facilitySlug = sanitizeFilename(options.facilityName || 'GHS');
+  const facilitySlug = sanitizeFilename(facilityName);
   doc.save(`${facilitySlug}_Immunization_Certificate_${child.regNo}_${child.name.replace(/\s+/g, "_")}.pdf`);
 }
 
@@ -896,7 +897,8 @@ export function exportOutreachSessionReport(
   options: PDFOptions = {}
 ) {
   const doc = new jsPDF();
-  const { facilityName = "Health Facility" } = options;
+  // Always use FIAN URBAN CHPS (never user-editable)
+  const facilityName = DEFAULT_FACILITY_NAME;
   let yPos = addHeader(doc, "Outreach Session Report", options);
 
   // Facility Name
@@ -1016,7 +1018,7 @@ export function exportOutreachSessionReport(
     doc.rect(150, yPos - 15, 35, 25, "S");
   }
 
-  const facilitySlug = sanitizeFilename(options.facilityName || 'GHS');
+  const facilitySlug = sanitizeFilename(facilityName);
   const vaccineSlug = sanitizeFilename(sessionDetails.vaccineName);
   const dateSlug = new Date(sessionDetails.sessionDate).toISOString().split("T")[0];
   doc.save(`${facilitySlug}_Outreach_Session_${vaccineSlug}_${dateSlug}.pdf`);
@@ -1041,7 +1043,9 @@ export function exportConsolidatedReport(
   options: PDFOptions = {}
 ) {
   const doc = new jsPDF();
-  const { facilityName = "Health Facility", periodLabel } = options;
+  // Always use FIAN URBAN CHPS (never user-editable)
+  const facilityName = DEFAULT_FACILITY_NAME;
+  const { periodLabel } = options;
   let currentPage = 1;
   
   // ============ Page 1: Summary Report ============
@@ -1196,7 +1200,8 @@ export function exportMonthComparisonReport(
   options: PDFOptions = {}
 ) {
   const doc = new jsPDF();
-  const { facilityName = "Health Facility" } = options;
+  // Always use FIAN URBAN CHPS (never user-editable)
+  const facilityName = DEFAULT_FACILITY_NAME;
   
   const yPosStart = addHeader(doc, "Month-to-Month Comparison Report", {
     ...options,
