@@ -250,7 +250,6 @@ export function SettingsSection({
               <DataExportButton 
                 children={children} 
                 stats={stats} 
-                facilityName={facilityName} 
               />
               <DataImportButton
                 userId={userId}

@@ -1,19 +1,17 @@
 import { useState } from "react";
 import { LoginForm } from "./LoginForm";
-import { SignupForm } from "./SignupForm";
 import { ForgotPasswordForm } from "./ForgotPasswordForm";
-import { Wifi, WifiOff, Sparkles, Building } from "lucide-react";
+import { Wifi, WifiOff, Sparkles, Building, Lock } from "lucide-react";
 import { FACILITY_CONFIG } from "@/lib/facilityConfig";
 
 interface AuthScreenProps {
   onLogin: (email: string, password: string) => void;
-  onSignup: (name: string, facility: string, email: string, password: string) => void;
   onForgotPassword: (email: string) => void;
 }
 
-type AuthMode = 'login' | 'signup' | 'forgot';
+type AuthMode = 'login' | 'forgot';
 
-export function AuthScreen({ onLogin, onSignup, onForgotPassword }: AuthScreenProps) {
+export function AuthScreen({ onLogin, onForgotPassword }: AuthScreenProps) {
   const [mode, setMode] = useState<AuthMode>('login');
   const isOnline = navigator.onLine;
 
@@ -69,20 +67,18 @@ export function AuthScreen({ onLogin, onSignup, onForgotPassword }: AuthScreenPr
             <p className="text-xs text-muted-foreground/70 mt-1">
               No Child Left Behind - 2030 EPI Agenda
             </p>
+            
+            {/* Restricted Access Notice */}
+            <div className="mt-4 flex items-center justify-center gap-2 text-xs text-muted-foreground bg-muted/50 px-3 py-2 rounded-lg">
+              <Lock className="w-3 h-3" />
+              <span>Authorized Personnel Only</span>
+            </div>
           </div>
 
           {mode === 'login' && (
             <LoginForm
               onLogin={onLogin}
-              onSwitchToSignup={() => setMode('signup')}
               onForgotPassword={() => setMode('forgot')}
-            />
-          )}
-
-          {mode === 'signup' && (
-            <SignupForm
-              onSignup={onSignup}
-              onSwitchToLogin={() => setMode('login')}
             />
           )}
 

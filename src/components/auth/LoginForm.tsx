@@ -7,11 +7,10 @@ import { useToast } from "@/hooks/use-toast";
 
 interface LoginFormProps {
   onLogin: (email: string, password: string) => void;
-  onSwitchToSignup: () => void;
   onForgotPassword: () => void;
 }
 
-export function LoginForm({ onLogin, onSwitchToSignup, onForgotPassword }: LoginFormProps) {
+export function LoginForm({ onLogin, onForgotPassword }: LoginFormProps) {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
@@ -96,17 +95,6 @@ export function LoginForm({ onLogin, onSwitchToSignup, onForgotPassword }: Login
       >
         Forgot Password?
       </button>
-
-      <div className="text-center text-sm text-muted-foreground">
-        Don't have an account?{" "}
-        <button
-          type="button"
-          onClick={onSwitchToSignup}
-          className="text-primary font-semibold hover:underline"
-        >
-          Sign up
-        </button>
-      </div>
     </form>
   );
 }

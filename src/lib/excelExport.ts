@@ -1,5 +1,7 @@
 import { Child, DashboardStats, Defaulter } from "@/types/child";
 import { formatDate } from "@/lib/utils";
+import { FACILITY_CONFIG } from "@/lib/facilityConfig";
+
 // Helper to convert data to CSV format
 function arrayToCSV(headers: string[], rows: string[][]): string {
   const csvContent = [
@@ -38,7 +40,10 @@ export function exportSummaryExcel(
 ) {
   const headers = ["Metric", "Value"];
   const rows = [
+    ["Facility", FACILITY_CONFIG.name],
     ["Report Period", period.charAt(0).toUpperCase() + period.slice(1)],
+    ["Report Date", formatDate(new Date().toISOString())],
+    [""],
     ["Total Children Registered", stats.totalChildren.toString()],
     ["Fully Immunized", stats.fullyImmunized.toString()],
     ["Vaccinated Today", stats.vaccinatedToday.toString()],
@@ -52,7 +57,7 @@ export function exportSummaryExcel(
   ];
 
   const csv = arrayToCSV(headers, rows);
-  downloadCSV(`GHS_Summary_Report_${new Date().toISOString().split("T")[0]}.csv`, csv);
+  downloadCSV(`${FACILITY_CONFIG.code}_Summary_Report_${new Date().toISOString().split("T")[0]}.csv`, csv);
 }
 
 export function exportDetailedExcel(
@@ -66,44 +71,53 @@ export function exportDetailedExcel(
   }>
 ) {
   const headers = ["Date", "Reg No.", "Child Name", "Vaccine", "Batch No.", "Status"];
-  const rows = records.map(r => [
-    formatDate(r.date),
-    r.regNo,
-    r.childName,
-    r.vaccine,
-    r.batchNumber,
-    r.status,
-  ]);
+  const facilityRow = [FACILITY_CONFIG.name, "", "", "", "", ""];
+  const rows = [
+    facilityRow,
+    ...records.map(r => [
+      formatDate(r.date),
+      r.regNo,
+      r.childName,
+      r.vaccine,
+      r.batchNumber,
+      r.status,
+    ])
+  ];
 
   const csv = arrayToCSV(headers, rows);
-  downloadCSV(`GHS_Detailed_Report_${new Date().toISOString().split("T")[0]}.csv`, csv);
+  downloadCSV(`${FACILITY_CONFIG.code}_Detailed_Report_${new Date().toISOString().split("T")[0]}.csv`, csv);
 }
 
 export function exportVaccineCoverageExcel(
   vaccineCoverage: Record<string, { given: number; pending: number; overdue: number }>
 ) {
   const headers = ["Vaccine Type", "Given", "Pending", "Overdue", "Total", "Coverage %"];
-  const rows = Object.entries(vaccineCoverage).map(([type, data]) => {
-    const total = data.given + data.pending + data.overdue;
-    const coverage = total > 0 ? Math.round((data.given / total) * 100) : 0;
-    return [
-      type,
-      data.given.toString(),
-      data.pending.toString(),
-      data.overdue.toString(),
-      total.toString(),
-      `${coverage}%`,
-    ];
-  });
+  const facilityRow = [FACILITY_CONFIG.name, "", "", "", "", ""];
+  const rows = [
+    facilityRow,
+    ...Object.entries(vaccineCoverage).map(([type, data]) => {
+      const total = data.given + data.pending + data.overdue;
+      const coverage = total > 0 ? Math.round((data.given / total) * 100) : 0;
+      return [
+        type,
+        data.given.toString(),
+        data.pending.toString(),
+        data.overdue.toString(),
+        total.toString(),
+        `${coverage}%`,
+      ];
+    })
+  ];
 
   const csv = arrayToCSV(headers, rows);
-  downloadCSV(`GHS_Vaccine_Coverage_${new Date().toISOString().split("T")[0]}.csv`, csv);
+  downloadCSV(`${FACILITY_CONFIG.code}_Vaccine_Coverage_${new Date().toISOString().split("T")[0]}.csv`, csv);
 }
 
 export function exportDefaultersExcel(defaulters: Defaulter[]) {
   // Comprehensive headers with full child details for tracing
   const headers = [
     "#", 
+    "Facility",
     "Reg No.", 
     "Child Name", 
     "Date of Birth",
@@ -138,6 +152,7 @@ export function exportDefaultersExcel(defaulters: Defaulter[]) {
     
     return [
       (idx + 1).toString(),
+      FACILITY_CONFIG.name,
       d.child.regNo,
       d.child.name,
       formatDate(d.child.dateOfBirth),
@@ -155,11 +170,11 @@ export function exportDefaultersExcel(defaulters: Defaulter[]) {
   });
 
   const csv = arrayToCSV(headers, rows);
-  downloadCSV(`GHS_Defaulters_Tracing_Report_${new Date().toISOString().split("T")[0]}.csv`, csv);
+  downloadCSV(`${FACILITY_CONFIG.code}_Defaulters_Tracing_Report_${new Date().toISOString().split("T")[0]}.csv`, csv);
 }
 
 export function exportChildrenRegisterExcel(children: Child[]) {
-  const headers = ["Reg No.", "Name", "DOB", "Age (months)", "Sex", "Caregiver", "Contact", "Community", "Vaccines Completed", "Total Vaccines"];
+  const headers = ["Facility", "Reg No.", "Name", "DOB", "Age (months)", "Sex", "Caregiver", "Contact", "Community", "Vaccines Completed", "Total Vaccines"];
   const rows = children.map(child => {
     const birthDate = new Date(child.dateOfBirth);
     const today = new Date();
@@ -168,6 +183,7 @@ export function exportChildrenRegisterExcel(children: Child[]) {
     const total = child.vaccines.length;
     
     return [
+      FACILITY_CONFIG.name,
       child.regNo,
       child.name,
       formatDate(child.dateOfBirth),
@@ -182,5 +198,5 @@ export function exportChildrenRegisterExcel(children: Child[]) {
   });
 
   const csv = arrayToCSV(headers, rows);
-  downloadCSV(`GHS_Children_Register_${new Date().toISOString().split("T")[0]}.csv`, csv);
+  downloadCSV(`${FACILITY_CONFIG.code}_Children_Register_${new Date().toISOString().split("T")[0]}.csv`, csv);
 }
