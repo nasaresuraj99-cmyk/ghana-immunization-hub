@@ -34,10 +34,11 @@ export function ForgotPasswordForm({ onSubmit, onBack }: ForgotPasswordFormProps
         title: "Success",
         description: "Password reset email sent. Please check your inbox.",
       });
-    } catch (error) {
+    } catch (error: any) {
+      const errorMessage = error?.message || "Could not send reset email. Please try again.";
       toast({
         title: "Error",
-        description: "Could not send reset email. Please try again.",
+        description: errorMessage,
         variant: "destructive",
       });
     } finally {

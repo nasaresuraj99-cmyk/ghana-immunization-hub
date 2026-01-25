@@ -53,6 +53,10 @@ export function UserManagementPanel({
   });
 
   const canManageUsers = ROLE_PERMISSIONS[currentUserRole].canManageUsers;
+  
+  // STRICT 3-user limit: 1 admin + 2 staff maximum
+  const MAX_USERS = 3;
+  const hasReachedUserLimit = facilityUsers.length >= MAX_USERS;
 
   const getRoleIcon = (role: AppRole) => {
     switch (role) {
@@ -146,6 +150,16 @@ export function UserManagementPanel({
   };
 
   const handleSendEmailInvite = async () => {
+    // Check 3-user limit before allowing invite
+    if (hasReachedUserLimit) {
+      toast({
+        title: "User Limit Reached",
+        description: "This facility can only have 3 users (1 admin + 2 staff). Remove a user to add someone new.",
+        variant: "destructive",
+      });
+      return;
+    }
+    
     if (!inviteEmail || !inviteEmail.includes('@')) {
       toast({
         title: "Invalid Email",
@@ -243,7 +257,7 @@ export function UserManagementPanel({
             >
               <RefreshCw className={cn('w-4 h-4', isLoading && 'animate-spin')} />
             </Button>
-            {canManageUsers && (
+            {canManageUsers && !hasReachedUserLimit && (
               <Button
                 variant="default"
                 size="sm"
@@ -253,6 +267,11 @@ export function UserManagementPanel({
                 <UserPlus className="w-4 h-4" />
                 <span className="hidden sm:inline">Invite</span>
               </Button>
+            )}
+            {canManageUsers && hasReachedUserLimit && (
+              <Badge variant="outline" className="text-xs text-amber-600 border-amber-300 bg-amber-50">
+                Max 3 Users
+              </Badge>
             )}
           </div>
         </div>
