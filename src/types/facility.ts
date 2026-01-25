@@ -42,8 +42,8 @@ export interface ActivityLog {
   facilityId: string;
   userId: string;
   userName?: string;
-  action: 'create' | 'update' | 'soft_delete' | 'restore' | 'permanent_delete' | 'bulk_administer';
-  entityType: 'child' | 'vaccine' | 'user';
+  action: 'create' | 'update' | 'soft_delete' | 'restore' | 'permanent_delete' | 'bulk_administer' | 'generate_document' | 'export_data';
+  entityType: 'child' | 'vaccine' | 'user' | 'certificate' | 'immunization_card' | 'report' | 'data_export';
   entityId?: string;
   entityName?: string;
   oldData?: Record<string, any>;

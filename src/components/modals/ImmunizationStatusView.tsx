@@ -32,6 +32,8 @@ import { exportImmunizationCard, exportVaccineHistory } from "@/lib/pdfExport";
 import { toast } from "sonner";
 import { calculateExactAge } from "@/lib/ageCalculator";
 import { cn, formatDate } from "@/lib/utils";
+import { useDocumentActivityLog } from "@/hooks/useDocumentActivityLog";
+import { useAuth } from "@/hooks/useAuth";
 
 interface ImmunizationStatusViewProps {
   child: Child | null;
@@ -84,6 +86,8 @@ export function ImmunizationStatusView({
     new Set(["birth", "6weeks", "10weeks", "14weeks"])
   );
   const [activeTab, setActiveTab] = useState("all");
+  const { logDocumentGeneration } = useDocumentActivityLog();
+  const { user } = useAuth();
 
   // All hooks MUST be called before any conditional returns
   const vaccineStats = useMemo(() => {
@@ -144,13 +148,44 @@ export function ImmunizationStatusView({
   const handlePrintCard = async () => {
     toast.loading("Generating immunization card...");
     await exportImmunizationCard(child);
+    
+    // Log the document generation for audit trail
+    if (user) {
+      await logDocumentGeneration({
+        userId: user.uid,
+        userName: user.name || user.email || 'Unknown',
+        documentType: 'immunization_card',
+        documentName: `Immunization Card - ${child.name}`,
+        childId: child.id,
+        childRegNo: child.regNo,
+        childName: child.name,
+        format: 'pdf',
+      });
+    }
+    
     toast.dismiss();
     toast.success("Immunization card downloaded!");
   };
 
-  const handleExportHistory = () => {
+  const handleExportHistory = async () => {
     toast.loading("Generating vaccine history...");
     exportVaccineHistory(child);
+    
+    // Log the document generation for audit trail
+    if (user) {
+      await logDocumentGeneration({
+        userId: user.uid,
+        userName: user.name || user.email || 'Unknown',
+        documentType: 'report',
+        documentName: `Vaccine History - ${child.name}`,
+        childId: child.id,
+        childRegNo: child.regNo,
+        childName: child.name,
+        reportType: 'Vaccine History',
+        format: 'pdf',
+      });
+    }
+    
     toast.dismiss();
     toast.success("Vaccine history PDF downloaded!");
   };
