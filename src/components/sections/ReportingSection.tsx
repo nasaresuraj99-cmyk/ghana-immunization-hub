@@ -28,6 +28,8 @@ import {
   exportVaccineCoverageExcel,
   exportDefaultersExcel,
 } from "@/lib/excelExport";
+import { useDocumentActivityLog } from "@/hooks/useDocumentActivityLog";
+import { useAuth } from "@/hooks/useAuth";
 
 interface ReportingSectionProps {
   stats: DashboardStats;
@@ -189,6 +191,10 @@ export function ReportingSection({ stats, children, facilityName }: ReportingSec
   const [selectedVaccineType, setSelectedVaccineType] = useState<string>('all');
   const [compareMonth1, setCompareMonth1] = useState(MONTH_OPTIONS[0]?.value || '');
   const [compareMonth2, setCompareMonth2] = useState(MONTH_OPTIONS[1]?.value || '');
+  
+  // Document activity logging for audit trail
+  const { logDocumentGeneration } = useDocumentActivityLog();
+  const { user } = useAuth();
 
   // Filter only active children (exclude transferred out)
   const activeChildren = useMemo(() => {
@@ -665,7 +671,7 @@ export function ReportingSection({ stats, children, facilityName }: ReportingSec
     { id: 'defaulters', label: 'Defaulters Report', icon: <AlertTriangle className="w-4 h-4" /> },
   ];
 
-  const handleExportPDF = () => {
+  const handleExportPDF = async () => {
     try {
       const periodLabel = getFilteredData.periodLabel;
       const options = { 
@@ -674,20 +680,37 @@ export function ReportingSection({ stats, children, facilityName }: ReportingSec
         periodLabel
       };
       
+      let reportName = '';
       switch (activeTab) {
         case "summary":
-          // Use period-filtered stats for the selected period
           exportSummaryReport(periodFilteredStats, ageDistribution, periodLabel, options);
+          reportName = 'Summary Report';
           break;
         case "detailed":
           exportDetailedReport(detailedRecords, options);
+          reportName = 'Detailed Report';
           break;
         case "vaccine":
           exportVaccineCoverageReport(vaccineCoverage, options);
+          reportName = 'Vaccine Coverage Report';
           break;
         case "defaulters":
           exportDefaultersReport(defaultersList, options);
+          reportName = 'Defaulters Report';
           break;
+      }
+      
+      // Log the document generation for audit trail
+      if (user) {
+        await logDocumentGeneration({
+          userId: user.uid,
+          userName: user.name || user.email || 'Unknown',
+          documentType: 'report',
+          documentName: reportName,
+          reportType: activeTab,
+          format: 'pdf',
+          periodLabel,
+        });
       }
       
       toast.success("PDF exported successfully!");
@@ -697,12 +720,12 @@ export function ReportingSection({ stats, children, facilityName }: ReportingSec
     }
   };
 
-  const handleExportConsolidated = () => {
+  const handleExportConsolidated = async () => {
     try {
       const periodLabel = getFilteredData.periodLabel;
       exportConsolidatedReport(
         {
-          stats: periodFilteredStats, // Use period-filtered stats
+          stats: periodFilteredStats,
           ageDistribution,
           detailedRecords,
           vaccineCoverage,
@@ -714,6 +737,20 @@ export function ReportingSection({ stats, children, facilityName }: ReportingSec
           periodLabel
         }
       );
+      
+      // Log the document generation for audit trail
+      if (user) {
+        await logDocumentGeneration({
+          userId: user.uid,
+          userName: user.name || user.email || 'Unknown',
+          documentType: 'report',
+          documentName: 'Consolidated Report',
+          reportType: 'consolidated',
+          format: 'pdf',
+          periodLabel,
+        });
+      }
+      
       toast.success("Consolidated PDF exported successfully!");
     } catch (error) {
       console.error("Export error:", error);
@@ -721,16 +758,31 @@ export function ReportingSection({ stats, children, facilityName }: ReportingSec
     }
   };
 
-  const handleExportComparisonPDF = () => {
+  const handleExportComparisonPDF = async () => {
     if (!comparisonData) {
       toast.error("Please select two months to compare");
       return;
     }
     try {
+      const periodLabel = `${comparisonData.month1.periodLabel} vs ${comparisonData.month2.periodLabel}`;
       exportMonthComparisonReport(comparisonData, { 
         facilityName: reportFacilityName, 
         reportDate: formatDateDDMMYYYY(new Date()) 
       });
+      
+      // Log the document generation for audit trail
+      if (user) {
+        await logDocumentGeneration({
+          userId: user.uid,
+          userName: user.name || user.email || 'Unknown',
+          documentType: 'report',
+          documentName: 'Month Comparison Report',
+          reportType: 'month_comparison',
+          format: 'pdf',
+          periodLabel,
+        });
+      }
+      
       toast.success("Comparison PDF exported successfully!");
     } catch (error) {
       console.error("Export error:", error);
@@ -738,21 +790,41 @@ export function ReportingSection({ stats, children, facilityName }: ReportingSec
     }
   };
 
-  const handleExportExcel = () => {
+  const handleExportExcel = async () => {
     try {
+      const periodLabel = getFilteredData.periodLabel;
+      let reportName = '';
+      
       switch (activeTab) {
         case "summary":
           exportSummaryExcel(periodFilteredStats, ageDistribution, getFilteredData.periodLabel);
+          reportName = 'Summary Report';
           break;
         case "detailed":
           exportDetailedExcel(detailedRecords);
+          reportName = 'Detailed Report';
           break;
         case "vaccine":
           exportVaccineCoverageExcel(vaccineCoverage);
+          reportName = 'Vaccine Coverage Report';
           break;
         case "defaulters":
           exportDefaultersExcel(defaultersList);
+          reportName = 'Defaulters Report';
           break;
+      }
+      
+      // Log the document generation for audit trail
+      if (user) {
+        await logDocumentGeneration({
+          userId: user.uid,
+          userName: user.name || user.email || 'Unknown',
+          documentType: 'data_export',
+          documentName: reportName,
+          reportType: activeTab,
+          format: 'csv',
+          periodLabel,
+        });
       }
       
       toast.success("Excel (CSV) exported successfully!");

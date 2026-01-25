@@ -26,6 +26,8 @@ import { generateImmunizationCertificate } from "@/lib/certificateExport";
 import { formatDate } from "@/lib/utils";
 import { toast } from "sonner";
 import { FACILITY_CONFIG } from "@/lib/facilityConfig";
+import { useDocumentActivityLog } from "@/hooks/useDocumentActivityLog";
+import { useAuth } from "@/hooks/useAuth";
 
 interface CertificateModalProps {
   child: Child | null;
@@ -45,6 +47,8 @@ export function CertificateModal({
   onClose,
 }: CertificateModalProps) {
   const [isGenerating, setIsGenerating] = useState(false);
+  const { logDocumentGeneration } = useDocumentActivityLog();
+  const { user } = useAuth();
 
   if (!child) return null;
 
@@ -66,6 +70,21 @@ export function CertificateModal({
         facilityName,
         districtRegion,
       });
+      
+      // Log the document generation for audit trail
+      if (user) {
+        await logDocumentGeneration({
+          userId: user.uid,
+          userName: user.name || user.email || 'Unknown',
+          documentType: 'certificate',
+          documentName: `Immunization Certificate - ${child.name}`,
+          childId: child.id,
+          childRegNo: child.regNo,
+          childName: child.name,
+          format: 'pdf',
+        });
+      }
+      
       toast.success("Certificate downloaded successfully!");
     } catch (error) {
       console.error("Certificate generation error:", error);
