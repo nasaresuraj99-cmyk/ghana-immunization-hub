@@ -128,9 +128,10 @@ export async function exportImmunizationCardAsImage(
       height: 842,
     });
     
-    // Create download link
+    // Create download link - Use FIAN URBAN CHPS in filename
+    const facilitySlug = facilityName.replace(/\s+/g, '_');
     const link = document.createElement("a");
-    link.download = `GHS_Immunization_Card_${child.regNo}_${child.name.replace(/\s+/g, "_")}.png`;
+    link.download = `${facilitySlug}_Immunization_Card_${child.regNo}_${child.name.replace(/\s+/g, "_")}.png`;
     link.href = dataUrl;
     document.body.appendChild(link);
     link.click();
