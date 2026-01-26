@@ -1,6 +1,5 @@
 import { useCallback } from 'react';
-import { supabase } from '@/integrations/supabase/client';
-import { db, collection, doc, setDoc } from '@/lib/firebase';
+import { db, doc, setDoc } from '@/lib/firebase';
 import { FACILITY_CONFIG } from '@/lib/facilityConfig';
 
 interface DocumentLogParams {
@@ -18,7 +17,7 @@ interface DocumentLogParams {
 
 /**
  * Hook for logging document generation activities for audit trail.
- * Logs to both Firebase (primary) and Supabase (backup) for reliability.
+ * Logs to Firebase only for reliability and simplicity.
  */
 export function useDocumentActivityLog() {
   const logDocumentGeneration = useCallback(async ({
@@ -80,42 +79,31 @@ export function useDocumentActivityLog() {
       createdAt: timestamp,
     };
 
-    // Log to Firebase (primary data store)
+    // Log to Firebase only
     if (navigator.onLine) {
       try {
         await setDoc(doc(db, 'activityLogs', logId), logData);
         console.log('Document activity logged to Firebase:', logId);
       } catch (error) {
         console.error('Error logging to Firebase:', error);
-      }
-
-      // Also log to Supabase for backup/redundancy
-      try {
-        await supabase.from('activity_logs').insert({
-          id: logId,
-          facility_id: facilityId,
-          user_id: userId,
-          action: 'generate_document',
-          entity_type: documentType,
-          entity_id: childId || logId,
-          description,
-          new_data: logData.newData,
-          created_at: timestamp,
-        });
-        console.log('Document activity logged to Supabase:', logId);
-      } catch (error) {
-        console.error('Error logging to Supabase:', error);
+        // Queue for later sync if Firebase fails
+        queueOfflineLog(logData);
       }
     } else {
       // Queue for later sync if offline
-      const pendingLogs = JSON.parse(localStorage.getItem('pending_doc_logs') || '[]');
-      pendingLogs.push(logData);
-      localStorage.setItem('pending_doc_logs', JSON.stringify(pendingLogs.slice(-50)));
+      queueOfflineLog(logData);
       console.log('Document activity queued for offline sync:', logId);
     }
 
     return logId;
   }, []);
+
+  // Helper to queue logs for offline sync
+  const queueOfflineLog = (logData: any) => {
+    const pendingLogs = JSON.parse(localStorage.getItem('pending_doc_logs') || '[]');
+    pendingLogs.push(logData);
+    localStorage.setItem('pending_doc_logs', JSON.stringify(pendingLogs.slice(-50)));
+  };
 
   // Sync any pending offline logs when coming back online
   const syncPendingLogs = useCallback(async () => {
@@ -126,27 +114,30 @@ export function useDocumentActivityLog() {
 
     console.log(`Syncing ${pendingLogs.length} pending document logs...`);
 
+    const successfulSyncs: string[] = [];
+
     for (const logData of pendingLogs) {
       try {
         await setDoc(doc(db, 'activityLogs', logData.id), logData);
-        await supabase.from('activity_logs').insert({
-          id: logData.id,
-          facility_id: logData.facilityId,
-          user_id: logData.userId,
-          action: logData.action,
-          entity_type: logData.entityType,
-          entity_id: logData.entityId,
-          description: logData.description,
-          new_data: logData.newData,
-          created_at: logData.createdAt,
-        });
+        successfulSyncs.push(logData.id);
+        console.log('Synced pending log:', logData.id);
       } catch (error) {
         console.error('Error syncing pending log:', error);
       }
     }
 
-    localStorage.removeItem('pending_doc_logs');
-    console.log('Pending document logs synced successfully');
+    // Remove successfully synced logs
+    if (successfulSyncs.length > 0) {
+      const remainingLogs = pendingLogs.filter(
+        (log: any) => !successfulSyncs.includes(log.id)
+      );
+      if (remainingLogs.length === 0) {
+        localStorage.removeItem('pending_doc_logs');
+      } else {
+        localStorage.setItem('pending_doc_logs', JSON.stringify(remainingLogs));
+      }
+      console.log(`Synced ${successfulSyncs.length} pending document logs`);
+    }
   }, []);
 
   return {
