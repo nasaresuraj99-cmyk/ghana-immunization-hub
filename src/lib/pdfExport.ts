@@ -3,12 +3,29 @@ import autoTable from "jspdf-autotable";
 import QRCode from "qrcode";
 import { Child, DashboardStats, Defaulter } from "@/types/child";
 import { FACILITY_CONFIG } from "@/lib/facilityConfig";
+import ghsLogoUrl from "@/assets/ghs-logo.png";
 
 // Ghana Health Service branding colors
 const GHS_GREEN: [number, number, number] = [0, 100, 0];
 const GHS_GOLD: [number, number, number] = [255, 215, 0];
 const GHS_RED: [number, number, number] = [206, 17, 38];
 const GHS_DARK: [number, number, number] = [30, 41, 59];
+
+// Helper to load GHS logo as base64 for PDF embedding
+async function loadGHSLogoBase64(): Promise<string | null> {
+  try {
+    const response = await fetch(ghsLogoUrl);
+    const blob = await response.blob();
+    return new Promise((resolve) => {
+      const reader = new FileReader();
+      reader.onloadend = () => resolve(reader.result as string);
+      reader.onerror = () => resolve(null);
+      reader.readAsDataURL(blob);
+    });
+  } catch {
+    return null;
+  }
+}
 
 // Default to FIAN URBAN CHPS for all reports
 const DEFAULT_FACILITY_NAME = FACILITY_CONFIG.name;
@@ -628,6 +645,9 @@ export async function exportImmunizationCard(
   // Always use FIAN URBAN CHPS (never user-editable)
   const facilityName = DEFAULT_FACILITY_NAME;
 
+  // Load GHS logo
+  const ghsLogoBase64 = await loadGHSLogoBase64();
+
   // Generate QR code with verification data
   const verificationData = {
     id: child.id,
@@ -662,30 +682,45 @@ export async function exportImmunizationCard(
 
   // Header background with gradient effect
   doc.setFillColor(...GHS_GREEN);
-  doc.rect(5, 5, pageWidth - 10, 28, "F");
+  doc.rect(5, 5, pageWidth - 10, 32, "F");
   
   // Gold accent stripe
   doc.setFillColor(...GHS_GOLD);
-  doc.rect(5, 33, pageWidth - 10, 3, "F");
+  doc.rect(5, 37, pageWidth - 10, 3, "F");
 
-  // Ghana coat of arms placeholder area
-  doc.setFillColor(255, 255, 255);
-  doc.circle(pageWidth / 2, 14, 6, "F");
-  doc.setDrawColor(...GHS_GOLD);
-  doc.setLineWidth(0.8);
-  doc.circle(pageWidth / 2, 14, 6, "S");
+  // Add GHS Logo in header
+  if (ghsLogoBase64) {
+    // White circle background for logo
+    doc.setFillColor(255, 255, 255);
+    doc.circle(pageWidth / 2, 16, 10, "F");
+    doc.setDrawColor(...GHS_GOLD);
+    doc.setLineWidth(0.8);
+    doc.circle(pageWidth / 2, 16, 10, "S");
+    // Add the logo image
+    doc.addImage(ghsLogoBase64, "PNG", pageWidth / 2 - 8, 8, 16, 16);
+  } else {
+    // Fallback: Ghana coat of arms placeholder area
+    doc.setFillColor(255, 255, 255);
+    doc.circle(pageWidth / 2, 16, 8, "F");
+    doc.setDrawColor(...GHS_GOLD);
+    doc.setLineWidth(0.8);
+    doc.circle(pageWidth / 2, 16, 8, "S");
+    doc.setTextColor(...GHS_GREEN);
+    doc.setFontSize(6);
+    doc.text("GHS", pageWidth / 2, 17, { align: "center" });
+  }
 
   // Header text
   doc.setTextColor(255, 255, 255);
   doc.setFontSize(7);
   doc.setFont("helvetica", "bold");
-  doc.text("REPUBLIC OF GHANA", pageWidth / 2, 24, { align: "center" });
+  doc.text("REPUBLIC OF GHANA", pageWidth / 2, 28, { align: "center" });
   
   doc.setFontSize(10);
-  doc.text("CHILD IMMUNIZATION CERTIFICATE", pageWidth / 2, 30, { align: "center" });
+  doc.text("CHILD IMMUNIZATION CERTIFICATE", pageWidth / 2, 34, { align: "center" });
 
   // Facility name bar
-  let yPos = 40;
+  let yPos = 44;
   doc.setFillColor(245, 250, 245);
   doc.roundedRect(8, yPos - 3, pageWidth - 16, 12, 2, 2, "F");
   doc.setDrawColor(...GHS_GREEN);
@@ -698,7 +733,7 @@ export async function exportImmunizationCard(
   doc.text(facilityName.toUpperCase(), pageWidth / 2, yPos + 4, { align: "center" });
 
   // Child details section
-  yPos = 56;
+  yPos = 60;
   doc.setFillColor(250, 252, 250);
   doc.roundedRect(8, yPos, pageWidth - 16, 38, 2, 2, "F");
   doc.setDrawColor(...GHS_GREEN);
@@ -740,7 +775,7 @@ export async function exportImmunizationCard(
   });
 
   // Immunization record section
-  yPos = 98;
+  yPos = 102;
   doc.setFillColor(...GHS_GREEN);
   doc.rect(8, yPos, pageWidth - 16, 7, "F");
   doc.setTextColor(255, 255, 255);

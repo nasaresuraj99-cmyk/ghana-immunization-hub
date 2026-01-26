@@ -25,14 +25,19 @@ export async function exportImmunizationCardAsImage(
   const total = child.vaccines.length;
   const progress = total > 0 ? Math.round((completed / total) * 100) : 0;
 
-  // Build simplified HTML content - clean and professional
+  // Build simplified HTML content - clean and professional with GHS Logo
   container.innerHTML = `
     <div style="border: 3px solid #006400; margin: 8px; height: calc(100% - 16px); box-sizing: border-box; position: relative; background: #fff;">
-      <!-- Header -->
-      <div style="background: linear-gradient(135deg, #006400, #228B22); padding: 12px; text-align: center;">
-        <div style="color: white; font-size: 11px; font-weight: bold;">REPUBLIC OF GHANA</div>
-        <div style="color: white; font-size: 16px; font-weight: bold; margin-top: 2px;">GHANA HEALTH SERVICE</div>
-        <div style="color: white; font-size: 10px; margin-top: 2px;">Child Immunization Record Card</div>
+      <!-- Header with GHS Logo -->
+      <div style="background: linear-gradient(135deg, #006400, #228B22); padding: 12px; text-align: center; position: relative;">
+        <div style="display: flex; align-items: center; justify-content: center; gap: 12px;">
+          <img src="/src/assets/ghs-logo.png" alt="GHS Logo" style="width: 50px; height: 50px; border-radius: 50%; background: white; padding: 2px; box-shadow: 0 2px 4px rgba(0,0,0,0.3);" onerror="this.style.display='none'" />
+          <div>
+            <div style="color: white; font-size: 11px; font-weight: bold;">REPUBLIC OF GHANA</div>
+            <div style="color: white; font-size: 16px; font-weight: bold; margin-top: 2px;">GHANA HEALTH SERVICE</div>
+            <div style="color: white; font-size: 10px; margin-top: 2px;">Child Immunization Record Card</div>
+          </div>
+        </div>
       </div>
       
       <!-- Gold Line -->
