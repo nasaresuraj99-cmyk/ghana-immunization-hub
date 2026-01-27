@@ -41,6 +41,7 @@ export function exportSummaryExcel(
   const headers = ["Metric", "Value"];
   const rows = [
     ["Facility", FACILITY_CONFIG.name],
+    ["District", FACILITY_CONFIG.district],
     ["Report Period", period.charAt(0).toUpperCase() + period.slice(1)],
     ["Report Date", formatDate(new Date().toISOString())],
     [""],
@@ -71,7 +72,7 @@ export function exportDetailedExcel(
   }>
 ) {
   const headers = ["Date", "Reg No.", "Child Name", "Vaccine", "Batch No.", "Status"];
-  const facilityRow = [FACILITY_CONFIG.name, "", "", "", "", ""];
+  const facilityRow = [`${FACILITY_CONFIG.name} - ${FACILITY_CONFIG.district}`, "", "", "", "", ""];
   const rows = [
     facilityRow,
     ...records.map(r => [
@@ -92,7 +93,7 @@ export function exportVaccineCoverageExcel(
   vaccineCoverage: Record<string, { given: number; pending: number; overdue: number }>
 ) {
   const headers = ["Vaccine Type", "Given", "Pending", "Overdue", "Total", "Coverage %"];
-  const facilityRow = [FACILITY_CONFIG.name, "", "", "", "", ""];
+  const facilityRow = [`${FACILITY_CONFIG.name} - ${FACILITY_CONFIG.district}`, "", "", "", "", ""];
   const rows = [
     facilityRow,
     ...Object.entries(vaccineCoverage).map(([type, data]) => {
@@ -118,6 +119,7 @@ export function exportDefaultersExcel(defaulters: Defaulter[]) {
   const headers = [
     "#", 
     "Facility",
+    "District",
     "Reg No.", 
     "Child Name", 
     "Date of Birth",
@@ -153,6 +155,7 @@ export function exportDefaultersExcel(defaulters: Defaulter[]) {
     return [
       (idx + 1).toString(),
       FACILITY_CONFIG.name,
+      FACILITY_CONFIG.district,
       d.child.regNo,
       d.child.name,
       formatDate(d.child.dateOfBirth),
@@ -174,7 +177,7 @@ export function exportDefaultersExcel(defaulters: Defaulter[]) {
 }
 
 export function exportChildrenRegisterExcel(children: Child[]) {
-  const headers = ["Facility", "Reg No.", "Name", "DOB", "Age (months)", "Sex", "Caregiver", "Contact", "Community", "Vaccines Completed", "Total Vaccines"];
+  const headers = ["Facility", "District", "Reg No.", "Name", "DOB", "Age (months)", "Sex", "Caregiver", "Contact", "Community", "Vaccines Completed", "Total Vaccines"];
   const rows = children.map(child => {
     const birthDate = new Date(child.dateOfBirth);
     const today = new Date();
@@ -184,6 +187,7 @@ export function exportChildrenRegisterExcel(children: Child[]) {
     
     return [
       FACILITY_CONFIG.name,
+      FACILITY_CONFIG.district,
       child.regNo,
       child.name,
       formatDate(child.dateOfBirth),
