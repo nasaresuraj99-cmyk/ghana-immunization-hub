@@ -5,6 +5,7 @@ import { FACILITY_CONFIG } from "@/lib/facilityConfig";
 export interface FullExportData {
   exportDate: string;
   facilityName: string;
+  district: string;
   totalChildren: number;
   summary: DashboardStats;
   children: Array<{
@@ -35,6 +36,7 @@ export function exportFullDataJSON(
   const exportData: FullExportData = {
     exportDate: new Date().toISOString(),
     facilityName: FACILITY_CONFIG.name,
+    district: FACILITY_CONFIG.district,
     totalChildren: children.length,
     summary: stats,
     children: children.map(child => ({

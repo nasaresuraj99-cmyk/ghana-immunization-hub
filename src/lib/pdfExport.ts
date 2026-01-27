@@ -56,14 +56,15 @@ function addHeader(doc: jsPDF, title: string, options: PDFOptions = {}) {
   const facilityName = options.facilityName || DEFAULT_FACILITY_NAME;
   const reportDate = options.reportDate || formatDateDDMMYYYY(new Date());
   const periodLabel = options.periodLabel;
+  const district = FACILITY_CONFIG.district;
 
   // Green header bar
   doc.setFillColor(...GHS_GREEN);
-  doc.rect(0, 0, pageWidth, 40, "F");
+  doc.rect(0, 0, pageWidth, 44, "F");
 
   // Gold accent line
   doc.setFillColor(...GHS_GOLD);
-  doc.rect(0, 40, pageWidth, 3, "F");
+  doc.rect(0, 44, pageWidth, 3, "F");
 
   // Title
   doc.setTextColor(255, 255, 255);
@@ -80,21 +81,25 @@ function addHeader(doc: jsPDF, title: string, options: PDFOptions = {}) {
   doc.setFont("helvetica", "bold");
   doc.text(facilityName, pageWidth - 14, 12, { align: "right" });
   
-  doc.setFontSize(9);
+  // District info
+  doc.setFontSize(8);
   doc.setFont("helvetica", "normal");
-  doc.text(`Report Date: ${reportDate}`, pageWidth - 14, 20, { align: "right" });
+  doc.text(district, pageWidth - 14, 19, { align: "right" });
+  
+  doc.setFontSize(9);
+  doc.text(`Report Date: ${reportDate}`, pageWidth - 14, 27, { align: "right" });
   
   if (periodLabel) {
-    doc.text(`Period: ${periodLabel}`, pageWidth - 14, 28, { align: "right" });
+    doc.text(`Period: ${periodLabel}`, pageWidth - 14, 35, { align: "right" });
   }
 
   // Report title
   doc.setTextColor(...GHS_DARK);
   doc.setFontSize(16);
   doc.setFont("helvetica", "bold");
-  doc.text(title, 14, 55);
+  doc.text(title, 14, 59);
 
-  return 62; // Return Y position after header
+  return 66; // Return Y position after header
 }
 
 function addFooter(doc: jsPDF, pageNumber: number) {

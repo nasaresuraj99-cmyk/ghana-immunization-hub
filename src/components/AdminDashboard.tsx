@@ -1,19 +1,16 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { 
   Activity, 
   Users, 
   Shield, 
   LogIn, 
-  UserPlus, 
   Clock, 
   TrendingUp,
-  Calendar,
   RefreshCw,
   ChevronRight,
   ShieldCheck,
   Eye,
   ArrowUpRight,
-  ArrowDownRight,
   UserCheck,
   UserX
 } from 'lucide-react';
@@ -24,7 +21,7 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { ActivityLogViewer } from '@/components/ActivityLogViewer';
 import { UserManagementPanel } from '@/components/UserManagementPanel';
-import { AppRole, ActivityLog, FacilityUser } from '@/types/facility';
+import { AppRole, FacilityUser } from '@/types/facility';
 import { cn } from '@/lib/utils';
 
 interface LoginRecord {
@@ -68,30 +65,52 @@ export function AdminDashboard({
   const [loginHistory, setLoginHistory] = useState<LoginRecord[]>([]);
   const [roleChanges, setRoleChanges] = useState<RoleChangeRecord[]>([]);
   const [isLoading, setIsLoading] = useState(false);
+  const [hasLoadedData, setHasLoadedData] = useState(false);
 
   // Load login history from localStorage (in real app, would come from Firebase)
   useEffect(() => {
-    const storedLogins = localStorage.getItem(`login_history_${facilityId}`);
-    if (storedLogins) {
-      setLoginHistory(JSON.parse(storedLogins));
-    } else {
-      // Generate sample data for demo
-      const sampleLogins: LoginRecord[] = facilityUsers.slice(0, 5).map((user, idx) => ({
-        id: `login-${idx}`,
-        userId: user.id,
-        userName: user.name,
-        email: user.email,
-        timestamp: new Date(Date.now() - idx * 3600000 * (idx + 1)).toISOString(),
-        type: 'login' as const,
-      }));
-      setLoginHistory(sampleLogins);
-    }
+    if (hasLoadedData) return;
+    
+    try {
+      const storedLogins = localStorage.getItem(`login_history_${facilityId}`);
+      if (storedLogins) {
+        setLoginHistory(JSON.parse(storedLogins));
+      } else {
+        // Generate sample data for demo
+        const sampleLogins: LoginRecord[] = facilityUsers.slice(0, 5).map((user, idx) => ({
+          id: `login-${idx}`,
+          userId: user.id,
+          userName: user.name,
+          email: user.email,
+          timestamp: new Date(Date.now() - idx * 3600000 * (idx + 1)).toISOString(),
+          type: 'login' as const,
+        }));
+        setLoginHistory(sampleLogins);
+        // Save sample data
+        localStorage.setItem(`login_history_${facilityId}`, JSON.stringify(sampleLogins));
+      }
 
-    const storedRoleChanges = localStorage.getItem(`role_changes_${facilityId}`);
-    if (storedRoleChanges) {
-      setRoleChanges(JSON.parse(storedRoleChanges));
+      const storedRoleChanges = localStorage.getItem(`role_changes_${facilityId}`);
+      if (storedRoleChanges) {
+        setRoleChanges(JSON.parse(storedRoleChanges));
+      }
+      
+      setHasLoadedData(true);
+    } catch (error) {
+      console.error('Error loading admin dashboard data:', error);
+      setHasLoadedData(true);
     }
-  }, [facilityId, facilityUsers]);
+  }, [facilityId, facilityUsers, hasLoadedData]);
+
+  const handleRefresh = useCallback(() => {
+    setIsLoading(true);
+    setHasLoadedData(false);
+    
+    // Simulate refresh delay
+    setTimeout(() => {
+      setIsLoading(false);
+    }, 1000);
+  }, []);
 
   const formatTimeAgo = (dateStr: string) => {
     const date = new Date(dateStr);
@@ -158,7 +177,7 @@ export function AdminDashboard({
           variant="outline" 
           size="sm" 
           className="gap-2"
-          onClick={() => setIsLoading(true)}
+          onClick={handleRefresh}
           disabled={isLoading}
         >
           <RefreshCw className={cn("w-4 h-4", isLoading && "animate-spin")} />
