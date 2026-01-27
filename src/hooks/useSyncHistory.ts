@@ -7,10 +7,10 @@ import {
   setDoc, 
   query, 
   where, 
-  orderBy, 
   limit 
 } from '@/lib/firebase';
 import { SyncHistoryRecord } from '@/types/facility';
+import { FACILITY_CONFIG } from '@/lib/facilityConfig';
 
 const SYNC_HISTORY_LOCAL_KEY = 'sync_history';
 
@@ -30,22 +30,38 @@ const saveLocalHistory = (history: SyncHistoryRecord[]) => {
 };
 
 export function useSyncHistory(userId?: string, facilityId?: string) {
+  const effectiveFacilityId = facilityId || FACILITY_CONFIG.id;
   const [history, setHistory] = useState<SyncHistoryRecord[]>(() => loadLocalHistory());
   const [isLoading, setIsLoading] = useState(false);
 
-  // Load history from Firebase
+  // Load history from Firebase - simpler query without compound index
   useEffect(() => {
-    if (!userId || !navigator.onLine) return;
+    if (!userId) {
+      // If no userId, still show local history
+      const localHistory = loadLocalHistory();
+      if (localHistory.length > 0) {
+        setHistory(localHistory);
+      }
+      return;
+    }
+    
+    if (!navigator.onLine) {
+      const localHistory = loadLocalHistory();
+      if (localHistory.length > 0) {
+        setHistory(localHistory);
+      }
+      return;
+    }
 
     const load = async () => {
       setIsLoading(true);
       try {
         const ref = collection(db, 'syncHistory');
+        // Simple query without compound index requirement
         const q = query(
           ref, 
           where('userId', '==', userId),
-          orderBy('startedAt', 'desc'),
-          limit(50)
+          limit(100)
         );
         const snap = await getDocs(q);
         const records: SyncHistoryRecord[] = [];
@@ -65,10 +81,20 @@ export function useSyncHistory(userId?: string, facilityId?: string) {
           });
         });
         
-        setHistory(records);
-        saveLocalHistory(records);
+        // Sort client-side by startedAt descending
+        records.sort((a, b) => new Date(b.startedAt).getTime() - new Date(a.startedAt).getTime());
+        const sortedRecords = records.slice(0, 50);
+        
+        setHistory(sortedRecords);
+        saveLocalHistory(sortedRecords);
+        console.log('Sync history loaded:', sortedRecords.length);
       } catch (error) {
         console.error('Error loading sync history:', error);
+        // Fall back to local storage
+        const localHistory = loadLocalHistory();
+        if (localHistory.length > 0) {
+          setHistory(localHistory);
+        }
       } finally {
         setIsLoading(false);
       }
@@ -89,7 +115,7 @@ export function useSyncHistory(userId?: string, facilityId?: string) {
     const record: SyncHistoryRecord = {
       id: `sync-${Date.now()}`,
       userId,
-      facilityId,
+      facilityId: effectiveFacilityId,
       status,
       syncedCount,
       failedCount,
@@ -109,23 +135,32 @@ export function useSyncHistory(userId?: string, facilityId?: string) {
     if (navigator.onLine) {
       try {
         await setDoc(doc(db, 'syncHistory', record.id), record);
+        console.log('Sync record saved to Firebase:', record.id);
       } catch (error) {
         console.error('Error saving sync record:', error);
       }
     }
-  }, [userId, facilityId]);
+  }, [userId, effectiveFacilityId]);
 
   const refreshHistory = useCallback(async () => {
-    if (!userId || !navigator.onLine) return;
+    if (!userId) return;
+    
+    if (!navigator.onLine) {
+      const localHistory = loadLocalHistory();
+      if (localHistory.length > 0) {
+        setHistory(localHistory);
+      }
+      return;
+    }
 
     setIsLoading(true);
     try {
       const ref = collection(db, 'syncHistory');
+      // Simple query without compound index
       const q = query(
         ref, 
         where('userId', '==', userId),
-        orderBy('startedAt', 'desc'),
-        limit(50)
+        limit(100)
       );
       const snap = await getDocs(q);
       const records: SyncHistoryRecord[] = [];
@@ -145,8 +180,13 @@ export function useSyncHistory(userId?: string, facilityId?: string) {
         });
       });
       
-      setHistory(records);
-      saveLocalHistory(records);
+      // Sort client-side by startedAt descending
+      records.sort((a, b) => new Date(b.startedAt).getTime() - new Date(a.startedAt).getTime());
+      const sortedRecords = records.slice(0, 50);
+      
+      setHistory(sortedRecords);
+      saveLocalHistory(sortedRecords);
+      console.log('Sync history refreshed:', sortedRecords.length);
     } catch (error) {
       console.error('Error refreshing sync history:', error);
     } finally {
