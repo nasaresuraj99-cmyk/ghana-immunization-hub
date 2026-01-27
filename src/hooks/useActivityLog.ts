@@ -11,6 +11,7 @@ import {
   limit 
 } from '@/lib/firebase';
 import { ActivityLog } from '@/types/facility';
+import { FACILITY_CONFIG } from '@/lib/facilityConfig';
 
 const ACTIVITY_LOG_LOCAL_KEY = 'activity_logs';
 
@@ -30,22 +31,24 @@ const saveLocalLogs = (logs: ActivityLog[]) => {
 };
 
 export function useActivityLog(facilityId?: string, userId?: string, userName?: string) {
+  // Always use the configured facility ID if not provided
+  const effectiveFacilityId = facilityId || FACILITY_CONFIG.id;
   const [logs, setLogs] = useState<ActivityLog[]>(() => loadLocalLogs());
   const [isLoading, setIsLoading] = useState(false);
 
-  // Load logs from Firebase
+  // Load logs from Firebase - simpler query without compound index requirement
   useEffect(() => {
-    if (!facilityId) return;
+    if (!effectiveFacilityId) return;
 
     const load = async () => {
       setIsLoading(true);
       try {
         const ref = collection(db, 'activityLogs');
+        // Use simpler query - filter by facility only, sort client-side
         const q = query(
           ref, 
-          where('facilityId', '==', facilityId),
-          orderBy('createdAt', 'desc'),
-          limit(100)
+          where('facilityId', '==', effectiveFacilityId),
+          limit(200)
         );
         const snap = await getDocs(q);
         const records: ActivityLog[] = [];
@@ -68,17 +71,27 @@ export function useActivityLog(facilityId?: string, userId?: string, userName?: 
           });
         });
         
-        setLogs(records);
-        saveLocalLogs(records);
+        // Sort client-side by createdAt descending
+        records.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+        const sortedRecords = records.slice(0, 100);
+        
+        setLogs(sortedRecords);
+        saveLocalLogs(sortedRecords);
+        console.log('Activity logs loaded:', sortedRecords.length);
       } catch (error) {
         console.error('Error loading activity logs:', error);
+        // Fall back to local storage
+        const localLogs = loadLocalLogs();
+        if (localLogs.length > 0) {
+          setLogs(localLogs);
+        }
       } finally {
         setIsLoading(false);
       }
     };
 
     load();
-  }, [facilityId]);
+  }, [effectiveFacilityId]);
 
   const logActivity = useCallback(async (
     action: ActivityLog['action'],
@@ -89,11 +102,11 @@ export function useActivityLog(facilityId?: string, userId?: string, userName?: 
     newData?: Record<string, any>,
     description?: string
   ) => {
-    if (!facilityId || !userId) return;
+    if (!effectiveFacilityId || !userId) return;
 
     const newLog: ActivityLog = {
       id: `log-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
-      facilityId,
+      facilityId: effectiveFacilityId,
       userId,
       userName: userName || 'Unknown',
       action,
@@ -117,23 +130,24 @@ export function useActivityLog(facilityId?: string, userId?: string, userName?: 
     if (navigator.onLine) {
       try {
         await setDoc(doc(db, 'activityLogs', newLog.id), newLog);
+        console.log('Activity logged to Firebase:', newLog.id);
       } catch (error) {
         console.error('Error saving activity log:', error);
       }
     }
-  }, [facilityId, userId, userName]);
+  }, [effectiveFacilityId, userId, userName]);
 
   const refreshLogs = useCallback(async () => {
-    if (!facilityId) return;
+    if (!effectiveFacilityId) return;
 
     setIsLoading(true);
     try {
       const ref = collection(db, 'activityLogs');
+      // Use simpler query without compound index
       const q = query(
         ref, 
-        where('facilityId', '==', facilityId),
-        orderBy('createdAt', 'desc'),
-        limit(100)
+        where('facilityId', '==', effectiveFacilityId),
+        limit(200)
       );
       const snap = await getDocs(q);
       const records: ActivityLog[] = [];
@@ -156,14 +170,19 @@ export function useActivityLog(facilityId?: string, userId?: string, userName?: 
         });
       });
       
-      setLogs(records);
-      saveLocalLogs(records);
+      // Sort client-side by createdAt descending
+      records.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+      const sortedRecords = records.slice(0, 100);
+      
+      setLogs(sortedRecords);
+      saveLocalLogs(sortedRecords);
+      console.log('Activity logs refreshed:', sortedRecords.length);
     } catch (error) {
       console.error('Error refreshing activity logs:', error);
     } finally {
       setIsLoading(false);
     }
-  }, [facilityId]);
+  }, [effectiveFacilityId]);
 
   return {
     logs,

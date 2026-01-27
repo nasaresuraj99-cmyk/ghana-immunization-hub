@@ -719,21 +719,27 @@ export async function exportImmunizationCard(
   doc.setFontSize(10);
   doc.text("CHILD IMMUNIZATION CERTIFICATE", pageWidth / 2, 34, { align: "center" });
 
-  // Facility name bar
+  // Facility name bar with district
   let yPos = 44;
   doc.setFillColor(245, 250, 245);
-  doc.roundedRect(8, yPos - 3, pageWidth - 16, 12, 2, 2, "F");
+  doc.roundedRect(8, yPos - 3, pageWidth - 16, 16, 2, 2, "F");
   doc.setDrawColor(...GHS_GREEN);
   doc.setLineWidth(0.3);
-  doc.roundedRect(8, yPos - 3, pageWidth - 16, 12, 2, 2, "S");
+  doc.roundedRect(8, yPos - 3, pageWidth - 16, 16, 2, 2, "S");
   
   doc.setTextColor(...GHS_GREEN);
   doc.setFontSize(9);
   doc.setFont("helvetica", "bold");
-  doc.text(facilityName.toUpperCase(), pageWidth / 2, yPos + 4, { align: "center" });
+  doc.text(facilityName.toUpperCase(), pageWidth / 2, yPos + 3, { align: "center" });
+  
+  // Add district info
+  doc.setFontSize(6);
+  doc.setFont("helvetica", "normal");
+  doc.setTextColor(80, 80, 80);
+  doc.text(FACILITY_CONFIG.district, pageWidth / 2, yPos + 9, { align: "center" });
 
-  // Child details section
-  yPos = 60;
+  // Child details section - adjusted position
+  yPos = 64;
   doc.setFillColor(250, 252, 250);
   doc.roundedRect(8, yPos, pageWidth - 16, 38, 2, 2, "F");
   doc.setDrawColor(...GHS_GREEN);

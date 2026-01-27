@@ -6,8 +6,9 @@ export const FACILITY_CONFIG = {
   name: 'FIAN URBAN CHPS',
   code: 'FUCHPS',
   address: 'Fian Urban, Ghana',
-  region: 'Ashanti Region, Ghana',
-  districtRegion: 'Ashanti Region, Ghana',
+  district: 'Daffiama Bussie Issa (DBI)',
+  region: 'Upper West Region, Ghana',
+  districtRegion: 'Daffiama Bussie Issa District, Upper West Region',
 } as const;
 
 // Lock the app to this facility only
@@ -23,3 +24,4 @@ export const isAuthorizedFacilityName = (facilityName: string | null | undefined
 // Get facility name for certificates and reports
 export const getFacilityName = (): string => FACILITY_CONFIG.name;
 export const getDistrictRegion = (): string => FACILITY_CONFIG.districtRegion;
+export const getDistrict = (): string => FACILITY_CONFIG.district;
