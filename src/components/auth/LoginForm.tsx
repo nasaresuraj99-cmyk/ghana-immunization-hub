@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, forwardRef } from "react";
 import { Eye, EyeOff, Mail, Lock } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -10,7 +10,7 @@ interface LoginFormProps {
   onForgotPassword: () => void;
 }
 
-export function LoginForm({ onLogin, onForgotPassword }: LoginFormProps) {
+export const LoginForm = forwardRef<HTMLFormElement, LoginFormProps>(({ onLogin, onForgotPassword }, ref) => {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
@@ -44,7 +44,7 @@ export function LoginForm({ onLogin, onForgotPassword }: LoginFormProps) {
   };
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-4">
+    <form ref={ref} onSubmit={handleSubmit} className="space-y-4">
       <div className="space-y-2">
         <Label htmlFor="email">Email</Label>
         <div className="relative">
@@ -97,4 +97,6 @@ export function LoginForm({ onLogin, onForgotPassword }: LoginFormProps) {
       </button>
     </form>
   );
-}
+});
+
+LoginForm.displayName = 'LoginForm';
