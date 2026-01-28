@@ -712,12 +712,18 @@ export function useChildren(options: UseChildrenOptions = {}) {
     const sevenDaysFromNow = new Date();
     sevenDaysFromNow.setDate(today.getDate() + 7);
 
+    // Filter out transferred-out children from stats calculations
+    const activeChildren = children.filter(child => 
+      child.transferStatus !== 'traveled_out' && 
+      child.transferStatus !== 'moved_out'
+    );
+
     let vaccinatedToday = 0;
     let dueSoon = 0;
     let defaulters = 0;
     let fullyImmunized = 0;
 
-    children.forEach(child => {
+    activeChildren.forEach(child => {
       const hasOverdue = child.vaccines.some(v => v.status === 'overdue');
       const allCompleted = child.vaccines.every(v => v.status === 'completed');
       
@@ -738,19 +744,25 @@ export function useChildren(options: UseChildrenOptions = {}) {
       });
     });
 
-    const totalVaccines = children.reduce((sum, child) => sum + child.vaccines.length, 0);
-    const completedVaccines = children.reduce((sum, child) => 
+    const totalVaccines = activeChildren.reduce((sum, child) => sum + child.vaccines.length, 0);
+    const completedVaccines = activeChildren.reduce((sum, child) => 
       sum + child.vaccines.filter(v => v.status === 'completed').length, 0
     );
 
+    // Count transferred-out children for reference
+    const transferredOutCount = children.filter(child => 
+      child.transferStatus === 'traveled_out' || 
+      child.transferStatus === 'moved_out'
+    ).length;
+
     return {
-      totalChildren: children.length,
+      totalChildren: activeChildren.length,
       vaccinatedToday,
       dueSoon,
       defaulters,
       coverageRate: totalVaccines > 0 ? Math.round((completedVaccines / totalVaccines) * 100) : 0,
       fullyImmunized,
-      dropoutRate: children.length > 0 ? Math.round((defaulters / children.length) * 100) : 0,
+      dropoutRate: activeChildren.length > 0 ? Math.round((defaulters / activeChildren.length) * 100) : 0,
       archivedChildren: archivedChildren.length,
     };
   }, [children, archivedChildren]);
