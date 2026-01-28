@@ -316,9 +316,14 @@ export function ChildProfileModal({
                 View Status & Edit
               </Button>
             )}
-            <Button onClick={() => onAdministerVaccine(child)} className="flex-1">
+            <Button 
+              onClick={() => onAdministerVaccine(child)} 
+              className="flex-1"
+              disabled={isTransferredOut}
+              title={isTransferredOut ? "Cannot administer vaccines to children who have traveled/moved out" : ""}
+            >
               <Syringe className="w-4 h-4 mr-2" />
-              Administer Vaccine
+              {isTransferredOut ? "Inactive" : "Administer Vaccine"}
             </Button>
             <DropdownMenu>
               <DropdownMenuTrigger asChild>

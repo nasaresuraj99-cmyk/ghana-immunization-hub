@@ -72,6 +72,9 @@ export function VaccineAdministrationModal({
   const [expandedCategories, setExpandedCategories] = useState<Set<string>>(new Set(['birth', '6weeks']));
   const [filterCategory, setFilterCategory] = useState<string>('all');
 
+  // Check if child is transferred out - block vaccination
+  const isTransferredOut = child?.transferStatus === 'traveled_out' || child?.transferStatus === 'moved_out';
+
   // Only show vaccines that are due (due date <= today) and not completed
   const dueVaccines = child?.vaccines.filter(v => v.status !== 'completed' && isVaccineDue(v.dueDate)) || [];
   const notYetDueVaccines = child?.vaccines.filter(v => v.status !== 'completed' && !isVaccineDue(v.dueDate)) || [];
@@ -222,8 +225,27 @@ export function VaccineAdministrationModal({
 
         {child && (
           <div className="space-y-6">
+            {/* Transferred out notice - blocks vaccination */}
+            {isTransferredOut && (
+              <div className="bg-amber-500/10 border border-amber-500/30 rounded-lg p-4 flex items-start gap-3">
+                <AlertTriangle className="w-5 h-5 text-amber-600 shrink-0 mt-0.5" />
+                <div className="text-sm">
+                  <p className="font-medium text-amber-700">Child Has Traveled/Moved Out</p>
+                  <p className="text-muted-foreground">
+                    Vaccination cannot be administered for children who have traveled or moved out. 
+                    Mark the child as "Returned" first to continue immunization.
+                  </p>
+                  {child.currentLocation && (
+                    <p className="text-xs mt-2 text-muted-foreground">
+                      Current location: <span className="font-medium">{child.currentLocation}</span>
+                    </p>
+                  )}
+                </div>
+              </div>
+            )}
+
             {/* Read-only notice for users without permission */}
-            {!canAdminister && (
+            {!canAdminister && !isTransferredOut && (
               <div className="bg-warning/10 border border-warning/30 rounded-lg p-4 flex items-start gap-3">
                 <AlertTriangle className="w-5 h-5 text-warning shrink-0 mt-0.5" />
                 <div className="text-sm">
@@ -296,7 +318,7 @@ export function VaccineAdministrationModal({
             )}
 
             {/* Vaccine Selection by Category - Multi-select */}
-            {canAdminister && (
+            {canAdminister && !isTransferredOut && (
               <div>
                 <Label className="text-sm font-semibold mb-3 block">
                   Select Vaccine(s) to Administer (Due Now)
