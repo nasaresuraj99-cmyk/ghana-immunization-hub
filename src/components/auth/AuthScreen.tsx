@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, forwardRef } from "react";
 import { LoginForm } from "./LoginForm";
 import { ForgotPasswordForm } from "./ForgotPasswordForm";
 import { Wifi, WifiOff, Sparkles, Building, Lock } from "lucide-react";
@@ -11,7 +11,7 @@ interface AuthScreenProps {
 
 type AuthMode = 'login' | 'forgot';
 
-export function AuthScreen({ onLogin, onForgotPassword }: AuthScreenProps) {
+export const AuthScreen = forwardRef<HTMLDivElement, AuthScreenProps>(({ onLogin, onForgotPassword }, ref) => {
   const [mode, setMode] = useState<AuthMode>('login');
   const isOnline = navigator.onLine;
 
@@ -96,7 +96,9 @@ export function AuthScreen({ onLogin, onForgotPassword }: AuthScreenProps) {
       </div>
     </div>
   );
-}
+});
+
+AuthScreen.displayName = 'AuthScreen';
 
 function cn(...classes: (string | boolean | undefined)[]) {
   return classes.filter(Boolean).join(' ');
