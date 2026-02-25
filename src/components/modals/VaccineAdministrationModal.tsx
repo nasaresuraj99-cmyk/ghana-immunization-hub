@@ -71,6 +71,7 @@ export function VaccineAdministrationModal({
   const [isCalendarOpen, setIsCalendarOpen] = useState(false);
   const [expandedCategories, setExpandedCategories] = useState<Set<string>>(new Set(['birth', '6weeks']));
   const [filterCategory, setFilterCategory] = useState<string>('all');
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   // Check if child is transferred out - block vaccination
   const isTransferredOut = child?.transferStatus === 'traveled_out' || child?.transferStatus === 'moved_out';
@@ -153,7 +154,9 @@ export function VaccineAdministrationModal({
   };
 
   const handleAdminister = () => {
-    if (!child || selectedVaccines.size === 0 || !givenDate) return;
+    if (!child || selectedVaccines.size === 0 || !givenDate || isSubmitting) return;
+    
+    setIsSubmitting(true);
     
     // Get the vaccines to administer as an array first
     const vaccinesToAdminister = Array.from(selectedVaccines);
@@ -175,6 +178,7 @@ export function VaccineAdministrationModal({
     setGivenDate(new Date());
     setBatchNumber("");
     setFilterCategory('all');
+    setIsSubmitting(false);
     onClose();
   };
 
@@ -489,11 +493,11 @@ export function VaccineAdministrationModal({
                 <div className="flex gap-3 pt-2">
                   <Button
                     onClick={handleAdminister}
-                    disabled={!givenDate}
+                    disabled={!givenDate || isSubmitting}
                     className="flex-1"
                   >
                     <Check className="w-4 h-4 mr-2" />
-                    Confirm Administration ({selectedVaccines.size})
+                    {isSubmitting ? 'Saving...' : `Confirm Administration (${selectedVaccines.size})`}
                   </Button>
                   <Button
                     variant="outline"

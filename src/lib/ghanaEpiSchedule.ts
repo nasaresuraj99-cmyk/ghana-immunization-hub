@@ -54,6 +54,7 @@ export const GHANA_EPI_VACCINES: VaccineDefinition[] = [
   // 9 Months (39 weeks)
   { name: "Malaria3 at 9 months", minAgeWeeks: Math.round(9 * WEEKS_PER_MONTH), maxAgeWeeks: 260, previousDose: "Malaria2 at 7 months", minIntervalDays: 28, category: 'routine' },
   { name: "Measles Rubella1 at 9 months", minAgeWeeks: Math.round(9 * WEEKS_PER_MONTH), maxAgeWeeks: 260, category: 'routine' },
+  { name: "Yellow Fever at 9 months", minAgeWeeks: Math.round(9 * WEEKS_PER_MONTH), maxAgeWeeks: 260, category: 'routine' },
   
   // 12 Months (52 weeks)
   { name: "Vitamin A at 12 months", minAgeWeeks: Math.round(12 * WEEKS_PER_MONTH), maxAgeWeeks: Math.round(18 * WEEKS_PER_MONTH), previousDose: "Vitamin A at 6 months", minIntervalDays: 180, category: 'supplementary' },
