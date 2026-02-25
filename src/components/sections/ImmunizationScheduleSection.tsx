@@ -64,6 +64,7 @@ const IMMUNIZATION_SCHEDULE = [
     vaccines: [
       { name: "Malaria3 (RTS,S)", description: "Malaria vaccine third dose" },
       { name: "Measles Rubella1", description: "MR first dose" },
+      { name: "Yellow Fever", description: "Yellow Fever vaccine" },
     ],
   },
   {
