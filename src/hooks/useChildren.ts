@@ -47,6 +47,7 @@ const getVaccineSchedule = (dateOfBirth: string): VaccineRecord[] => {
     { name: "IPV2 at 7 months", weeksAfterBirth: Math.round(7 * weeksPerMonth) },
     { name: "Malaria3 at 9 months", weeksAfterBirth: Math.round(9 * weeksPerMonth) },
     { name: "Measles Rubella1 at 9 months", weeksAfterBirth: Math.round(9 * weeksPerMonth) },
+    { name: "Yellow Fever at 9 months", weeksAfterBirth: Math.round(9 * weeksPerMonth) },
     { name: "Vitamin A at 12 months", weeksAfterBirth: Math.round(12 * weeksPerMonth) },
     { name: "Malaria4 at 18 months", weeksAfterBirth: Math.round(18 * weeksPerMonth) },
     { name: "Measles Rubella2 at 18 months", weeksAfterBirth: Math.round(18 * weeksPerMonth) },
@@ -96,11 +97,46 @@ interface UseChildrenOptions {
   includeArchived?: boolean;
 }
 
+const migrateChildVaccines = (child: Child): Child => {
+  // Add Yellow Fever at 9 months if missing (added in schedule update)
+  const hasYellowFever = child.vaccines.some(v => v.name === "Yellow Fever at 9 months");
+  if (!hasYellowFever) {
+    const dob = new Date(child.dateOfBirth);
+    const weeksPerMonth = 4.33;
+    const dueDate = new Date(dob);
+    dueDate.setDate(dueDate.getDate() + Math.round(9 * weeksPerMonth) * 7);
+    const today = new Date();
+    
+    const status: VaccineRecord['status'] = dueDate < today ? 'overdue' : 'pending';
+    
+    // Insert after Measles Rubella1 at 9 months
+    const mr1Index = child.vaccines.findIndex(v => v.name === "Measles Rubella1 at 9 months");
+    const insertIndex = mr1Index >= 0 ? mr1Index + 1 : child.vaccines.length;
+    
+    const updatedVaccines = [...child.vaccines];
+    updatedVaccines.splice(insertIndex, 0, {
+      name: "Yellow Fever at 9 months",
+      dueDate: dueDate.toISOString().split('T')[0],
+      status,
+    });
+    
+    return { ...child, vaccines: updatedVaccines };
+  }
+  return child;
+};
+
 const loadFromLocalStorage = (): Child[] => {
   try {
     const stored = localStorage.getItem(LOCAL_STORAGE_KEY);
     if (stored) {
-      return JSON.parse(stored);
+      const children: Child[] = JSON.parse(stored);
+      // Migrate existing children to include any new vaccines
+      const migrated = children.map(migrateChildVaccines);
+      // Save back if any migrations occurred
+      if (JSON.stringify(children) !== JSON.stringify(migrated)) {
+        localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(migrated));
+      }
+      return migrated;
     }
   } catch (e) {
     console.error('Error loading from localStorage:', e);
@@ -293,7 +329,7 @@ export function useChildren(options: UseChildrenOptions = {}) {
         const firebaseArchived: Child[] = [];
         
         snapshot.forEach((docSnap) => {
-          const child = docSnap.data() as Child;
+          const child = migrateChildVaccines(docSnap.data() as Child);
           if (child.isDeleted) {
             firebaseArchived.push(child);
           } else {
