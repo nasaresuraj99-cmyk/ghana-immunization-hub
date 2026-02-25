@@ -117,6 +117,7 @@ const ALL_VACCINES = [
   'Malaria1', 'Malaria2', 'Malaria3', 'Malaria4',
   'Vitamin A',
   'Measles Rubella1', 'Measles Rubella2',
+  'Yellow Fever',
   'Men A', 'LLIN'
 ];
 
