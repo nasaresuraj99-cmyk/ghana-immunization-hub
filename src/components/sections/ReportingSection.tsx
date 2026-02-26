@@ -66,7 +66,7 @@ const VACCINE_SCHEDULE: Record<string, { vaccines: string[]; ageInWeeks?: number
     ageInMonths: 7
   },
   '9 Months': { 
-    vaccines: ['Malaria3', 'Measles Rubella1'],
+    vaccines: ['Malaria3', 'Measles Rubella1', 'Yellow Fever'],
     ageInMonths: 9
   },
   '12 Months': { 
