@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import {
   Dialog,
   DialogContent,
@@ -82,9 +82,27 @@ export function ImmunizationStatusView({
   canEdit = true,
 }: ImmunizationStatusViewProps) {
   const [editingVaccine, setEditingVaccine] = useState<VaccineRecord | null>(null);
+
+  // Auto-expand all categories that have at least one completed or overdue vaccine
+  const defaultExpanded = useMemo(() => {
+    if (!child) return new Set(["birth", "6weeks", "10weeks", "14weeks"]);
+    const expanded = new Set<string>(["birth", "6weeks", "10weeks", "14weeks"]);
+    child.vaccines.forEach((vaccine) => {
+      if (vaccine.status === "completed" || vaccine.status === "overdue") {
+        expanded.add(getAgeCategory(vaccine.name));
+      }
+    });
+    return expanded;
+  }, [child]);
+
   const [expandedCategories, setExpandedCategories] = useState<Set<string>>(
     new Set(["birth", "6weeks", "10weeks", "14weeks"])
   );
+
+  // Update expanded categories when child changes
+  useEffect(() => {
+    setExpandedCategories(defaultExpanded);
+  }, [defaultExpanded]);
   const [activeTab, setActiveTab] = useState("all");
   const { logDocumentGeneration } = useDocumentActivityLog();
   const { user } = useAuth();
