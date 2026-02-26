@@ -49,7 +49,6 @@ const ALL_VACCINES = [
   { key: "Malaria2", label: "Mal2", patterns: ["Malaria2 at 7 months", "Malaria2"] },
   { key: "Malaria3", label: "Mal3", patterns: ["Malaria3 at 9 months", "Malaria3"] },
   { key: "Measles Rubella1", label: "MR1", patterns: ["Measles Rubella1 at 9 months", "Measles Rubella1"] },
-  { key: "Yellow Fever", label: "YF", patterns: ["Yellow Fever at 9 months", "Yellow Fever"] },
   { key: "VitA12m", label: "VitA-12m", patterns: ["Vitamin A at 12 months"] },
   { key: "Malaria4", label: "Mal4", patterns: ["Malaria4 at 18 months", "Malaria4"] },
   { key: "Measles Rubella2", label: "MR2", patterns: ["Measles Rubella2 at 18 months", "Measles Rubella2"] },
