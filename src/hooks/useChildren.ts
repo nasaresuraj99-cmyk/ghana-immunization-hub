@@ -109,6 +109,9 @@ const migrateChildVaccines = (child: Child): Child => {
   return { ...child, vaccines };
 };
 
+// Vaccines that are optional and should NOT count toward defaulter status
+const OPTIONAL_VACCINES = ['Hepatitis B at Birth'];
+
 const LOCAL_STORAGE_KEY = 'immunization_children_data';
 const PENDING_SYNC_KEY = 'immunization_pending_sync';
 const FIREBASE_SYNCED_KEY = 'immunization_firebase_synced';
@@ -653,6 +656,10 @@ export function useChildren(options: UseChildrenOptions = {}) {
       const updated = prev.map(child => {
         if (child.id !== childId) return child;
         
+        // Skip if vaccine is already completed (prevent duplicates)
+        const targetVaccine = child.vaccines.find(v => v.name === vaccineName);
+        if (targetVaccine?.status === 'completed') return child;
+        
         return {
           ...child,
           updatedAt: new Date().toISOString(),
@@ -754,8 +761,8 @@ export function useChildren(options: UseChildrenOptions = {}) {
     let fullyImmunized = 0;
 
     activeChildren.forEach(child => {
-      const hasOverdue = child.vaccines.some(v => v.status === 'overdue');
-      const allCompleted = child.vaccines.every(v => v.status === 'completed');
+      const hasOverdue = child.vaccines.some(v => v.status === 'overdue' && !OPTIONAL_VACCINES.includes(v.name));
+      const allCompleted = child.vaccines.every(v => v.status === 'completed' || OPTIONAL_VACCINES.includes(v.name));
       
       if (hasOverdue) defaulters++;
       if (allCompleted) fullyImmunized++;
