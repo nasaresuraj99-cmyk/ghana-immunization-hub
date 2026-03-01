@@ -298,16 +298,8 @@ export default function Index() {
       title: "Vaccine Administered",
       description: `${vaccineName} has been recorded successfully.${inventoryDeducted ? ` Inventory updated (Batch: ${deductionBatch}).` : ''}`,
     });
-    // Refresh the child in all modals that might be open
-    const updatedChild = children.find(c => c.id === childId);
-    if (updatedChild) {
-      if (vaccineModalChild?.id === childId) {
-        setVaccineModalChild({ ...updatedChild });
-      }
-      if (immunizationStatusChild?.id === childId) {
-        setImmunizationStatusChild({ ...updatedChild });
-      }
-    }
+    // Note: Don't refresh modal child here from stale state.
+    // The modal closes after administration, and will get fresh data when reopened.
   };
 
   const handleUpdateVaccineRecord = (childId: string, updatedVaccine: VaccineRecord) => {
