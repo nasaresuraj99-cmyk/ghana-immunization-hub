@@ -25,7 +25,7 @@ interface VaccineAdministrationModalProps {
   child: Child | null;
   isOpen: boolean;
   onClose: () => void;
-  onAdminister: (childId: string, vaccineName: string, givenDate: string, batchNumber: string) => void;
+  onAdminister: (childId: string, vaccineName: string, givenDate: string, batchNumber: string) => void | Promise<void>;
   canAdminister?: boolean;
 }
 
@@ -153,33 +153,38 @@ export function VaccineAdministrationModal({
     });
   };
 
-  const handleAdminister = () => {
+  const handleAdminister = async () => {
     if (!child || selectedVaccines.size === 0 || !givenDate || isSubmitting) return;
     
     setIsSubmitting(true);
     
-    // Get the vaccines to administer as an array first
-    const vaccinesToAdminister = Array.from(selectedVaccines);
-    const formattedDate = format(givenDate, "yyyy-MM-dd");
-    const trimmedBatchNumber = batchNumber.trim();
-    
-    // Administer each selected vaccine
-    vaccinesToAdminister.forEach(vaccineName => {
-      onAdminister(
-        child.id,
-        vaccineName,
-        formattedDate,
-        trimmedBatchNumber
-      );
-    });
-    
-    // Reset form and close modal after successful administration
-    setSelectedVaccines(new Set());
-    setGivenDate(new Date());
-    setBatchNumber("");
-    setFilterCategory('all');
-    setIsSubmitting(false);
-    onClose();
+    try {
+      // Get the vaccines to administer as an array first
+      const vaccinesToAdminister = Array.from(selectedVaccines);
+      const formattedDate = format(givenDate, "yyyy-MM-dd");
+      const trimmedBatchNumber = batchNumber.trim();
+      
+      // Administer each selected vaccine sequentially to avoid race conditions
+      for (const vaccineName of vaccinesToAdminister) {
+        await onAdminister(
+          child.id,
+          vaccineName,
+          formattedDate,
+          trimmedBatchNumber
+        );
+      }
+      
+      // Reset form and close modal after successful administration
+      setSelectedVaccines(new Set());
+      setGivenDate(new Date());
+      setBatchNumber("");
+      setFilterCategory('all');
+      onClose();
+    } catch (error) {
+      console.error('Error administering vaccines:', error);
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   const handleClose = () => {
