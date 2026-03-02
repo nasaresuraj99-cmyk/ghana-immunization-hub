@@ -525,6 +525,7 @@ export default function Index() {
             onEdit={handleEditChild}
             onDelete={handleDeleteChild}
             onViewVaccines={handleViewVaccines}
+            onViewImmunizationStatus={handleViewImmunizationStatus}
             onBulkVaccination={() => setShowBulkVaccination(true)}
             onViewOutreachHistory={() => setCurrentSection('outreach-history')}
             canEdit={permissions.canEdit}

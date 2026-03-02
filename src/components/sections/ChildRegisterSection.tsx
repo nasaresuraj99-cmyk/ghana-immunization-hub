@@ -16,6 +16,7 @@ interface ChildRegisterSectionProps {
   onEdit: (child: Child) => void;
   onDelete: (childId: string) => void;
   onViewVaccines: (child: Child) => void;
+  onViewImmunizationStatus?: (child: Child) => void;
   onBulkVaccination?: () => void;
   onViewOutreachHistory?: () => void;
   canEdit?: boolean;
@@ -28,7 +29,8 @@ export function ChildRegisterSection({
   children, 
   onEdit, 
   onDelete, 
-  onViewVaccines, 
+  onViewVaccines,
+  onViewImmunizationStatus,
   onBulkVaccination,
   onViewOutreachHistory,
   canEdit = true, 
@@ -274,10 +276,21 @@ export function ChildRegisterSection({
                                 size="icon"
                                 className="h-8 w-8"
                                 onClick={() => onViewVaccines(child)}
-                                title="View Vaccines"
+                                title="Administer Vaccine"
                               >
                                 <Syringe className="w-4 h-4" />
                               </Button>
+                              {canEdit && onViewImmunizationStatus && (
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
+                                  className="h-8 w-8"
+                                  onClick={() => onViewImmunizationStatus(child)}
+                                  title="View/Edit Immunization Status"
+                                >
+                                  <Eye className="w-4 h-4" />
+                                </Button>
+                              )}
                               <Button
                                 variant="ghost"
                                 size="icon"
