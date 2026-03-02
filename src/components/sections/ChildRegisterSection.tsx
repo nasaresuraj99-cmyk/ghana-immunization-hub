@@ -1,5 +1,5 @@
 import { useState, useMemo, useEffect } from "react";
-import { Search, Download, FileText, Edit, Trash2, Syringe, CreditCard, Users, Eye, EyeOff, ChevronDown, ChevronUp, Filter, History } from "lucide-react";
+import { Search, Download, FileText, Edit, Trash2, Syringe, CreditCard, Users, Eye, EyeOff, ChevronDown, ChevronUp, Filter, History, Plane, MapPin } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
@@ -97,9 +97,10 @@ export function ChildRegisterSection({
     // Check transfer status first - inactive takes priority
     if (child.transferStatus === 'traveled_out' || child.transferStatus === 'moved_out') {
       return { 
-        label: child.transferStatus === 'moved_out' ? 'Moved Out' : 'Traveled Out', 
+        label: child.transferStatus === 'moved_out' ? '🚚 Moved Out' : '✈️ Traveled Out', 
         variant: 'secondary' as const,
-        isInactive: true
+        isInactive: true,
+        className: 'bg-amber-100 text-amber-800 border-amber-300 dark:bg-amber-900/30 dark:text-amber-400 dark:border-amber-700'
       };
     }
 
@@ -107,19 +108,19 @@ export function ChildRegisterSection({
     const allCompleted = child.vaccines.every(v => v.status === 'completed');
     const hasPending = child.vaccines.some(v => v.status === 'pending');
     
-    if (hasOverdue) return { label: 'Defaulter', variant: 'destructive' as const, isInactive: false };
-    if (allCompleted) return { label: 'Completed', variant: 'default' as const, isInactive: false };
+    if (hasOverdue) return { label: 'Defaulter', variant: 'destructive' as const, isInactive: false, className: '' };
+    if (allCompleted) return { label: 'Completed', variant: 'default' as const, isInactive: false, className: '' };
     if (hasPending) {
       const nextVisit = getNextVisit(child);
       if (nextVisit) {
         const dueDate = new Date(nextVisit.dueDate);
         const today = new Date();
         const daysUntil = Math.ceil((dueDate.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
-        if (daysUntil <= 7) return { label: 'Due Soon', variant: 'secondary' as const, isInactive: false };
+        if (daysUntil <= 7) return { label: 'Due Soon', variant: 'secondary' as const, isInactive: false, className: '' };
       }
-      return { label: 'Active', variant: 'outline' as const, isInactive: false };
+      return { label: 'Active', variant: 'outline' as const, isInactive: false, className: '' };
     }
-    return { label: 'Active', variant: 'outline' as const, isInactive: false };
+    return { label: 'Active', variant: 'outline' as const, isInactive: false, className: '' };
   };
 
   return (
@@ -241,14 +242,17 @@ export function ChildRegisterSection({
                       return (
                         <tr 
                           key={child.id} 
-                          className={`hover:bg-muted/50 transition-colors ${isHighlighted ? 'bg-primary/10 ring-2 ring-primary ring-inset' : ''} ${isInactive ? 'opacity-60 bg-muted/30' : ''}`}
+                          className={`hover:bg-muted/50 transition-colors ${isHighlighted ? 'bg-primary/10 ring-2 ring-primary ring-inset' : ''} ${isInactive ? 'bg-amber-50 dark:bg-amber-950/20 border-l-4 border-l-amber-500' : ''}`}
                         >
-                          <td className="px-4 py-3 text-sm font-medium">{child.regNo}</td>
+                          <td className="px-4 py-3 text-sm font-medium">
+                            {isInactive && <Plane className="w-3.5 h-3.5 inline mr-1 text-amber-600" />}
+                            {child.regNo}
+                          </td>
                           <td className="px-4 py-3 text-sm">
-                            {child.name}
+                            <span className={isInactive ? 'text-muted-foreground' : ''}>{child.name}</span>
                             {isInactive && child.currentLocation && (
-                              <span className="block text-xs text-muted-foreground">
-                                📍 {child.currentLocation}
+                              <span className="flex items-center gap-1 text-xs text-amber-600 mt-0.5">
+                                <MapPin className="w-3 h-3" /> {child.currentLocation}
                               </span>
                             )}
                           </td>
@@ -267,7 +271,7 @@ export function ChildRegisterSection({
                             )}
                           </td>
                           <td className="px-4 py-3">
-                            <Badge variant={status.variant}>{status.label}</Badge>
+                            <Badge variant={status.variant} className={status.className}>{status.label}</Badge>
                           </td>
                           <td className="px-4 py-3">
                             <div className="flex items-center gap-1">
