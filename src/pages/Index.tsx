@@ -278,33 +278,45 @@ export default function Index() {
         description: "You don't have permission to administer vaccines.",
         variant: "destructive",
       });
-      return;
+      throw new Error("Permission denied");
     }
-    
-    // Map vaccine name to inventory base name (e.g., "BCG at Birth" -> "BCG")
-    const baseVaccineName = getInventoryVaccineName(vaccineName);
-    
-    // Attempt to deduct from inventory automatically using atomic FEFO
-    let inventoryDeducted = false;
-    let deductionBatch: string | undefined;
-    
-    if (baseVaccineName) {
-      const result = await recordAdministration(baseVaccineName, 1, childId);
-      inventoryDeducted = result.success;
-      deductionBatch = result.batchNumber;
-      
-      if (!result.success && inventory.length > 0) {
-        console.warn(`Could not deduct ${baseVaccineName} from inventory: ${result.reason}`);
+
+    try {
+      // Map vaccine name to inventory base name (e.g., "BCG at Birth" -> "BCG")
+      const baseVaccineName = getInventoryVaccineName(vaccineName);
+
+      // Attempt to deduct from inventory automatically using atomic FEFO
+      let inventoryDeducted = false;
+      let deductionBatch: string | undefined;
+
+      if (baseVaccineName) {
+        const result = await recordAdministration(baseVaccineName, 1, childId);
+        inventoryDeducted = result.success;
+        deductionBatch = result.batchNumber;
+
+        if (!result.success && inventory.length > 0) {
+          console.warn(`Could not deduct ${baseVaccineName} from inventory: ${result.reason}`);
+        }
       }
+
+      const vaccineUpdated = await updateVaccine(childId, vaccineName, givenDate, batchNumber, user?.name);
+
+      if (!vaccineUpdated) {
+        throw new Error("Vaccine could not be recorded. Please retry.");
+      }
+
+      toast({
+        title: "Vaccine Administered",
+        description: `${vaccineName} has been recorded successfully.${inventoryDeducted ? ` Inventory updated (Batch: ${deductionBatch}).` : ''}`,
+      });
+    } catch (error) {
+      toast({
+        title: "Administration Failed",
+        description: "Could not save this vaccine record. Please try again.",
+        variant: "destructive",
+      });
+      throw error;
     }
-    
-    updateVaccine(childId, vaccineName, givenDate, batchNumber, user?.name);
-    toast({
-      title: "Vaccine Administered",
-      description: `${vaccineName} has been recorded successfully.${inventoryDeducted ? ` Inventory updated (Batch: ${deductionBatch}).` : ''}`,
-    });
-    // Note: Don't refresh modal child here from stale state.
-    // The modal closes after administration, and will get fresh data when reopened.
   };
 
   const handleUpdateVaccineRecord = (childId: string, updatedVaccine: VaccineRecord) => {
