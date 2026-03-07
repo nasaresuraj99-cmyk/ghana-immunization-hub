@@ -651,53 +651,76 @@ export function useChildren(options: UseChildrenOptions = {}) {
     }
   }, [softDeleteChild]);
 
-  const updateVaccine = useCallback((childId: string, vaccineName: string, givenDate: string, batchNumber?: string, userName?: string) => {
-    setChildren(prev => {
-      const updated = prev.map(child => {
-        if (child.id !== childId) return child;
-        
-        // Skip if vaccine is already completed (prevent duplicates)
-        const targetVaccine = child.vaccines.find(v => v.name === vaccineName);
-        if (targetVaccine?.status === 'completed') return child;
-        
-        return {
-          ...child,
-          updatedAt: new Date().toISOString(),
-          vaccines: child.vaccines.map(vaccine => 
-            vaccine.name === vaccineName
-              ? { 
-                  ...vaccine, 
-                  status: 'completed' as const, 
-                  givenDate,
-                  batchNumber: batchNumber || undefined,
-                  administeredBy: userName || 'Current User',
-                  administeredByUserId: currentUserIdRef.current,
-                }
-              : vaccine
-          ),
-        };
-      });
+  const updateVaccine = useCallback(async (
+    childId: string,
+    vaccineName: string,
+    givenDate: string,
+    batchNumber?: string,
+    userName?: string
+  ) => {
+    let didUpdate = false;
 
-      const updatedChild = updated.find(c => c.id === childId);
-      if (updatedChild) {
-        syncToFirebase(childId, updatedChild, 'update');
-        
-        // Log activity
-        if (currentFacilityIdRef.current && currentUserIdRef.current) {
-          logActivity(
-            currentFacilityIdRef.current,
-            currentUserIdRef.current,
-            userName || 'Unknown',
-            'update',
-            'vaccine',
-            childId,
-            `${vaccineName} for ${updatedChild.name}`
-          );
+    await new Promise<void>((resolve) => {
+      let resolved = false;
+      const safeResolve = () => {
+        if (!resolved) {
+          resolved = true;
+          resolve();
         }
-      }
+      };
 
-      return updated;
+      setChildren(prev => {
+        const updated = prev.map(child => {
+          if (child.id !== childId) return child;
+
+          // Skip if vaccine is already completed (prevent duplicates)
+          const targetVaccine = child.vaccines.find(v => v.name === vaccineName);
+          if (targetVaccine?.status === 'completed') return child;
+
+          didUpdate = true;
+
+          return {
+            ...child,
+            updatedAt: new Date().toISOString(),
+            vaccines: child.vaccines.map(vaccine =>
+              vaccine.name === vaccineName
+                ? {
+                    ...vaccine,
+                    status: 'completed' as const,
+                    givenDate,
+                    batchNumber: batchNumber || undefined,
+                    administeredBy: userName || 'Current User',
+                    administeredByUserId: currentUserIdRef.current,
+                  }
+                : vaccine
+            ),
+          };
+        });
+
+        const updatedChild = updated.find(c => c.id === childId);
+        if (didUpdate && updatedChild) {
+          syncToFirebase(childId, updatedChild, 'update');
+
+          // Log activity
+          if (currentFacilityIdRef.current && currentUserIdRef.current) {
+            logActivity(
+              currentFacilityIdRef.current,
+              currentUserIdRef.current,
+              userName || 'Unknown',
+              'update',
+              'vaccine',
+              childId,
+              `${vaccineName} for ${updatedChild.name}`
+            );
+          }
+        }
+
+        safeResolve();
+        return updated;
+      });
     });
+
+    return didUpdate;
   }, [syncToFirebase]);
 
   // Update a full vaccine record (for editing completed vaccines)

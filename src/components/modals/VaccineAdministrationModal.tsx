@@ -471,8 +471,10 @@ export function VaccineAdministrationModal({
                       <PopoverContent className="w-auto p-0" align="start">
                         <Calendar
                           mode="single"
+                          required
                           selected={givenDate}
                           onSelect={(date) => {
+                            if (!date) return;
                             setGivenDate(date);
                             setIsCalendarOpen(false);
                           }}
@@ -498,7 +500,7 @@ export function VaccineAdministrationModal({
                 <div className="flex gap-3 pt-2">
                   <Button
                     onClick={handleAdminister}
-                    disabled={!givenDate || isSubmitting}
+                    disabled={!givenDate || isSubmitting || isCalendarOpen}
                     className="flex-1"
                   >
                     <Check className="w-4 h-4 mr-2" />
