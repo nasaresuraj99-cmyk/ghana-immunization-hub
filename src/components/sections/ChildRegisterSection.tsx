@@ -1,5 +1,5 @@
 import { useState, useMemo, useEffect } from "react";
-import { Search, Download, FileText, Edit, Trash2, Syringe, CreditCard, Users, Eye, EyeOff, ChevronDown, ChevronUp, Filter, History, Plane, MapPin } from "lucide-react";
+import { Search, Download, FileText, Edit, Trash2, Syringe, CreditCard, Users, Eye, EyeOff, ChevronDown, ChevronUp, Filter, History, Plane, MapPin, Home } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
@@ -19,6 +19,8 @@ interface ChildRegisterSectionProps {
   onViewImmunizationStatus?: (child: Child) => void;
   onBulkVaccination?: () => void;
   onViewOutreachHistory?: () => void;
+  onTransferOut?: (child: Child) => void;
+  onTransferIn?: (child: Child) => void;
   canEdit?: boolean;
   canDelete?: boolean;
   canAdministerVaccines?: boolean;
@@ -33,6 +35,8 @@ export function ChildRegisterSection({
   onViewImmunizationStatus,
   onBulkVaccination,
   onViewOutreachHistory,
+  onTransferOut,
+  onTransferIn,
   canEdit = true, 
   canDelete = true,
   canAdministerVaccines = true,
@@ -319,6 +323,32 @@ export function ChildRegisterSection({
                                 >
                                   <Edit className="w-4 h-4" />
                                 </Button>
+                              )}
+                              {/* Travel Out / Return button */}
+                              {isInactive ? (
+                                onTransferIn && (
+                                  <Button
+                                    variant="ghost"
+                                    size="icon"
+                                    className="h-8 w-8 text-success hover:text-success"
+                                    onClick={() => onTransferIn(child)}
+                                    title="Mark as Returned"
+                                  >
+                                    <Home className="w-4 h-4" />
+                                  </Button>
+                                )
+                              ) : (
+                                onTransferOut && (
+                                  <Button
+                                    variant="ghost"
+                                    size="icon"
+                                    className="h-8 w-8 text-amber-600 hover:text-amber-700"
+                                    onClick={() => onTransferOut(child)}
+                                    title="Mark as Traveled Out"
+                                  >
+                                    <Plane className="w-4 h-4" />
+                                  </Button>
+                                )
                               )}
                               {canDelete && (
                                 <Button

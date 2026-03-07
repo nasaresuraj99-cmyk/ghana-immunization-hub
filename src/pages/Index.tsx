@@ -17,6 +17,7 @@ import { ChildProfileModal } from "@/components/modals/ChildProfileModal";
 import { ImmunizationStatusView } from "@/components/modals/ImmunizationStatusView";
 import { BulkVaccinationModal } from "@/components/modals/BulkVaccinationModal";
 import { CertificateModal } from "@/components/modals/CertificateModal";
+import { ChildTransferModal } from "@/components/modals/ChildTransferModal";
 import { GlobalSearchBar } from "@/components/GlobalSearchBar";
 import { DeveloperCredits } from "@/components/DeveloperCredits";
 import { PWAInstallBanner } from "@/components/PWAInstallBanner";
@@ -56,6 +57,8 @@ export default function Index() {
   const [showQRScanner, setShowQRScanner] = useState(false);
   const [certificateModalChild, setCertificateModalChild] = useState<Child | null>(null);
   const [highlightedChildRegNo, setHighlightedChildRegNo] = useState<string | undefined>(undefined);
+  const [transferModalChild, setTransferModalChild] = useState<Child | null>(null);
+  const [transferMode, setTransferMode] = useState<'in' | 'out'>('out');
   // Pass both userId and facilityId to useChildren
   const { 
     children, 
@@ -70,6 +73,8 @@ export default function Index() {
     updateVaccineRecord,
     bulkAdministerVaccine, 
     importChildren,
+    transferChildOut,
+    transferChildIn,
     isSyncing, 
     syncProgress, 
     conflicts, 
@@ -528,6 +533,14 @@ export default function Index() {
             onViewImmunizationStatus={handleViewImmunizationStatus}
             onBulkVaccination={() => setShowBulkVaccination(true)}
             onViewOutreachHistory={() => setCurrentSection('outreach-history')}
+            onTransferOut={(child) => {
+              setTransferModalChild(child);
+              setTransferMode('out');
+            }}
+            onTransferIn={(child) => {
+              setTransferModalChild(child);
+              setTransferMode('in');
+            }}
             canEdit={permissions.canEdit}
             canDelete={permissions.canSoftDelete}
             canAdministerVaccines={permissions.canAdministerVaccines}
@@ -683,11 +696,38 @@ export default function Index() {
           setVaccineModalChild(child);
         }}
         onViewImmunizationStatus={handleViewImmunizationStatus}
+        onTransferOut={(child) => {
+          setProfileModalChild(null);
+          setTransferModalChild(child);
+          setTransferMode('out');
+        }}
+        onTransferIn={(child) => {
+          setProfileModalChild(null);
+          setTransferModalChild(child);
+          setTransferMode('in');
+        }}
         onViewCertificate={(child) => {
           setProfileModalChild(null);
           setCertificateModalChild(child);
         }}
         facilityName={user?.facility || "Health Facility"}
+      />
+
+      <ChildTransferModal
+        child={transferModalChild}
+        isOpen={!!transferModalChild}
+        onClose={() => setTransferModalChild(null)}
+        onTransferOut={(childId, destination, reason, date) => {
+          transferChildOut(childId, destination, reason, date, user?.uid);
+          setTransferModalChild(null);
+        }}
+        onTransferIn={(childData, source, reason, date) => {
+          if (transferModalChild) {
+            transferChildIn(transferModalChild.id, source, reason, date, user?.uid);
+            setTransferModalChild(null);
+          }
+        }}
+        mode={transferMode}
       />
 
       <ImmunizationStatusView
