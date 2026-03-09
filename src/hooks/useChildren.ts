@@ -523,32 +523,51 @@ export function useChildren(options: UseChildrenOptions = {}) {
   const updateChild = useCallback((childId: string, childData: Partial<Child>, userName?: string) => {
     setChildren(prev => {
       const oldChild = prev.find(c => c.id === childId);
-      const updated = prev.map(child => 
-        child.id === childId 
-          ? { ...child, ...childData, updatedAt: new Date().toISOString() }
-          : child
-      );
-      
-      const updatedChild = updated.find(c => c.id === childId);
-      if (updatedChild) {
-        syncToFirebase(childId, updatedChild, 'update');
-        
-        // Log activity
-        if (currentFacilityIdRef.current && currentUserIdRef.current) {
-          logActivity(
-            currentFacilityIdRef.current,
-            currentUserIdRef.current,
-            userName || 'Unknown',
-            'update',
-            'child',
-            childId,
-            updatedChild.name,
-            oldChild,
-            childData
-          );
-        }
+      if (!oldChild) return prev;
+
+      // If date of birth changed, recalculate vaccine schedule while preserving completed vaccines
+      let mergedVaccines = oldChild.vaccines;
+      if (childData.dateOfBirth && childData.dateOfBirth !== oldChild.dateOfBirth) {
+        const newSchedule = getVaccineSchedule(childData.dateOfBirth);
+        mergedVaccines = newSchedule.map(newVac => {
+          const existingVac = oldChild.vaccines.find(v => v.name === newVac.name);
+          if (existingVac && existingVac.status === 'completed') {
+            // Preserve completed vaccine data, just update the due date
+            return { ...existingVac, dueDate: newVac.dueDate };
+          }
+          return newVac;
+        });
       }
-      
+
+      const updatedChild: Child = {
+        ...oldChild,
+        ...childData,
+        vaccines: mergedVaccines,
+        updatedAt: new Date().toISOString(),
+      };
+
+      const updated = prev.map(child =>
+        child.id === childId ? updatedChild : child
+      );
+
+      // Sync to Firebase immediately
+      syncToFirebase(childId, updatedChild, 'update');
+
+      // Log activity
+      if (currentFacilityIdRef.current && currentUserIdRef.current) {
+        logActivity(
+          currentFacilityIdRef.current,
+          currentUserIdRef.current,
+          userName || 'Unknown',
+          'update',
+          'child',
+          childId,
+          updatedChild.name,
+          oldChild ? { name: oldChild.name, dateOfBirth: oldChild.dateOfBirth, motherName: oldChild.motherName, telephoneAddress: oldChild.telephoneAddress, community: oldChild.community } : undefined,
+          { name: updatedChild.name, dateOfBirth: updatedChild.dateOfBirth, motherName: updatedChild.motherName, telephoneAddress: updatedChild.telephoneAddress, community: updatedChild.community }
+        );
+      }
+
       return updated;
     });
   }, [syncToFirebase]);
