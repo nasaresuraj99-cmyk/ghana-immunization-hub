@@ -195,10 +195,44 @@ export function useSyncHistory(userId?: string, facilityId?: string) {
     }
   }, [userId]);
 
+  const deleteRecord = useCallback(async (recordId: string) => {
+    setHistory(prev => {
+      const updated = prev.filter(r => r.id !== recordId);
+      saveLocalHistory(updated);
+      return updated;
+    });
+
+    if (navigator.onLine) {
+      try {
+        await deleteDoc(doc(db, 'syncHistory', recordId));
+      } catch (error) {
+        console.error('Error deleting sync record:', error);
+      }
+    }
+  }, []);
+
+  const clearAllHistory = useCallback(async () => {
+    const currentHistory = [...history];
+    setHistory([]);
+    saveLocalHistory([]);
+
+    if (navigator.onLine) {
+      try {
+        for (const record of currentHistory) {
+          await deleteDoc(doc(db, 'syncHistory', record.id));
+        }
+      } catch (error) {
+        console.error('Error clearing sync history:', error);
+      }
+    }
+  }, [history]);
+
   return {
     history,
     isLoading,
     addSyncRecord,
     refreshHistory,
+    deleteRecord,
+    clearAllHistory,
   };
 }
