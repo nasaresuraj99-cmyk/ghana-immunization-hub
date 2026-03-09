@@ -14,16 +14,19 @@ import {
   User, 
   Award, 
   FileSpreadsheet,
-  ClipboardList
+  ClipboardList,
+  X
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { ScrollArea } from '@/components/ui/scroll-area';
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
 import { ActivityLog } from '@/types/facility';
 import { useActivityLog } from '@/hooks/useActivityLog';
 import { cn, formatDate } from '@/lib/utils';
+import { toast } from 'sonner';
 
 interface ActivityLogViewerProps {
   facilityId: string;
@@ -31,7 +34,7 @@ interface ActivityLogViewerProps {
 }
 
 export function ActivityLogViewer({ facilityId, className }: ActivityLogViewerProps) {
-  const { logs, isLoading, refreshLogs } = useActivityLog(facilityId);
+  const { logs, isLoading, refreshLogs, deleteLog, clearAllLogs } = useActivityLog(facilityId);
   const [filterAction, setFilterAction] = useState<string>('all');
   const [filterEntity, setFilterEntity] = useState<string>('all');
 
@@ -40,6 +43,16 @@ export function ActivityLogViewer({ facilityId, className }: ActivityLogViewerPr
     const entityMatch = filterEntity === 'all' || log.entityType === filterEntity;
     return actionMatch && entityMatch;
   });
+
+  const handleDeleteLog = async (logId: string) => {
+    await deleteLog(logId);
+    toast.success('Log entry deleted');
+  };
+
+  const handleClearAll = async () => {
+    await clearAllLogs();
+    toast.success('All activity logs cleared');
+  };
 
   const getActionIcon = (action: ActivityLog['action']) => {
     switch (action) {
@@ -156,15 +169,41 @@ export function ActivityLogViewer({ facilityId, className }: ActivityLogViewerPr
               {filteredLogs.length} of {logs.length} entries
             </Badge>
           </div>
-          <Button
-            variant="ghost"
-            size="icon"
-            className="h-8 w-8"
-            onClick={refreshLogs}
-            disabled={isLoading}
-          >
-            <RefreshCw className={cn('w-4 h-4', isLoading && 'animate-spin')} />
-          </Button>
+          <div className="flex items-center gap-1">
+            {logs.length > 0 && (
+              <AlertDialog>
+                <AlertDialogTrigger asChild>
+                  <Button variant="ghost" size="sm" className="h-8 text-xs text-destructive hover:text-destructive">
+                    <Trash2 className="w-3.5 h-3.5 mr-1" />
+                    Clear All
+                  </Button>
+                </AlertDialogTrigger>
+                <AlertDialogContent>
+                  <AlertDialogHeader>
+                    <AlertDialogTitle>Clear All Activity Logs?</AlertDialogTitle>
+                    <AlertDialogDescription>
+                      This will permanently delete all {logs.length} activity log entries. This action cannot be undone.
+                    </AlertDialogDescription>
+                  </AlertDialogHeader>
+                  <AlertDialogFooter>
+                    <AlertDialogCancel>Cancel</AlertDialogCancel>
+                    <AlertDialogAction onClick={handleClearAll} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+                      Clear All
+                    </AlertDialogAction>
+                  </AlertDialogFooter>
+                </AlertDialogContent>
+              </AlertDialog>
+            )}
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-8 w-8"
+              onClick={refreshLogs}
+              disabled={isLoading}
+            >
+              <RefreshCw className={cn('w-4 h-4', isLoading && 'animate-spin')} />
+            </Button>
+          </div>
         </div>
       </CardHeader>
 
@@ -218,7 +257,7 @@ export function ActivityLogViewer({ facilityId, className }: ActivityLogViewerPr
               {filteredLogs.map((log) => (
                 <div
                   key={log.id}
-                  className="flex items-start gap-3 p-3 rounded-lg border bg-card hover:bg-muted/30 transition-colors"
+                  className="flex items-start gap-3 p-3 rounded-lg border bg-card hover:bg-muted/30 transition-colors group"
                 >
                   <div className="mt-0.5 p-1.5 rounded-full bg-muted">
                     {getActionIcon(log.action)}
@@ -229,10 +268,23 @@ export function ActivityLogViewer({ facilityId, className }: ActivityLogViewerPr
                         {getActionBadge(log.action)}
                         {getEntityBadge(log.entityType)}
                       </div>
-                      <span className="text-xs text-muted-foreground flex items-center gap-1">
-                        <Calendar className="w-3 h-3" />
-                        {formatTime(log.createdAt)}
-                      </span>
+                      <div className="flex items-center gap-1">
+                        <span className="text-xs text-muted-foreground flex items-center gap-1">
+                          <Calendar className="w-3 h-3" />
+                          {formatTime(log.createdAt)}
+                        </span>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-6 w-6 opacity-0 group-hover:opacity-100 transition-opacity text-muted-foreground hover:text-destructive"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleDeleteLog(log.id);
+                          }}
+                        >
+                          <X className="w-3.5 h-3.5" />
+                        </Button>
+                      </div>
                     </div>
                     {log.description && (
                       <p className="text-sm mt-1">{log.description}</p>

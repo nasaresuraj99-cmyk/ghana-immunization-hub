@@ -1,13 +1,15 @@
 import { useState } from 'react';
-import { CheckCircle, XCircle, AlertTriangle, Clock, RefreshCw, ChevronDown, ChevronUp } from 'lucide-react';
+import { CheckCircle, XCircle, AlertTriangle, Clock, RefreshCw, ChevronDown, ChevronUp, Trash2, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
 import { useSyncHistory } from '@/hooks/useSyncHistory';
 import { SyncHistoryRecord } from '@/types/facility';
 import { cn, formatDate } from '@/lib/utils';
+import { toast } from 'sonner';
 
 interface SyncHistoryLogProps {
   history?: SyncHistoryRecord[];
@@ -20,11 +22,21 @@ interface SyncHistoryLogProps {
 
 export function SyncHistoryLog({ history: externalHistory, isLoading: externalLoading, onRefresh, className, userId, facilityId }: SyncHistoryLogProps) {
   const [isOpen, setIsOpen] = useState(false);
-  const { history: internalHistory, isLoading: internalLoading, refreshHistory } = useSyncHistory(userId, facilityId);
+  const { history: internalHistory, isLoading: internalLoading, refreshHistory, deleteRecord, clearAllHistory } = useSyncHistory(userId, facilityId);
   
   const history = externalHistory ?? internalHistory;
   const isLoading = externalLoading ?? internalLoading;
   const handleRefresh = onRefresh ?? refreshHistory;
+
+  const handleDeleteRecord = async (recordId: string) => {
+    await deleteRecord(recordId);
+    toast.success('Sync record deleted');
+  };
+
+  const handleClearAll = async () => {
+    await clearAllHistory();
+    toast.success('All sync history cleared');
+  };
 
   const getStatusIcon = (status: SyncHistoryRecord['status']) => {
     switch (status) {
@@ -115,6 +127,33 @@ export function SyncHistoryLog({ history: externalHistory, isLoading: externalLo
 
         <CollapsibleContent>
           <CardContent className="pt-0">
+            {history.length > 0 && (
+              <div className="flex justify-end mb-3">
+                <AlertDialog>
+                  <AlertDialogTrigger asChild>
+                    <Button variant="ghost" size="sm" className="h-7 text-xs text-destructive hover:text-destructive">
+                      <Trash2 className="w-3.5 h-3.5 mr-1" />
+                      Clear All
+                    </Button>
+                  </AlertDialogTrigger>
+                  <AlertDialogContent>
+                    <AlertDialogHeader>
+                      <AlertDialogTitle>Clear All Sync History?</AlertDialogTitle>
+                      <AlertDialogDescription>
+                        This will permanently delete all {history.length} sync history records. This action cannot be undone.
+                      </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                      <AlertDialogCancel>Cancel</AlertDialogCancel>
+                      <AlertDialogAction onClick={handleClearAll} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+                        Clear All
+                      </AlertDialogAction>
+                    </AlertDialogFooter>
+                  </AlertDialogContent>
+                </AlertDialog>
+              </div>
+            )}
+
             {history.length === 0 ? (
               <div className="text-center py-6 text-muted-foreground">
                 <Clock className="w-8 h-8 mx-auto mb-2 opacity-50" />
@@ -127,7 +166,7 @@ export function SyncHistoryLog({ history: externalHistory, isLoading: externalLo
                     <div
                       key={record.id}
                       className={cn(
-                        'flex items-start gap-3 p-3 rounded-lg border transition-colors',
+                        'flex items-start gap-3 p-3 rounded-lg border transition-colors group',
                         record.status === 'success' && 'bg-success/5 border-success/20',
                         record.status === 'failed' && 'bg-destructive/5 border-destructive/20',
                         record.status === 'partial' && 'bg-warning/5 border-warning/20'
@@ -139,9 +178,22 @@ export function SyncHistoryLog({ history: externalHistory, isLoading: externalLo
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center justify-between gap-2 mb-1">
                           {getStatusBadge(record.status)}
-                          <span className="text-xs text-muted-foreground">
-                            {formatTime(record.startedAt)}
-                          </span>
+                          <div className="flex items-center gap-1">
+                            <span className="text-xs text-muted-foreground">
+                              {formatTime(record.startedAt)}
+                            </span>
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="h-5 w-5 opacity-0 group-hover:opacity-100 transition-opacity text-muted-foreground hover:text-destructive"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleDeleteRecord(record.id);
+                              }}
+                            >
+                              <X className="w-3 h-3" />
+                            </Button>
+                          </div>
                         </div>
                         <div className="text-sm">
                           {record.syncedCount > 0 && (

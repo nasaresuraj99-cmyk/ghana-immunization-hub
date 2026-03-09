@@ -5,6 +5,7 @@ import {
   doc, 
   getDocs, 
   setDoc, 
+  deleteDoc,
   query, 
   where, 
   orderBy, 
@@ -184,10 +185,51 @@ export function useActivityLog(facilityId?: string, userId?: string, userName?: 
     }
   }, [effectiveFacilityId]);
 
+  const deleteLog = useCallback(async (logId: string) => {
+    // Remove from local state
+    setLogs(prev => {
+      const updated = prev.filter(l => l.id !== logId);
+      saveLocalLogs(updated);
+      return updated;
+    });
+
+    // Remove from Firebase
+    if (navigator.onLine) {
+      try {
+        await deleteDoc(doc(db, 'activityLogs', logId));
+        console.log('Activity log deleted from Firebase:', logId);
+      } catch (error) {
+        console.error('Error deleting activity log:', error);
+      }
+    }
+  }, []);
+
+  const clearAllLogs = useCallback(async () => {
+    const currentLogs = [...logs];
+    
+    // Clear local state
+    setLogs([]);
+    saveLocalLogs([]);
+
+    // Clear from Firebase
+    if (navigator.onLine) {
+      try {
+        for (const log of currentLogs) {
+          await deleteDoc(doc(db, 'activityLogs', log.id));
+        }
+        console.log('All activity logs cleared from Firebase');
+      } catch (error) {
+        console.error('Error clearing activity logs:', error);
+      }
+    }
+  }, [logs]);
+
   return {
     logs,
     isLoading,
     logActivity,
     refreshLogs,
+    deleteLog,
+    clearAllLogs,
   };
 }
