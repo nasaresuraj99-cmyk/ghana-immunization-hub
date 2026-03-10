@@ -1,10 +1,11 @@
+import { forwardRef } from 'react';
 import { Download, X, Smartphone } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { usePWAInstall } from '@/hooks/usePWAInstall';
 import { IOSInstallModal } from '@/components/IOSInstallModal';
 import { toast } from 'sonner';
 
-export const PWAInstallBanner = () => {
+export const PWAInstallBanner = forwardRef<HTMLDivElement>((_, ref) => {
   const { showBanner, installApp, dismissBanner, isInstalled, isIOS, showIOSModal, closeIOSModal, isInstallable } = usePWAInstall();
 
   // Don't show if already installed
@@ -39,7 +40,7 @@ export const PWAInstallBanner = () => {
   };
 
   return (
-    <>
+    <div ref={ref}>
       {shouldShowBanner && (
         <div className="fixed bottom-0 left-0 right-0 z-50 p-4 bg-primary text-primary-foreground shadow-lg animate-slide-up">
           <div className="max-w-7xl mx-auto flex items-center gap-3">
@@ -79,6 +80,7 @@ export const PWAInstallBanner = () => {
       )}
       
       <IOSInstallModal open={showIOSModal} onClose={closeIOSModal} />
-    </>
+    </div>
   );
-};
+});
+PWAInstallBanner.displayName = 'PWAInstallBanner';

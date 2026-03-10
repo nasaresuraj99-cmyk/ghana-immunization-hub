@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, forwardRef } from "react";
 import { WifiOff, Wifi, CloudUpload, Check, AlertCircle } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Badge } from "@/components/ui/badge";
@@ -9,11 +9,11 @@ interface OfflineSyncIndicatorProps {
   lastSyncTime?: Date | null;
 }
 
-export function OfflineSyncIndicator({ 
+export const OfflineSyncIndicator = forwardRef<HTMLDivElement, OfflineSyncIndicatorProps>(({ 
   pendingCount = 0, 
   isSyncing = false,
   lastSyncTime 
-}: OfflineSyncIndicatorProps) {
+}, ref) => {
   const [isOnline, setIsOnline] = useState(navigator.onLine);
   const [showBanner, setShowBanner] = useState(false);
   const [wasOffline, setWasOffline] = useState(false);
@@ -62,7 +62,7 @@ export function OfflineSyncIndicator({
   const showCompactIndicator = !isOnline || pendingCount > 0;
 
   return (
-    <>
+    <div ref={ref}>
       {/* Compact indicator in header area */}
       {showCompactIndicator && (
         <div className={cn(
@@ -158,6 +158,7 @@ export function OfflineSyncIndicator({
           )}
         </div>
       )}
-    </>
+    </div>
   );
-}
+});
+OfflineSyncIndicator.displayName = 'OfflineSyncIndicator';

@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, forwardRef } from "react";
 import { Html5QrcodeScanner, Html5QrcodeSupportedFormats } from "html5-qrcode";
 import {
   Dialog,
@@ -41,7 +41,7 @@ interface QRScannerVerificationProps {
   onFindChild?: (regNo: string) => void;
 }
 
-export function QRScannerVerification({ isOpen, onClose, onFindChild }: QRScannerVerificationProps) {
+export const QRScannerVerification = forwardRef<HTMLDivElement, QRScannerVerificationProps>(({ isOpen, onClose, onFindChild }, ref) => {
   const [scanResult, setScanResult] = useState<QRVerificationData | null>(null);
   const [scanError, setScanError] = useState<string | null>(null);
   const [isScanning, setIsScanning] = useState(true);
@@ -266,4 +266,5 @@ export function QRScannerVerification({ isOpen, onClose, onFindChild }: QRScanne
       </DialogContent>
     </Dialog>
   );
-}
+});
+QRScannerVerification.displayName = 'QRScannerVerification';
