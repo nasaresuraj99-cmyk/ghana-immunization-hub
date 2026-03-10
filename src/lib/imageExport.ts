@@ -69,12 +69,12 @@ export async function exportImmunizationCardAsImage(
             CHILD DETAILS
           </div>
           <div style="font-size: 9px; line-height: 1.5;">
-            <div><strong>Reg No:</strong> ${child.regNo}</div>
-            <div><strong>Name:</strong> ${child.name}</div>
-            <div><strong>DOB:</strong> ${new Date(child.dateOfBirth).toLocaleDateString()}</div>
-            <div><strong>Sex:</strong> ${child.sex}</div>
-            <div><strong>Caregiver:</strong> ${child.motherName}</div>
-            <div><strong>Contact:</strong> ${child.telephoneAddress || "N/A"}</div>
+            <div><strong>Reg No:</strong> ${escapeHtml(child.regNo)}</div>
+            <div><strong>Name:</strong> ${escapeHtml(child.name)}</div>
+            <div><strong>DOB:</strong> ${escapeHtml(new Date(child.dateOfBirth).toLocaleDateString())}</div>
+            <div><strong>Sex:</strong> ${escapeHtml(child.sex)}</div>
+            <div><strong>Caregiver:</strong> ${escapeHtml(child.motherName)}</div>
+            <div><strong>Contact:</strong> ${escapeHtml(child.telephoneAddress || "N/A")}</div>
           </div>
         </div>
       </div>
