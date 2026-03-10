@@ -266,4 +266,5 @@ export const QRScannerVerification = forwardRef<HTMLDivElement, QRScannerVerific
       </DialogContent>
     </Dialog>
   );
-}
+});
+QRScannerVerification.displayName = 'QRScannerVerification';
