@@ -650,26 +650,44 @@ export type Database = {
             }
             Returns: Json
           }
-      get_user_facility_id: { Args: { _user_id: string }; Returns: string }
+      get_user_facility_id:
+        | {
+            Args: { _user_id: string }
+            Returns: {
+              error: true
+            } & "Could not choose the best candidate function between: public.get_user_facility_id(_user_id => text), public.get_user_facility_id(_user_id => uuid). Try renaming the parameters or the function itself in the database so function overloading can be resolved"
+          }
+        | {
+            Args: { _user_id: string }
+            Returns: {
+              error: true
+            } & "Could not choose the best candidate function between: public.get_user_facility_id(_user_id => text), public.get_user_facility_id(_user_id => uuid). Try renaming the parameters or the function itself in the database so function overloading can be resolved"
+          }
       get_vaccine_inventory_status: {
         Args: { p_facility_id: string; p_vaccine_name: string }
         Returns: Json
       }
-      has_role: {
-        Args: {
-          _role: Database["public"]["Enums"]["app_role"]
-          _user_id: string
-        }
-        Returns: boolean
-      }
-      is_facility_admin: {
-        Args: { _facility_id: string; _user_id: string }
-        Returns: boolean
-      }
-      user_in_facility: {
-        Args: { _facility_id: string; _user_id: string }
-        Returns: boolean
-      }
+      has_role:
+        | {
+            Args: {
+              _role: Database["public"]["Enums"]["app_role"]
+              _user_id: string
+            }
+            Returns: boolean
+          }
+        | {
+            Args: {
+              _role: Database["public"]["Enums"]["app_role"]
+              _user_id: string
+            }
+            Returns: boolean
+          }
+      is_facility_admin:
+        | { Args: { _facility_id: string; _user_id: string }; Returns: boolean }
+        | { Args: { _facility_id: string; _user_id: string }; Returns: boolean }
+      user_in_facility:
+        | { Args: { _facility_id: string; _user_id: string }; Returns: boolean }
+        | { Args: { _facility_id: string; _user_id: string }; Returns: boolean }
     }
     Enums: {
       app_role: "facility_admin" | "staff" | "read_only"
