@@ -2,6 +2,18 @@ import { toPng } from "html-to-image";
 import { Child } from "@/types/child";
 import { FACILITY_CONFIG } from "@/lib/facilityConfig";
 
+// Sanitize strings to prevent HTML injection
+function escapeHtml(text: string): string {
+  const map: Record<string, string> = {
+    '&': '&amp;',
+    '<': '&lt;',
+    '>': '&gt;',
+    '"': '&quot;',
+    "'": '&#039;'
+  };
+  return text.replace(/[&<>"']/g, m => map[m]);
+}
+
 export async function exportImmunizationCardAsImage(
   child: Child
 ): Promise<void> {
