@@ -9,11 +9,11 @@ interface OfflineSyncIndicatorProps {
   lastSyncTime?: Date | null;
 }
 
-export function OfflineSyncIndicator({ 
+export const OfflineSyncIndicator = forwardRef<HTMLDivElement, OfflineSyncIndicatorProps>(({ 
   pendingCount = 0, 
   isSyncing = false,
   lastSyncTime 
-}: OfflineSyncIndicatorProps) {
+}, ref) => {
   const [isOnline, setIsOnline] = useState(navigator.onLine);
   const [showBanner, setShowBanner] = useState(false);
   const [wasOffline, setWasOffline] = useState(false);
