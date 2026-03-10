@@ -1,10 +1,11 @@
+import { forwardRef } from 'react';
 import { Download, X, Smartphone } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { usePWAInstall } from '@/hooks/usePWAInstall';
 import { IOSInstallModal } from '@/components/IOSInstallModal';
 import { toast } from 'sonner';
 
-export const PWAInstallBanner = () => {
+export const PWAInstallBanner = forwardRef<HTMLDivElement>((_, ref) => {
   const { showBanner, installApp, dismissBanner, isInstalled, isIOS, showIOSModal, closeIOSModal, isInstallable } = usePWAInstall();
 
   // Don't show if already installed
