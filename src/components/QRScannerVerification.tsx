@@ -41,7 +41,7 @@ interface QRScannerVerificationProps {
   onFindChild?: (regNo: string) => void;
 }
 
-export function QRScannerVerification({ isOpen, onClose, onFindChild }: QRScannerVerificationProps) {
+export const QRScannerVerification = forwardRef<HTMLDivElement, QRScannerVerificationProps>(({ isOpen, onClose, onFindChild }, ref) => {
   const [scanResult, setScanResult] = useState<QRVerificationData | null>(null);
   const [scanError, setScanError] = useState<string | null>(null);
   const [isScanning, setIsScanning] = useState(true);
