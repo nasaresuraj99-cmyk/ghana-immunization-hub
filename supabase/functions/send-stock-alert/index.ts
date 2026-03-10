@@ -6,6 +6,16 @@ const corsHeaders = {
     "authorization, x-client-info, apikey, content-type",
 };
 
+// Sanitize strings to prevent HTML injection in emails
+function escapeHtml(text: string): string {
+  return text.replace(/[<>"&]/g, c => `&#${c.charCodeAt(0)};`);
+}
+
+// Validate email format
+function isValidEmail(email: string): boolean {
+  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) && email.length <= 255;
+}
+
 interface StockAlert {
   vaccine: string;
   type: 'critical' | 'low' | 'expiring';
@@ -20,7 +30,6 @@ interface StockAlertRequest {
 }
 
 const handler = async (req: Request): Promise<Response> => {
-  // Handle CORS preflight requests
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
   }
@@ -30,7 +39,7 @@ const handler = async (req: Request): Promise<Response> => {
     
     if (!RESEND_API_KEY) {
       console.log("RESEND_API_KEY not configured - logging alert instead");
-      const { email, alerts, facilityName, testMode }: StockAlertRequest = await req.json();
+      const { email, alerts, facilityName }: StockAlertRequest = await req.json();
       console.log("Stock alert would be sent to:", email);
       console.log("Facility:", facilityName);
       console.log("Alerts:", JSON.stringify(alerts, null, 2));
@@ -47,20 +56,42 @@ const handler = async (req: Request): Promise<Response> => {
 
     const { email, alerts, facilityName, testMode }: StockAlertRequest = await req.json();
 
-    if (!email) {
+    if (!email || !isValidEmail(email)) {
       return new Response(
-        JSON.stringify({ error: "Email address is required" }),
+        JSON.stringify({ error: "Valid email address is required" }),
         { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
 
-    const criticalAlerts = alerts?.filter(a => a.type === 'critical') || [];
-    const lowStockAlerts = alerts?.filter(a => a.type === 'low') || [];
-    const expiringAlerts = alerts?.filter(a => a.type === 'expiring') || [];
+    if (!facilityName || typeof facilityName !== 'string' || facilityName.length > 200) {
+      return new Response(
+        JSON.stringify({ error: "Valid facility name is required" }),
+        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    if (!Array.isArray(alerts) || alerts.length === 0 || alerts.length > 50) {
+      return new Response(
+        JSON.stringify({ error: "Alerts must be an array with 1-50 items" }),
+        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    // Sanitize all user-supplied strings
+    const safeFacilityName = escapeHtml(facilityName.substring(0, 200));
+    const safeAlerts = alerts.map(a => ({
+      vaccine: escapeHtml(String(a.vaccine || '').substring(0, 100)),
+      type: ['critical', 'low', 'expiring'].includes(a.type) ? a.type : 'low' as const,
+      message: escapeHtml(String(a.message || '').substring(0, 500)),
+    }));
+
+    const criticalAlerts = safeAlerts.filter(a => a.type === 'critical');
+    const lowStockAlerts = safeAlerts.filter(a => a.type === 'low');
+    const expiringAlerts = safeAlerts.filter(a => a.type === 'expiring');
 
     const subject = testMode 
-      ? `[TEST] Stock Alert - ${facilityName}`
-      : `⚠️ Stock Alert: ${criticalAlerts.length > 0 ? 'CRITICAL' : 'Action Required'} - ${facilityName}`;
+      ? `[TEST] Stock Alert - ${safeFacilityName}`
+      : `⚠️ Stock Alert: ${criticalAlerts.length > 0 ? 'CRITICAL' : 'Action Required'} - ${safeFacilityName}`;
 
     const htmlContent = `
       <!DOCTYPE html>
@@ -87,7 +118,7 @@ const handler = async (req: Request): Promise<Response> => {
         <div class="container">
           <div class="header">
             <h1>🏥 Vaccine Stock Alert</h1>
-            <p>${facilityName}</p>
+            <p>${safeFacilityName}</p>
             ${testMode ? '<p style="background: #F59E0B; padding: 5px; border-radius: 4px;">[TEST NOTIFICATION]</p>' : ''}
           </div>
           
@@ -134,7 +165,6 @@ const handler = async (req: Request): Promise<Response> => {
       </html>
     `;
 
-    // Send email using Resend API via fetch
     const emailResponse = await fetch("https://api.resend.com/emails", {
       method: "POST",
       headers: {

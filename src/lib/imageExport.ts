@@ -2,6 +2,18 @@ import { toPng } from "html-to-image";
 import { Child } from "@/types/child";
 import { FACILITY_CONFIG } from "@/lib/facilityConfig";
 
+// Sanitize strings to prevent HTML injection
+function escapeHtml(text: string): string {
+  const map: Record<string, string> = {
+    '&': '&amp;',
+    '<': '&lt;',
+    '>': '&gt;',
+    '"': '&quot;',
+    "'": '&#039;'
+  };
+  return text.replace(/[&<>"']/g, m => map[m]);
+}
+
 export async function exportImmunizationCardAsImage(
   child: Child
 ): Promise<void> {
@@ -57,12 +69,12 @@ export async function exportImmunizationCardAsImage(
             CHILD DETAILS
           </div>
           <div style="font-size: 9px; line-height: 1.5;">
-            <div><strong>Reg No:</strong> ${child.regNo}</div>
-            <div><strong>Name:</strong> ${child.name}</div>
-            <div><strong>DOB:</strong> ${new Date(child.dateOfBirth).toLocaleDateString()}</div>
-            <div><strong>Sex:</strong> ${child.sex}</div>
-            <div><strong>Caregiver:</strong> ${child.motherName}</div>
-            <div><strong>Contact:</strong> ${child.telephoneAddress || "N/A"}</div>
+            <div><strong>Reg No:</strong> ${escapeHtml(child.regNo)}</div>
+            <div><strong>Name:</strong> ${escapeHtml(child.name)}</div>
+            <div><strong>DOB:</strong> ${escapeHtml(new Date(child.dateOfBirth).toLocaleDateString())}</div>
+            <div><strong>Sex:</strong> ${escapeHtml(child.sex)}</div>
+            <div><strong>Caregiver:</strong> ${escapeHtml(child.motherName)}</div>
+            <div><strong>Contact:</strong> ${escapeHtml(child.telephoneAddress || "N/A")}</div>
           </div>
         </div>
       </div>
@@ -86,7 +98,7 @@ export async function exportImmunizationCardAsImage(
           <tbody>
             ${child.vaccines.slice(0, 18).map((v, i) => `
               <tr style="background: ${i % 2 === 0 ? '#f5faf5' : '#ffffff'};">
-                <td style="padding: 2px 3px; border: 1px solid #ddd; font-size: 7px;">${v.name.split(" at")[0].substring(0, 22)}</td>
+                <td style="padding: 2px 3px; border: 1px solid #ddd; font-size: 7px;">${escapeHtml(v.name.split(" at")[0].substring(0, 22))}</td>
                 <td style="padding: 2px 3px; border: 1px solid #ddd; text-align: center; font-size: 7px;">${new Date(v.dueDate).toLocaleDateString('en-GB', { day: '2-digit', month: '2-digit', year: '2-digit' })}</td>
                 <td style="padding: 2px 3px; border: 1px solid #ddd; text-align: center; font-size: 7px;">${v.givenDate ? new Date(v.givenDate).toLocaleDateString('en-GB', { day: '2-digit', month: '2-digit', year: '2-digit' }) : '-'}</td>
                 <td style="padding: 2px 3px; border: 1px solid #ddd; text-align: center; font-weight: bold; color: ${v.status === 'completed' ? '#006400' : v.status === 'overdue' ? '#ce1126' : '#999'};">${v.status === 'completed' ? '✓' : v.status === 'overdue' ? '!' : '○'}</td>
