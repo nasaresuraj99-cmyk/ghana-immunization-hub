@@ -80,6 +80,7 @@ export const PWAInstallBanner = forwardRef<HTMLDivElement>((_, ref) => {
       )}
       
       <IOSInstallModal open={showIOSModal} onClose={closeIOSModal} />
-    </>
+    </div>
   );
-};
+});
+PWAInstallBanner.displayName = 'PWAInstallBanner';

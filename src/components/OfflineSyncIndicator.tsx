@@ -158,6 +158,7 @@ export const OfflineSyncIndicator = forwardRef<HTMLDivElement, OfflineSyncIndica
           )}
         </div>
       )}
-    </>
+    </div>
   );
-}
+});
+OfflineSyncIndicator.displayName = 'OfflineSyncIndicator';
