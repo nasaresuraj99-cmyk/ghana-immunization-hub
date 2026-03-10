@@ -62,7 +62,7 @@ export const OfflineSyncIndicator = forwardRef<HTMLDivElement, OfflineSyncIndica
   const showCompactIndicator = !isOnline || pendingCount > 0;
 
   return (
-    <>
+    <div ref={ref}>
       {/* Compact indicator in header area */}
       {showCompactIndicator && (
         <div className={cn(
