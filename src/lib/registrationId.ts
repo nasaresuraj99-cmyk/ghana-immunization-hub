@@ -1,60 +1,45 @@
 import { Child } from "@/types/child";
 
 /**
- * Generates a unique registration ID in format GHS-[YEAR]-[SERIAL]
- * Serial resets to 0001 at the start of each year
- * Ensures no duplicate IDs
+ * Generates a collision-resistant registration ID in format:
+ * IMU-YYYYMMDD-UXXXX-RANDOM
+ * 
+ * - YYYYMMDD: current date
+ * - UXXXX: short hash derived from Firebase user ID
+ * - RANDOM: 4-digit random number for offline collision resistance
+ * 
+ * Works fully offline. Backward compatible with existing GHS-YYYY-SERIAL format.
  */
-export function generateRegistrationId(existingChildren: Child[]): string {
-  const currentYear = new Date().getFullYear();
-  const prefix = `GHS-${currentYear}-`;
+export function generateRegistrationId(existingChildren: Child[], firebaseUserId?: string): string {
+  const now = new Date();
+  const datePart = `${now.getFullYear()}${String(now.getMonth() + 1).padStart(2, '0')}${String(now.getDate()).padStart(2, '0')}`;
+  
+  // Derive a short user segment from Firebase UID (last 4 chars or fallback)
+  const userSegment = firebaseUserId 
+    ? `U${firebaseUserId.slice(-4).toUpperCase()}`
+    : `U${String(Math.floor(Math.random() * 10000)).padStart(4, '0')}`;
+  
+  // Generate a 4-digit random number
+  const randomPart = String(Math.floor(1000 + Math.random() * 9000));
+  
+  const newRegNo = `IMU-${datePart}-${userSegment}-${randomPart}`;
 
-  // Filter children registered in the current year
-  const currentYearChildren = existingChildren.filter(child => {
-    // Check if regNo follows the GHS-YEAR-SERIAL format
-    if (!child.regNo || !child.regNo.startsWith("GHS-")) return false;
-    
-    const parts = child.regNo.split("-");
-    if (parts.length !== 3) return false;
-    
-    const regYear = parseInt(parts[1], 10);
-    return regYear === currentYear;
-  });
-
-  // Find the highest serial number for current year
-  let maxSerial = 0;
-  currentYearChildren.forEach(child => {
-    const parts = child.regNo.split("-");
-    if (parts.length === 3) {
-      const serial = parseInt(parts[2], 10);
-      if (!isNaN(serial) && serial > maxSerial) {
-        maxSerial = serial;
-      }
-    }
-  });
-
-  // Generate new serial (increment by 1)
-  const newSerial = maxSerial + 1;
-  const newRegNo = `${prefix}${String(newSerial).padStart(4, '0')}`;
-
-  // Double-check for duplicates (should not happen, but safety check)
+  // Check for collision against existing children (extremely unlikely)
   const isDuplicate = existingChildren.some(child => child.regNo === newRegNo);
   if (isDuplicate) {
-    // If somehow duplicate, find next available
-    let nextSerial = newSerial + 1;
-    while (existingChildren.some(child => child.regNo === `${prefix}${String(nextSerial).padStart(4, '0')}`)) {
-      nextSerial++;
-    }
-    return `${prefix}${String(nextSerial).padStart(4, '0')}`;
+    // Recurse with a new random value
+    return generateRegistrationId(existingChildren, firebaseUserId);
   }
 
   return newRegNo;
 }
 
 /**
- * Validates registration ID format
+ * Validates registration ID format.
+ * Supports both legacy GHS-YYYY-SERIAL and new IMU-YYYYMMDD-UXXXX-RANDOM formats.
  */
 export function isValidRegistrationId(regNo: string): boolean {
-  const pattern = /^GHS-\d{4}-\d{4}$/;
-  return pattern.test(regNo);
+  const legacyPattern = /^GHS-\d{4}-\d{4}$/;
+  const newPattern = /^IMU-\d{8}-U[A-Z0-9]{4}-\d{4}$/;
+  return legacyPattern.test(regNo) || newPattern.test(regNo);
 }

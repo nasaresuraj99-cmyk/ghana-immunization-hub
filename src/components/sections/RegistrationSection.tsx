@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { auth } from "@/lib/firebase";
 import { Save, X, ArrowLeft } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -51,7 +52,7 @@ export function RegistrationSection({ editingChild, onSave, onCancel, onBack, ex
       });
     } else {
       // Generate new unique registration number
-      const newRegNo = generateRegistrationId(existingChildren);
+      const newRegNo = generateRegistrationId(existingChildren, auth.currentUser?.uid);
       setFormData(prev => ({
         ...prev,
         regNo: newRegNo,
