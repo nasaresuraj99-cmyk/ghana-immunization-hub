@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { auth } from "@/lib/firebase";
 import { Save, X, ArrowLeft } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
