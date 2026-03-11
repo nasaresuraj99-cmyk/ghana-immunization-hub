@@ -34,7 +34,7 @@ export function useAutoRetry(
     lastError: null,
   });
 
-  const retryTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const retryTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const isOnlineRef = useRef(navigator.onLine);
 
   // Calculate delay with exponential backoff
