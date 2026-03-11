@@ -52,7 +52,7 @@ export function RegistrationSection({ editingChild, onSave, onCancel, onBack, ex
       });
     } else {
       // Generate new unique registration number
-      const newRegNo = generateRegistrationId(existingChildren);
+      const newRegNo = generateRegistrationId(existingChildren, auth.currentUser?.uid);
       setFormData(prev => ({
         ...prev,
         regNo: newRegNo,
