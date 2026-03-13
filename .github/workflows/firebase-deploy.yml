@@ -1,10 +1,9 @@
-
 name: Deploy to Firebase Hosting
 
 on:
   push:
     branches:
-      - main
+      - main   # deploys whenever you push to main branch
 
 jobs:
   build-and-deploy:
@@ -18,12 +17,12 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: '20.11.0'
-          cache: npm
+          cache: 'npm'
 
       - name: Install dependencies
         run: npm ci
 
-      - name: Build app
+      - name: Build React app
         run: npm run build
 
       - name: Deploy to Firebase Hosting
@@ -32,3 +31,4 @@ jobs:
           repoToken: ${{ secrets.GITHUB_TOKEN }}
           firebaseServiceAccount: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
           projectId: imu-tracker-system
+          channelId: live   # ensures deployment to the live channel
