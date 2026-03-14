@@ -1,34 +1,31 @@
-name: Deploy to Firebase Hosting
+name: Deploy Prebuilt Dist to Firebase Hosting
 
 on:
   push:
     branches:
-      - main   # deploys whenever you push to main branch
+      - main  # deploys on every push to main
 
 jobs:
-  build-and-deploy:
+  deploy:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
+      # 1️⃣ Checkout the repo
+      - uses: actions/checkout@v3
 
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: '20.11.0'
-          cache: 'npm'
+      # 2️⃣ Check if dist folder exists
+      - name: Check dist folder
+        run: |
+          if [ ! -d "dist" ]; then
+            echo "Error: dist folder is missing. Cannot deploy."
+            exit 1
+          fi
 
-      - name: Install dependencies
-        run: npm ci
-
-      - name: Build React app
-        run: npm run build
-
-      - name: Deploy to Firebase Hosting
-        uses: FirebaseExtended/action-hosting-deploy@v0
+      # 3️⃣ Deploy to Firebase Hosting
+      - name: Deploy to Firebase
+        uses: FirebaseExtended/action-hosting-deploy@v1
         with:
           repoToken: ${{ secrets.GITHUB_TOKEN }}
           firebaseServiceAccount: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
+          channelId: live
           projectId: imu-tracker-system
-          channelId: live   # ensures deployment to the live channel
