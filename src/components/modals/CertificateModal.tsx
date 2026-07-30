@@ -207,36 +207,43 @@ export function CertificateModal({
             </div>
           </div>
 
-          {/* Vaccines Received */}
+          {/* All Vaccines with status */}
           <div className="p-4 border-t">
             <h4 className="font-semibold text-sm mb-3">
-              Vaccines Received ({completedVaccines})
+              Immunization Record ({totalVaccines} vaccines)
             </h4>
-            {completedVaccines === 0 ? (
-              <p className="text-xs text-muted-foreground">
-                No vaccines recorded as given yet.
-              </p>
-            ) : (
-              <div className="grid grid-cols-2 md:grid-cols-3 gap-2 text-xs">
-                {child.vaccines
-                  .filter(v => v.status === 'completed')
-                  .map((vaccine, idx) => (
-                    <div
-                      key={idx}
-                      className="p-2 rounded border bg-green-50 border-green-200 dark:bg-green-900/20 dark:border-green-800"
-                    >
-                      <p className="font-medium truncate">{vaccine.name.split(" at")[0]}</p>
-                      <p className="text-muted-foreground">
-                        {vaccine.givenDate ? formatDate(vaccine.givenDate) : "Given"}
-                      </p>
-                    </div>
-                  ))}
-              </div>
-            )}
+            <div className="grid grid-cols-2 md:grid-cols-3 gap-2 text-xs">
+              {child.vaccines.map((vaccine, idx) => {
+                const given = vaccine.status === 'completed';
+                const overdue = vaccine.status === 'overdue';
+                return (
+                  <div
+                    key={idx}
+                    className={
+                      given
+                        ? "p-2 rounded border bg-green-50 border-green-200 dark:bg-green-900/20 dark:border-green-800"
+                        : overdue
+                        ? "p-2 rounded border bg-red-50 border-red-200 dark:bg-red-900/20 dark:border-red-800"
+                        : "p-2 rounded border bg-muted/40"
+                    }
+                  >
+                    <p className="font-medium truncate">{vaccine.name.split(" at")[0]}</p>
+                    <p className="text-muted-foreground">
+                      {given
+                        ? `Given${vaccine.givenDate ? ` · ${formatDate(vaccine.givenDate)}` : ""}`
+                        : overdue
+                        ? "Overdue"
+                        : "Pending"}
+                    </p>
+                  </div>
+                );
+              })}
+            </div>
             <p className="text-xs text-muted-foreground mt-3">
-              The downloaded certificate lists the full immunization record ({totalVaccines} scheduled vaccines).
+              The downloaded certificate lists every vaccine with its Given/Pending status.
             </p>
           </div>
+
 
 
           {/* QR Code Note */}
