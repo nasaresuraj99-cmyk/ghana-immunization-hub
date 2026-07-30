@@ -498,34 +498,39 @@ export async function generateImmunizationCertificate(
     noteY += 3;
   });
 
-  // ============== FOOTER ==============
-  
-  // Ghana flag colors bar
-  const flagBarY = pageHeight - 16;
-  doc.setFillColor(...GHS_RED);
-  doc.rect(8, flagBarY, (pageWidth - 16) / 3, 4, "F");
-  doc.setFillColor(...GHS_GOLD);
-  doc.rect(8 + (pageWidth - 16) / 3, flagBarY, (pageWidth - 16) / 3, 4, "F");
-  doc.setFillColor(...GHS_GREEN);
-  doc.rect(8 + 2 * (pageWidth - 16) / 3, flagBarY, (pageWidth - 16) / 3, 4, "F");
-  
-  // Footer text
-  doc.setFontSize(5);
-  doc.setTextColor(100, 100, 100);
-  doc.text(
-    `Certificate ID: ${child.regNo} | Generated: ${formatDateDDMMYYYY(new Date())} | Ghana Health Service - Expanded Programme on Immunization`,
-    pageWidth / 2,
-    pageHeight - 9,
-    { align: "center" }
-  );
-  
-  doc.setFontSize(4.5);
-  doc.text(
-    "This is an official document. Tampering or falsification is punishable by law. Scan QR code for verification.",
-    pageWidth / 2,
-    pageHeight - 6,
-    { align: "center" }
-  );
+  // ============== FOOTER (on every page) ==============
+  const totalPages = doc.getNumberOfPages();
+  for (let p = 1; p <= totalPages; p++) {
+    doc.setPage(p);
+
+    // Ghana flag colors bar
+    const flagBarY = pageHeight - 16;
+    doc.setFillColor(...GHS_RED);
+    doc.rect(8, flagBarY, (pageWidth - 16) / 3, 4, "F");
+    doc.setFillColor(...GHS_GOLD);
+    doc.rect(8 + (pageWidth - 16) / 3, flagBarY, (pageWidth - 16) / 3, 4, "F");
+    doc.setFillColor(...GHS_GREEN);
+    doc.rect(8 + 2 * (pageWidth - 16) / 3, flagBarY, (pageWidth - 16) / 3, 4, "F");
+
+    // Footer text
+    doc.setFontSize(5);
+    doc.setTextColor(100, 100, 100);
+    doc.text(
+      `Certificate ID: ${child.regNo} | Generated: ${formatDateDDMMYYYY(new Date())} | Page ${p} of ${totalPages} | Ghana Health Service - Expanded Programme on Immunization`,
+      pageWidth / 2,
+      pageHeight - 9,
+      { align: "center" }
+    );
+
+    doc.setFontSize(4.5);
+    doc.text(
+      "This is an official document. Tampering or falsification is punishable by law. Scan QR code for verification.",
+      pageWidth / 2,
+      pageHeight - 6,
+      { align: "center" }
+    );
+  }
+
 
   // Save the PDF
   const facilitySlug = sanitizeFilename(facilityName);
