@@ -356,14 +356,20 @@ export async function generateImmunizationCertificate(
       }
     },
     didParseCell: (data) => {
-      if (data.section === "body" && data.column.index === 4) {
-        const givenDate = data.cell.raw as string;
-        if (givenDate && givenDate !== "—") {
+      if (data.section === "body" && (data.column.index === 4 || data.column.index === 5)) {
+        const value = data.cell.raw as string;
+        if (value === "GIVEN" || (data.column.index === 4 && value && value !== "—")) {
           data.cell.styles.textColor = [0, 128, 0];
           data.cell.styles.fontStyle = "bold";
+        } else if (value === "OVERDUE") {
+          data.cell.styles.textColor = [206, 17, 38];
+          data.cell.styles.fontStyle = "bold";
+        } else if (value === "PENDING") {
+          data.cell.styles.textColor = [120, 120, 120];
         }
       }
     },
+
   });
 
   yPos = (doc as jsPDF & { lastAutoTable?: { finalY: number } }).lastAutoTable?.finalY || yPos + 80;
