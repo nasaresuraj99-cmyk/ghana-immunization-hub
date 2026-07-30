@@ -80,34 +80,39 @@ const getVaccineSchedule = (dateOfBirth: string): VaccineRecord[] => {
   });
 };
 
-// Migrate existing children to include Yellow Fever vaccine if missing
+// Normalize a vaccine name for tolerant matching (case/spacing variations)
+const normalizeVaccineName = (name: string) =>
+  name.toLowerCase().replace(/[^a-z0-9]/g, '');
+
+// Reconcile an existing child's vaccine list against the full EPI schedule.
+// Additive only: keeps every existing record (and its given data) and appends
+// any scheduled vaccine that is missing (e.g. Malaria, Yellow Fever, Men A, LLIN),
+// then orders the list to match the official schedule.
 const migrateChildVaccines = (child: Child): Child => {
-  const hasYellowFever = child.vaccines?.some(v => v.name.includes('Yellow Fever'));
-  if (hasYellowFever) return child;
+  if (!child?.dateOfBirth) return child;
 
-  const dob = new Date(child.dateOfBirth);
-  const weeksAfterBirth = Math.round(9 * 4.33);
-  const dueDate = new Date(dob);
-  dueDate.setDate(dueDate.getDate() + weeksAfterBirth * 7);
-  const today = new Date();
+  const schedule = getVaccineSchedule(child.dateOfBirth);
+  const existing = [...(child.vaccines || [])];
+  const existingKeys = new Set(existing.map(v => normalizeVaccineName(v.name)));
 
-  const yellowFever: VaccineRecord = {
-    name: "Yellow Fever at 9 months",
-    dueDate: dueDate.toISOString().split('T')[0],
-    status: dueDate < today ? 'overdue' : 'pending',
-  };
+  const missing = schedule.filter(s => !existingKeys.has(normalizeVaccineName(s.name)));
+  if (missing.length === 0) return child;
 
-  // Insert after Measles Rubella1
-  const vaccines = [...(child.vaccines || [])];
-  const mrIndex = vaccines.findIndex(v => v.name.includes('Measles Rubella1'));
-  if (mrIndex !== -1) {
-    vaccines.splice(mrIndex + 1, 0, yellowFever);
-  } else {
-    vaccines.push(yellowFever);
-  }
+  const merged = [...existing, ...missing];
 
-  return { ...child, vaccines };
+  // Order by schedule position; unknown/custom vaccines keep their relative order at the end
+  const orderIndex = new Map(
+    schedule.map((s, i) => [normalizeVaccineName(s.name), i])
+  );
+  merged.sort((a, b) => {
+    const ai = orderIndex.get(normalizeVaccineName(a.name)) ?? Number.MAX_SAFE_INTEGER;
+    const bi = orderIndex.get(normalizeVaccineName(b.name)) ?? Number.MAX_SAFE_INTEGER;
+    return ai - bi;
+  });
+
+  return { ...child, vaccines: merged };
 };
+
 
 // Vaccines that are optional and should NOT count toward defaulter status
 const OPTIONAL_VACCINES = ['Hepatitis B at Birth'];
