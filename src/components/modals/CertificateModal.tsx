@@ -207,36 +207,37 @@ export function CertificateModal({
             </div>
           </div>
 
-          {/* Vaccines Preview */}
+          {/* Vaccines Received */}
           <div className="p-4 border-t">
-            <h4 className="font-semibold text-sm mb-3">Immunization Record Preview</h4>
-            <div className="grid grid-cols-2 md:grid-cols-3 gap-2 text-xs">
-              {child.vaccines.slice(0, 9).map((vaccine, idx) => (
-                <div 
-                  key={idx}
-                  className={`p-2 rounded border ${
-                    vaccine.status === 'completed' 
-                      ? 'bg-green-50 border-green-200 dark:bg-green-900/20 dark:border-green-800' 
-                      : vaccine.status === 'overdue'
-                      ? 'bg-red-50 border-red-200 dark:bg-red-900/20 dark:border-red-800'
-                      : 'bg-muted/30 border-muted'
-                  }`}
-                >
-                  <p className="font-medium truncate">{vaccine.name.split(" at")[0]}</p>
-                  <p className="text-muted-foreground">
-                    {vaccine.status === 'completed' && vaccine.givenDate
-                      ? formatDate(vaccine.givenDate)
-                      : vaccine.status.charAt(0).toUpperCase() + vaccine.status.slice(1)}
-                  </p>
-                </div>
-              ))}
-              {child.vaccines.length > 9 && (
-                <div className="p-2 rounded border bg-muted/30 flex items-center justify-center">
-                  <span className="text-muted-foreground">+{child.vaccines.length - 9} more</span>
-                </div>
-              )}
-            </div>
+            <h4 className="font-semibold text-sm mb-3">
+              Vaccines Received ({completedVaccines})
+            </h4>
+            {completedVaccines === 0 ? (
+              <p className="text-xs text-muted-foreground">
+                No vaccines recorded as given yet.
+              </p>
+            ) : (
+              <div className="grid grid-cols-2 md:grid-cols-3 gap-2 text-xs">
+                {child.vaccines
+                  .filter(v => v.status === 'completed')
+                  .map((vaccine, idx) => (
+                    <div
+                      key={idx}
+                      className="p-2 rounded border bg-green-50 border-green-200 dark:bg-green-900/20 dark:border-green-800"
+                    >
+                      <p className="font-medium truncate">{vaccine.name.split(" at")[0]}</p>
+                      <p className="text-muted-foreground">
+                        {vaccine.givenDate ? formatDate(vaccine.givenDate) : "Given"}
+                      </p>
+                    </div>
+                  ))}
+              </div>
+            )}
+            <p className="text-xs text-muted-foreground mt-3">
+              The downloaded certificate lists the full immunization record ({totalVaccines} scheduled vaccines).
+            </p>
           </div>
+
 
           {/* QR Code Note */}
           <div className="p-3 border-t bg-muted/20 flex items-center gap-2 text-xs text-muted-foreground">

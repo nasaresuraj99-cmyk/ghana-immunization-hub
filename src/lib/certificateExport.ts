@@ -303,10 +303,23 @@ export async function generateImmunizationCertificate(
     v.administeredBy ? v.administeredBy.substring(0, 8) : "—",
   ]);
 
+  // Draws the decorative page frame (used for continuation pages too)
+  const drawPageFrame = () => {
+    doc.setDrawColor(...GHS_GREEN);
+    doc.setLineWidth(2);
+    doc.rect(5, 5, pageWidth - 10, pageHeight - 10, "S");
+    doc.setLineWidth(0.5);
+    doc.rect(8, 8, pageWidth - 16, pageHeight - 16, "S");
+  };
+
   autoTable(doc, {
     startY: yPos,
     head: [["#", "Vaccine", "Dose", "Due Date", "Given", "Batch", "By"]],
     body: vaccineTableData,
+    // Ensure every vaccine row is rendered, flowing onto extra pages when needed
+    pageBreak: "auto",
+    rowPageBreak: "avoid",
+    showHead: "everyPage",
     headStyles: {
       fillColor: GHS_GREEN,
       textColor: [255, 255, 255],
@@ -331,8 +344,14 @@ export async function generateImmunizationCertificate(
       5: { cellWidth: 22, halign: "center" },
       6: { cellWidth: 22, halign: "center" },
     },
-    margin: { left: margin, right: margin },
+    margin: { left: margin, right: margin, top: 18, bottom: 22 },
     tableWidth: contentWidth,
+    didDrawPage: (data) => {
+      // Redraw the certificate frame on continuation pages
+      if (data.pageNumber > 1) {
+        drawPageFrame();
+      }
+    },
     didParseCell: (data) => {
       if (data.section === "body" && data.column.index === 4) {
         const givenDate = data.cell.raw as string;
@@ -345,6 +364,15 @@ export async function generateImmunizationCertificate(
   });
 
   yPos = (doc as jsPDF & { lastAutoTable?: { finalY: number } }).lastAutoTable?.finalY || yPos + 80;
+
+  // If the remaining sections do not fit on the current page, continue on a new one
+  const REMAINING_SECTIONS_HEIGHT = 88;
+  if (yPos + REMAINING_SECTIONS_HEIGHT > pageHeight - 22) {
+    doc.addPage();
+    drawPageFrame();
+    yPos = 18;
+  }
+
 
   // ============== COMPLETION STATUS ==============
   yPos += 3;
@@ -470,34 +498,39 @@ export async function generateImmunizationCertificate(
     noteY += 3;
   });
 
-  // ============== FOOTER ==============
-  
-  // Ghana flag colors bar
-  const flagBarY = pageHeight - 16;
-  doc.setFillColor(...GHS_RED);
-  doc.rect(8, flagBarY, (pageWidth - 16) / 3, 4, "F");
-  doc.setFillColor(...GHS_GOLD);
-  doc.rect(8 + (pageWidth - 16) / 3, flagBarY, (pageWidth - 16) / 3, 4, "F");
-  doc.setFillColor(...GHS_GREEN);
-  doc.rect(8 + 2 * (pageWidth - 16) / 3, flagBarY, (pageWidth - 16) / 3, 4, "F");
-  
-  // Footer text
-  doc.setFontSize(5);
-  doc.setTextColor(100, 100, 100);
-  doc.text(
-    `Certificate ID: ${child.regNo} | Generated: ${formatDateDDMMYYYY(new Date())} | Ghana Health Service - Expanded Programme on Immunization`,
-    pageWidth / 2,
-    pageHeight - 9,
-    { align: "center" }
-  );
-  
-  doc.setFontSize(4.5);
-  doc.text(
-    "This is an official document. Tampering or falsification is punishable by law. Scan QR code for verification.",
-    pageWidth / 2,
-    pageHeight - 6,
-    { align: "center" }
-  );
+  // ============== FOOTER (on every page) ==============
+  const totalPages = doc.getNumberOfPages();
+  for (let p = 1; p <= totalPages; p++) {
+    doc.setPage(p);
+
+    // Ghana flag colors bar
+    const flagBarY = pageHeight - 16;
+    doc.setFillColor(...GHS_RED);
+    doc.rect(8, flagBarY, (pageWidth - 16) / 3, 4, "F");
+    doc.setFillColor(...GHS_GOLD);
+    doc.rect(8 + (pageWidth - 16) / 3, flagBarY, (pageWidth - 16) / 3, 4, "F");
+    doc.setFillColor(...GHS_GREEN);
+    doc.rect(8 + 2 * (pageWidth - 16) / 3, flagBarY, (pageWidth - 16) / 3, 4, "F");
+
+    // Footer text
+    doc.setFontSize(5);
+    doc.setTextColor(100, 100, 100);
+    doc.text(
+      `Certificate ID: ${child.regNo} | Generated: ${formatDateDDMMYYYY(new Date())} | Page ${p} of ${totalPages} | Ghana Health Service - Expanded Programme on Immunization`,
+      pageWidth / 2,
+      pageHeight - 9,
+      { align: "center" }
+    );
+
+    doc.setFontSize(4.5);
+    doc.text(
+      "This is an official document. Tampering or falsification is punishable by law. Scan QR code for verification.",
+      pageWidth / 2,
+      pageHeight - 6,
+      { align: "center" }
+    );
+  }
+
 
   // Save the PDF
   const facilitySlug = sanitizeFilename(facilityName);
