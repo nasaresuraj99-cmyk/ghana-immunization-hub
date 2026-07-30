@@ -292,13 +292,14 @@ export async function generateImmunizationCertificate(
   
   yPos += 10;
 
-  // Prepare vaccine data with administered by info
+  // Prepare vaccine data with status (Given / Pending / Overdue)
   const vaccineTableData = child.vaccines.map((v, idx) => [
     (idx + 1).toString(),
     v.name.split(" at")[0],
     v.name.includes("at") ? v.name.split(" at")[1] : "",
     formatDateDDMMYYYY(v.dueDate),
     v.givenDate ? formatDateDDMMYYYY(v.givenDate) : "—",
+    v.status === "completed" ? "GIVEN" : v.status === "overdue" ? "OVERDUE" : "PENDING",
     v.batchNumber || "—",
     v.administeredBy ? v.administeredBy.substring(0, 8) : "—",
   ]);
@@ -314,7 +315,7 @@ export async function generateImmunizationCertificate(
 
   autoTable(doc, {
     startY: yPos,
-    head: [["#", "Vaccine", "Dose", "Due Date", "Given", "Batch", "By"]],
+    head: [["#", "Vaccine", "Dose", "Due Date", "Given On", "Status", "Batch", "By"]],
     body: vaccineTableData,
     // Ensure every vaccine row is rendered, flowing onto extra pages when needed
     pageBreak: "auto",
@@ -337,13 +338,15 @@ export async function generateImmunizationCertificate(
     },
     columnStyles: {
       0: { cellWidth: 7, halign: "center" },
-      1: { cellWidth: 32 },
-      2: { cellWidth: 22, halign: "center" },
-      3: { cellWidth: 20, halign: "center" },
-      4: { cellWidth: 20, halign: "center" },
-      5: { cellWidth: 22, halign: "center" },
-      6: { cellWidth: 22, halign: "center" },
+      1: { cellWidth: 30 },
+      2: { cellWidth: 19, halign: "center" },
+      3: { cellWidth: 18, halign: "center" },
+      4: { cellWidth: 18, halign: "center" },
+      5: { cellWidth: 18, halign: "center" },
+      6: { cellWidth: 19, halign: "center" },
+      7: { cellWidth: 16, halign: "center" },
     },
+
     margin: { left: margin, right: margin, top: 18, bottom: 22 },
     tableWidth: contentWidth,
     didDrawPage: (data) => {
@@ -353,14 +356,20 @@ export async function generateImmunizationCertificate(
       }
     },
     didParseCell: (data) => {
-      if (data.section === "body" && data.column.index === 4) {
-        const givenDate = data.cell.raw as string;
-        if (givenDate && givenDate !== "—") {
+      if (data.section === "body" && (data.column.index === 4 || data.column.index === 5)) {
+        const value = data.cell.raw as string;
+        if (value === "GIVEN" || (data.column.index === 4 && value && value !== "—")) {
           data.cell.styles.textColor = [0, 128, 0];
           data.cell.styles.fontStyle = "bold";
+        } else if (value === "OVERDUE") {
+          data.cell.styles.textColor = [206, 17, 38];
+          data.cell.styles.fontStyle = "bold";
+        } else if (value === "PENDING") {
+          data.cell.styles.textColor = [120, 120, 120];
         }
       }
     },
+
   });
 
   yPos = (doc as jsPDF & { lastAutoTable?: { finalY: number } }).lastAutoTable?.finalY || yPos + 80;
