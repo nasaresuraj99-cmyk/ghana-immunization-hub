@@ -303,10 +303,23 @@ export async function generateImmunizationCertificate(
     v.administeredBy ? v.administeredBy.substring(0, 8) : "—",
   ]);
 
+  // Draws the decorative page frame (used for continuation pages too)
+  const drawPageFrame = () => {
+    doc.setDrawColor(...GHS_GREEN);
+    doc.setLineWidth(2);
+    doc.rect(5, 5, pageWidth - 10, pageHeight - 10, "S");
+    doc.setLineWidth(0.5);
+    doc.rect(8, 8, pageWidth - 16, pageHeight - 16, "S");
+  };
+
   autoTable(doc, {
     startY: yPos,
     head: [["#", "Vaccine", "Dose", "Due Date", "Given", "Batch", "By"]],
     body: vaccineTableData,
+    // Ensure every vaccine row is rendered, flowing onto extra pages when needed
+    pageBreak: "auto",
+    rowPageBreak: "avoid",
+    showHead: "everyPage",
     headStyles: {
       fillColor: GHS_GREEN,
       textColor: [255, 255, 255],
@@ -331,8 +344,14 @@ export async function generateImmunizationCertificate(
       5: { cellWidth: 22, halign: "center" },
       6: { cellWidth: 22, halign: "center" },
     },
-    margin: { left: margin, right: margin },
+    margin: { left: margin, right: margin, top: 18, bottom: 22 },
     tableWidth: contentWidth,
+    didDrawPage: (data) => {
+      // Redraw the certificate frame on continuation pages
+      if (data.pageNumber > 1) {
+        drawPageFrame();
+      }
+    },
     didParseCell: (data) => {
       if (data.section === "body" && data.column.index === 4) {
         const givenDate = data.cell.raw as string;
@@ -345,6 +364,15 @@ export async function generateImmunizationCertificate(
   });
 
   yPos = (doc as jsPDF & { lastAutoTable?: { finalY: number } }).lastAutoTable?.finalY || yPos + 80;
+
+  // If the remaining sections do not fit on the current page, continue on a new one
+  const REMAINING_SECTIONS_HEIGHT = 88;
+  if (yPos + REMAINING_SECTIONS_HEIGHT > pageHeight - 22) {
+    doc.addPage();
+    drawPageFrame();
+    yPos = 18;
+  }
+
 
   // ============== COMPLETION STATUS ==============
   yPos += 3;
