@@ -21,7 +21,7 @@ const normalizeVaccineName = (name: string) =>
  * Returns the child's COMPLETE immunization schedule (birth → 59 months).
  * Every vaccine in the Ghana EPI schedule is included, whether given or not.
  */
-function buildCompleteScheduleRows(child: Child): ScheduleRow[] {
+export function buildCompleteScheduleRows(child: Child): ScheduleRow[] {
   const existing = new Map<string, ScheduleRow>();
   (child.vaccines || []).forEach(v => {
     existing.set(normalizeVaccineName(v.name), v as ScheduleRow);
