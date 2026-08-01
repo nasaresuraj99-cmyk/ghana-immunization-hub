@@ -62,7 +62,13 @@ export function buildCompleteScheduleRows(child: Child): ScheduleRow[] {
 
 
   // Keep any custom/legacy vaccines the child has that aren't in the schedule
-  existing.forEach(v => rows.push(v));
+  existing.forEach(v =>
+    rows.push({
+      ...v,
+      status: v.givenDate || v.status === "completed" ? "completed" : v.status || "pending",
+    })
+  );
+
 
   return rows;
 }
