@@ -327,17 +327,21 @@ export async function generateImmunizationCertificate(
   
   yPos += 10;
 
-  // Prepare vaccine data with status (Given / Pending / Overdue)
-  const vaccineTableData = child.vaccines.map((v, idx) => [
+  // Build the COMPLETE schedule (birth → 59 months), merging the child's records.
+  // Every vaccine always appears: GIVEN (with date), OVERDUE, or PENDING.
+  const fullSchedule = buildCompleteScheduleRows(child);
+
+  const vaccineTableData = fullSchedule.map((v, idx) => [
     (idx + 1).toString(),
     v.name.split(" at")[0],
-    v.name.includes("at") ? v.name.split(" at")[1] : "",
-    formatDateDDMMYYYY(v.dueDate),
+    v.name.includes(" at") ? v.name.split(" at")[1].trim() : "—",
+    v.dueDate ? formatDateDDMMYYYY(v.dueDate) : "—",
     v.givenDate ? formatDateDDMMYYYY(v.givenDate) : "—",
     v.status === "completed" ? "GIVEN" : v.status === "overdue" ? "OVERDUE" : "PENDING",
     v.batchNumber || "—",
     v.administeredBy ? v.administeredBy.substring(0, 8) : "—",
   ]);
+
 
   // Draws the decorative page frame (used for continuation pages too)
   const drawPageFrame = () => {
