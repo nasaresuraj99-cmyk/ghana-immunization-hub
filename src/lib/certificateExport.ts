@@ -405,7 +405,7 @@ export async function generateImmunizationCertificate(
 
   autoTable(doc, {
     startY: yPos,
-    head: [["#", "Vaccine", "Dose", "Due Date", "Given On", "Status", "Batch", "By"]],
+    head: [["#", "Vaccine", "Recommended Age", "Due Date", "Date Given", "Status", "Batch", "By"]],
     body: vaccineTableData,
     // Ensure every vaccine row is rendered, flowing onto extra pages when needed
     pageBreak: "auto",
