@@ -215,7 +215,7 @@ export function CertificateModal({
               Immunization Record ({totalVaccines} vaccines)
             </h4>
             <div className="grid grid-cols-2 md:grid-cols-3 gap-2 text-xs">
-              {child.vaccines.map((vaccine, idx) => {
+              {allVaccines.map((vaccine, idx) => {
                 const given = vaccine.status === 'completed';
                 const overdue = vaccine.status === 'overdue';
                 return (
