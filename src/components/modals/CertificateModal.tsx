@@ -22,7 +22,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { Child } from "@/types/child";
-import { generateImmunizationCertificate } from "@/lib/certificateExport";
+import { generateImmunizationCertificate, buildCompleteScheduleRows } from "@/lib/certificateExport";
 import { formatDate } from "@/lib/utils";
 import { toast } from "sonner";
 import { FACILITY_CONFIG } from "@/lib/facilityConfig";
