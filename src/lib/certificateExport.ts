@@ -3,6 +3,57 @@ import autoTable from "jspdf-autotable";
 import QRCode from "qrcode";
 import { Child } from "@/types/child";
 import { FACILITY_CONFIG } from "@/lib/facilityConfig";
+import { GHANA_EPI_VACCINES } from "@/lib/ghanaEpiSchedule";
+
+interface ScheduleRow {
+  name: string;
+  dueDate?: string;
+  givenDate?: string;
+  status: string;
+  batchNumber?: string;
+  administeredBy?: string;
+}
+
+const normalizeVaccineName = (name: string) =>
+  name.toLowerCase().replace(/\s+/g, " ").trim();
+
+/**
+ * Returns the child's COMPLETE immunization schedule (birth → 59 months).
+ * Every vaccine in the Ghana EPI schedule is included, whether given or not.
+ */
+export function buildCompleteScheduleRows(child: Child): ScheduleRow[] {
+  const existing = new Map<string, ScheduleRow>();
+  (child.vaccines || []).forEach(v => {
+    existing.set(normalizeVaccineName(v.name), v as ScheduleRow);
+  });
+
+  const dob = child.dateOfBirth ? new Date(child.dateOfBirth) : null;
+  const today = new Date();
+
+  const rows: ScheduleRow[] = GHANA_EPI_VACCINES.map(def => {
+    const match = existing.get(normalizeVaccineName(def.name));
+    if (match) {
+      existing.delete(normalizeVaccineName(def.name));
+      return { ...match, name: def.name };
+    }
+
+    // Not in the child's record: derive due date from DOB and mark pending/overdue
+    let dueDate: string | undefined;
+    if (dob && !isNaN(dob.getTime())) {
+      const d = new Date(dob);
+      d.setDate(d.getDate() + def.minAgeWeeks * 7);
+      dueDate = d.toISOString().split("T")[0];
+    }
+    const overdue = dueDate ? new Date(dueDate) < today : false;
+    return { name: def.name, dueDate, status: overdue ? "overdue" : "pending" };
+  });
+
+  // Keep any custom/legacy vaccines the child has that aren't in the schedule
+  existing.forEach(v => rows.push(v));
+
+  return rows;
+}
+
 
 // Ghana Health Service branding colors
 const GHS_GREEN: [number, number, number] = [0, 100, 0];
@@ -327,17 +378,21 @@ export async function generateImmunizationCertificate(
   
   yPos += 10;
 
-  // Prepare vaccine data with status (Given / Pending / Overdue)
-  const vaccineTableData = child.vaccines.map((v, idx) => [
+  // Build the COMPLETE schedule (birth → 59 months), merging the child's records.
+  // Every vaccine always appears: GIVEN (with date), OVERDUE, or PENDING.
+  const fullSchedule = buildCompleteScheduleRows(child);
+
+  const vaccineTableData = fullSchedule.map((v, idx) => [
     (idx + 1).toString(),
     v.name.split(" at")[0],
-    v.name.includes("at") ? v.name.split(" at")[1] : "",
-    formatDateDDMMYYYY(v.dueDate),
+    v.name.includes(" at") ? v.name.split(" at")[1].trim() : "—",
+    v.dueDate ? formatDateDDMMYYYY(v.dueDate) : "—",
     v.givenDate ? formatDateDDMMYYYY(v.givenDate) : "—",
     v.status === "completed" ? "GIVEN" : v.status === "overdue" ? "OVERDUE" : "PENDING",
     v.batchNumber || "—",
     v.administeredBy ? v.administeredBy.substring(0, 8) : "—",
   ]);
+
 
   // Draws the decorative page frame (used for continuation pages too)
   const drawPageFrame = () => {
@@ -350,7 +405,7 @@ export async function generateImmunizationCertificate(
 
   autoTable(doc, {
     startY: yPos,
-    head: [["#", "Vaccine", "Dose", "Due Date", "Given On", "Status", "Batch", "By"]],
+    head: [["#", "Vaccine", "Recommended Age", "Due Date", "Date Given", "Status", "Batch", "By"]],
     body: vaccineTableData,
     // Ensure every vaccine row is rendered, flowing onto extra pages when needed
     pageBreak: "auto",
@@ -421,10 +476,11 @@ export async function generateImmunizationCertificate(
   // ============== COMPLETION STATUS ==============
   yPos += 3;
   
-  const completed = child.vaccines.filter(v => v.status === "completed").length;
-  const pending = child.vaccines.filter(v => v.status === "pending").length;
-  const overdue = child.vaccines.filter(v => v.status === "overdue").length;
-  const total = child.vaccines.length;
+  const completed = fullSchedule.filter(v => v.status === "completed").length;
+  const overdue = fullSchedule.filter(v => v.status === "overdue").length;
+  const total = fullSchedule.length;
+  const pending = total - completed - overdue;
+
   const progress = total > 0 ? Math.round((completed / total) * 100) : 0;
   const isFullyImmunized = progress >= 100;
   

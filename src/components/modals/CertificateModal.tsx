@@ -22,7 +22,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { Child } from "@/types/child";
-import { generateImmunizationCertificate } from "@/lib/certificateExport";
+import { generateImmunizationCertificate, buildCompleteScheduleRows } from "@/lib/certificateExport";
 import { formatDate } from "@/lib/utils";
 import { toast } from "sonner";
 import { FACILITY_CONFIG } from "@/lib/facilityConfig";
@@ -52,9 +52,11 @@ export function CertificateModal({
 
   if (!child) return null;
 
-  const completedVaccines = child.vaccines.filter(v => v.status === "completed").length;
-  const totalVaccines = child.vaccines.length;
+  const allVaccines = buildCompleteScheduleRows(child);
+  const completedVaccines = allVaccines.filter(v => v.status === "completed").length;
+  const totalVaccines = allVaccines.length;
   const progress = totalVaccines > 0 ? Math.round((completedVaccines / totalVaccines) * 100) : 0;
+
   const isFullyImmunized = progress >= 100;
 
   // Calculate age in months
@@ -213,7 +215,7 @@ export function CertificateModal({
               Immunization Record ({totalVaccines} vaccines)
             </h4>
             <div className="grid grid-cols-2 md:grid-cols-3 gap-2 text-xs">
-              {child.vaccines.map((vaccine, idx) => {
+              {allVaccines.map((vaccine, idx) => {
                 const given = vaccine.status === 'completed';
                 const overdue = vaccine.status === 'overdue';
                 return (
