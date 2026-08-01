@@ -3,6 +3,57 @@ import autoTable from "jspdf-autotable";
 import QRCode from "qrcode";
 import { Child } from "@/types/child";
 import { FACILITY_CONFIG } from "@/lib/facilityConfig";
+import { GHANA_EPI_VACCINES } from "@/lib/ghanaEpiSchedule";
+
+interface ScheduleRow {
+  name: string;
+  dueDate?: string;
+  givenDate?: string;
+  status: string;
+  batchNumber?: string;
+  administeredBy?: string;
+}
+
+const normalizeVaccineName = (name: string) =>
+  name.toLowerCase().replace(/\s+/g, " ").trim();
+
+/**
+ * Returns the child's COMPLETE immunization schedule (birth → 59 months).
+ * Every vaccine in the Ghana EPI schedule is included, whether given or not.
+ */
+function buildCompleteScheduleRows(child: Child): ScheduleRow[] {
+  const existing = new Map<string, ScheduleRow>();
+  (child.vaccines || []).forEach(v => {
+    existing.set(normalizeVaccineName(v.name), v as ScheduleRow);
+  });
+
+  const dob = child.dateOfBirth ? new Date(child.dateOfBirth) : null;
+  const today = new Date();
+
+  const rows: ScheduleRow[] = GHANA_EPI_VACCINES.map(def => {
+    const match = existing.get(normalizeVaccineName(def.name));
+    if (match) {
+      existing.delete(normalizeVaccineName(def.name));
+      return { ...match, name: def.name };
+    }
+
+    // Not in the child's record: derive due date from DOB and mark pending/overdue
+    let dueDate: string | undefined;
+    if (dob && !isNaN(dob.getTime())) {
+      const d = new Date(dob);
+      d.setDate(d.getDate() + def.minAgeWeeks * 7);
+      dueDate = d.toISOString().split("T")[0];
+    }
+    const overdue = dueDate ? new Date(dueDate) < today : false;
+    return { name: def.name, dueDate, status: overdue ? "overdue" : "pending" };
+  });
+
+  // Keep any custom/legacy vaccines the child has that aren't in the schedule
+  existing.forEach(v => rows.push(v));
+
+  return rows;
+}
+
 
 // Ghana Health Service branding colors
 const GHS_GREEN: [number, number, number] = [0, 100, 0];
