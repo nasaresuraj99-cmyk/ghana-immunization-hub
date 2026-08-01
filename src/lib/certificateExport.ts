@@ -476,10 +476,11 @@ export async function generateImmunizationCertificate(
   // ============== COMPLETION STATUS ==============
   yPos += 3;
   
-  const completed = child.vaccines.filter(v => v.status === "completed").length;
-  const pending = child.vaccines.filter(v => v.status === "pending").length;
-  const overdue = child.vaccines.filter(v => v.status === "overdue").length;
-  const total = child.vaccines.length;
+  const completed = fullSchedule.filter(v => v.status === "completed").length;
+  const overdue = fullSchedule.filter(v => v.status === "overdue").length;
+  const total = fullSchedule.length;
+  const pending = total - completed - overdue;
+
   const progress = total > 0 ? Math.round((completed / total) * 100) : 0;
   const isFullyImmunized = progress >= 100;
   
