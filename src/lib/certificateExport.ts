@@ -279,8 +279,43 @@ export async function generateImmunizationCertificate(
     detailY += 4.5;
   });
 
+  // ============== VACCINES RECEIVED (COMPLETED) ==============
+  // Show an explicit list of all vaccines the child has actually received
+  const receivedVaccines = child.vaccines.filter(v => v.status === 'completed' || !!v.givenDate);
+  if (receivedVaccines.length > 0) {
+    const listTop = detailY + 4;
+    const rowHeight = 5;
+    const sectionHeight = Math.min(8 + receivedVaccines.length * rowHeight, 64);
+
+    doc.setFillColor(255, 255, 255);
+    doc.roundedRect(margin, listTop, contentWidth, sectionHeight, 2, 2, "F");
+    doc.setDrawColor(...GHS_GREEN);
+    doc.roundedRect(margin, listTop, contentWidth, sectionHeight, 2, 2, "S");
+
+    doc.setFontSize(9);
+    doc.setFont("helvetica", "bold");
+    doc.setTextColor(...GHS_GREEN);
+    doc.text("VACCINES RECEIVED", margin + 6, listTop + 6);
+
+    doc.setFontSize(7);
+    doc.setFont("helvetica", "normal");
+    doc.setTextColor(...GHS_DARK);
+    let rvY = listTop + 10;
+    receivedVaccines.forEach(v => {
+      const given = v.givenDate ? formatDateDDMMYYYY(v.givenDate) : "";
+      const label = given ? `${v.name} · ${given}` : v.name;
+      doc.text(label, margin + 8, rvY);
+      rvY += rowHeight;
+    });
+
+    // Position next section after this list
+    yPos = listTop + sectionHeight + 8;
+  } else {
+    // Fall back to default position if none received
+    yPos = 162;
+  }
+
   // ============== IMMUNIZATION RECORD TABLE ==============
-  yPos = 162;
   
   // Section header
   doc.setFillColor(...GHS_GREEN);
