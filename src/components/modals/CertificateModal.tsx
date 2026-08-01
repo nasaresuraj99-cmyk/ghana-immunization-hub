@@ -52,9 +52,11 @@ export function CertificateModal({
 
   if (!child) return null;
 
-  const completedVaccines = child.vaccines.filter(v => v.status === "completed").length;
-  const totalVaccines = child.vaccines.length;
+  const allVaccines = buildCompleteScheduleRows(child);
+  const completedVaccines = allVaccines.filter(v => v.status === "completed").length;
+  const totalVaccines = allVaccines.length;
   const progress = totalVaccines > 0 ? Math.round((completedVaccines / totalVaccines) * 100) : 0;
+
   const isFullyImmunized = progress >= 100;
 
   // Calculate age in months
