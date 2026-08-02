@@ -1,6 +1,7 @@
 import { Child, DashboardStats, Defaulter } from "@/types/child";
 import { formatDate } from "@/lib/utils";
 import { FACILITY_CONFIG } from "@/lib/facilityConfig";
+import { buildCompleteScheduleRows } from "@/lib/certificateExport";
 
 // Helper to convert data to CSV format
 function arrayToCSV(headers: string[], rows: string[][]): string {
