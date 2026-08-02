@@ -82,7 +82,7 @@ const GHS_DARK: [number, number, number] = [30, 41, 59];
 
 // Always use FIAN URBAN CHPS
 const DEFAULT_FACILITY_NAME = FACILITY_CONFIG.name;
-const DEFAULT_DISTRICT_REGION = "Ashanti Region, Ghana";
+const DEFAULT_DISTRICT_REGION = FACILITY_CONFIG.districtRegion;
 
 interface CertificateOptions {
   facilityName?: string;
