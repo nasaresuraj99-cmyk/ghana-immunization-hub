@@ -854,9 +854,9 @@ export async function exportImmunizationCard(
     tableWidth: pageWidth - 16,
     didParseCell: (data) => {
       if (data.section === "body" && (data.column.index === 2 || data.column.index === 5)) {
-        if (String(data.cell.raw).includes("Done")) {
+        if (String(data.cell.raw) === "GIVEN") {
           data.cell.styles.textColor = [0, 128, 0];
-        } else if (String(data.cell.raw).includes("Overdue")) {
+        } else if (String(data.cell.raw) === "OVERDUE") {
           data.cell.styles.textColor = [206, 17, 38];
         } else {
           data.cell.styles.textColor = [150, 150, 150];
