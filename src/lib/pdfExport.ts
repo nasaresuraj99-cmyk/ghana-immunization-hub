@@ -669,8 +669,8 @@ export async function exportImmunizationCard(
     dob: child.dateOfBirth,
     sex: child.sex,
     facility: facilityName,
-    vaccinesCompleted: child.vaccines.filter(v => v.status === "completed").length,
-    totalVaccines: child.vaccines.length,
+    vaccinesCompleted: buildCompleteScheduleRows(child).filter(v => v.status === "completed").length,
+    totalVaccines: buildCompleteScheduleRows(child).length,
     generatedAt: new Date().toISOString(),
   };
   
