@@ -1,6 +1,7 @@
 import { Child, DashboardStats, Defaulter } from "@/types/child";
 import { formatDate } from "@/lib/utils";
 import { FACILITY_CONFIG } from "@/lib/facilityConfig";
+import { buildCompleteScheduleRows } from "@/lib/certificateExport";
 
 // Helper to convert data to CSV format
 function arrayToCSV(headers: string[], rows: string[][]): string {
@@ -182,8 +183,9 @@ export function exportChildrenRegisterExcel(children: Child[]) {
     const birthDate = new Date(child.dateOfBirth);
     const today = new Date();
     const months = (today.getFullYear() - birthDate.getFullYear()) * 12 + (today.getMonth() - birthDate.getMonth());
-    const completed = child.vaccines.filter(v => v.status === "completed").length;
-    const total = child.vaccines.length;
+    const scheduleRows = buildCompleteScheduleRows(child);
+    const completed = scheduleRows.filter(v => v.status === "completed").length;
+    const total = scheduleRows.length;
     
     return [
       FACILITY_CONFIG.name,
