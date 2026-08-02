@@ -795,46 +795,65 @@ export async function exportImmunizationCard(
   doc.text("IMMUNIZATION RECORD", pageWidth / 2, yPos + 5, { align: "center" });
   yPos += 10;
 
-  // Calculate statistics
-  const completed = child.vaccines.filter(v => v.status === "completed").length;
-  const total = child.vaccines.length;
+  // Calculate statistics from the COMPLETE birth → 59 months schedule
+  const scheduleRows = buildCompleteScheduleRows(child);
+  const completed = scheduleRows.filter(v => v.status === "completed").length;
+  const total = scheduleRows.length;
   const progress = total > 0 ? Math.round((completed / total) * 100) : 0;
+
+  const shortDate = (d?: string) =>
+    d ? new Date(d).toLocaleDateString("en-GB", { day: "2-digit", month: "2-digit", year: "2-digit" }) : "—";
+  const statusLabel = (s: string) =>
+    s === "completed" ? "GIVEN" : s === "overdue" ? "OVERDUE" : "PENDING";
+
+  // Two vaccines per printed row so the full schedule fits the A5 card
+  const half = Math.ceil(scheduleRows.length / 2);
+  const leftCol = scheduleRows.slice(0, half);
+  const rightCol = scheduleRows.slice(half);
+  const cardBody = leftCol.map((v, i) => {
+    const r = rightCol[i];
+    return [
+      v.name.split(" at")[0].substring(0, 18),
+      shortDate(v.givenDate),
+      statusLabel(v.status),
+      r ? r.name.split(" at")[0].substring(0, 18) : "",
+      r ? shortDate(r.givenDate) : "",
+      r ? statusLabel(r.status) : "",
+    ];
+  });
 
   // Vaccination table - professional styling
   autoTable(doc, {
     startY: yPos,
-    head: [["Vaccine", "Due Date", "Given", "Status"]],
-    body: child.vaccines.slice(0, 18).map((v) => [
-      v.name.split(" at")[0].substring(0, 22),
-      new Date(v.dueDate).toLocaleDateString('en-GB', { day: '2-digit', month: '2-digit', year: '2-digit' }),
-      v.givenDate ? new Date(v.givenDate).toLocaleDateString('en-GB', { day: '2-digit', month: '2-digit', year: '2-digit' }) : "—",
-      v.status === "completed" ? "✓ Done" : v.status === "overdue" ? "⚠ Overdue" : "○ Pending",
-    ]),
+    head: [["Vaccine", "Given", "Status", "Vaccine", "Given", "Status"]],
+    body: cardBody,
     headStyles: {
       fillColor: GHS_GREEN,
       textColor: [255, 255, 255],
-      fontSize: 6,
-      cellPadding: 1.5,
+      fontSize: 5.5,
+      cellPadding: 1,
       fontStyle: "bold",
       halign: "center",
     },
     bodyStyles: {
-      fontSize: 5.5,
-      cellPadding: 1.2,
+      fontSize: 4.8,
+      cellPadding: 0.8,
     },
     alternateRowStyles: {
       fillColor: [248, 252, 248],
     },
     columnStyles: {
-      0: { cellWidth: 38, halign: "left" },
-      1: { cellWidth: 22, halign: "center" },
-      2: { cellWidth: 22, halign: "center" },
-      3: { cellWidth: 20, halign: "center", fontStyle: "bold" },
+      0: { cellWidth: 28, halign: "left" },
+      1: { cellWidth: 16, halign: "center" },
+      2: { cellWidth: 22, halign: "center", fontStyle: "bold" },
+      3: { cellWidth: 28, halign: "left" },
+      4: { cellWidth: 16, halign: "center" },
+      5: { cellWidth: 22, halign: "center", fontStyle: "bold" },
     },
     margin: { left: 8, right: 8 },
     tableWidth: pageWidth - 16,
     didParseCell: (data) => {
-      if (data.section === "body" && data.column.index === 3) {
+      if (data.section === "body" && (data.column.index === 2 || data.column.index === 5)) {
         if (String(data.cell.raw).includes("Done")) {
           data.cell.styles.textColor = [0, 128, 0];
         } else if (String(data.cell.raw).includes("Overdue")) {
