@@ -4,6 +4,7 @@ import QRCode from "qrcode";
 import { Child, DashboardStats, Defaulter } from "@/types/child";
 import { FACILITY_CONFIG } from "@/lib/facilityConfig";
 import ghsLogoUrl from "@/assets/ghs-logo.png";
+import { buildCompleteScheduleRows } from "@/lib/certificateExport";
 
 // Ghana Health Service branding colors
 const GHS_GREEN: [number, number, number] = [0, 100, 0];
