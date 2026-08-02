@@ -33,10 +33,20 @@ export async function exportImmunizationCardAsImage(
   container.style.zIndex = "-9999";
   container.style.opacity = "1";
   
-  // Calculate stats
-  const completed = child.vaccines.filter(v => v.status === "completed").length;
-  const total = child.vaccines.length;
+  // Calculate stats from the COMPLETE birth → 59 months schedule
+  const scheduleRows = buildCompleteScheduleRows(child);
+  const completed = scheduleRows.filter(v => v.status === "completed").length;
+  const total = scheduleRows.length;
   const progress = total > 0 ? Math.round((completed / total) * 100) : 0;
+
+  const shortDate = (d?: string) =>
+    d ? new Date(d).toLocaleDateString('en-GB', { day: '2-digit', month: '2-digit', year: '2-digit' }) : '-';
+  const statusLabel = (s: string) =>
+    s === 'completed' ? 'GIVEN' : s === 'overdue' ? 'OVERDUE' : 'PENDING';
+
+  const half = Math.ceil(scheduleRows.length / 2);
+  const leftCol = scheduleRows.slice(0, half);
+  const rightCol = scheduleRows.slice(half);
 
   // Build simplified HTML content - clean and professional with GHS Logo
   container.innerHTML = `
