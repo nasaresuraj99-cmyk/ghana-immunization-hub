@@ -1,6 +1,7 @@
 import { toPng } from "html-to-image";
 import { Child } from "@/types/child";
 import { FACILITY_CONFIG } from "@/lib/facilityConfig";
+import { buildCompleteScheduleRows } from "@/lib/certificateExport";
 
 // Sanitize strings to prevent HTML injection
 function escapeHtml(text: string): string {
