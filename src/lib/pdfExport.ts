@@ -542,29 +542,26 @@ export function exportVaccineHistory(
 
   yPos += 10;
 
-  // Filter administered vaccines
-  const administeredVaccines = child.vaccines.filter(v => v.status === "completed" && v.givenDate);
-  
+  // Complete schedule: every vaccine from birth → 59 months
+  const historyRows = buildCompleteScheduleRows(child);
+  const givenCount = historyRows.filter(v => v.status === "completed").length;
+
   doc.setFontSize(12);
   doc.setFont("helvetica", "bold");
-  doc.text(`Administered Vaccines (${administeredVaccines.length})`, 14, yPos);
+  doc.text(`Immunization Schedule (${givenCount} of ${historyRows.length} given)`, 14, yPos);
   yPos += 8;
 
-  if (administeredVaccines.length === 0) {
-    doc.setFontSize(10);
-    doc.setFont("helvetica", "italic");
-    doc.setTextColor(150, 150, 150);
-    doc.text("No vaccines have been administered yet.", 14, yPos);
-  } else {
+  {
     autoTable(doc, {
       startY: yPos,
-      head: [["#", "Vaccine", "Date Given", "Batch Number", "Administered By"]],
-      body: administeredVaccines.map((v, idx) => [
+      head: [["#", "Vaccine", "Date Given", "Status", "Batch Number", "Administered By"]],
+      body: historyRows.map((v, idx) => [
         (idx + 1).toString(),
         v.name,
-        v.givenDate ? formatDateDDMMYYYY(v.givenDate) : "N/A",
-        v.batchNumber || "N/A",
-        v.administeredBy || "N/A",
+        v.givenDate ? formatDateDDMMYYYY(v.givenDate) : "—",
+        v.status === "completed" ? "GIVEN" : v.status === "overdue" ? "OVERDUE" : "PENDING",
+        v.batchNumber || "—",
+        v.administeredBy || "—",
       ]),
       headStyles: {
         fillColor: GHS_GREEN,
@@ -577,16 +574,25 @@ export function exportVaccineHistory(
       },
       styles: {
         fontSize: 8,
-        cellPadding: 4,
+        cellPadding: 3,
       },
       columnStyles: {
-        0: { cellWidth: 10, halign: "center" },
-        1: { cellWidth: 70 },
-        2: { cellWidth: 30 },
-        3: { cellWidth: 30 },
-        4: { cellWidth: 40 },
+        0: { cellWidth: 8, halign: "center" },
+        1: { cellWidth: 55 },
+        2: { cellWidth: 25, halign: "center" },
+        3: { cellWidth: 22, halign: "center", fontStyle: "bold" },
+        4: { cellWidth: 28 },
+        5: { cellWidth: 34 },
       },
       margin: { left: 14, right: 14 },
+      showHead: "everyPage",
+      didParseCell: (data) => {
+        if (data.section === "body" && data.column.index === 3) {
+          const raw = String(data.cell.raw);
+          data.cell.styles.textColor =
+            raw === "GIVEN" ? [0, 128, 0] : raw === "OVERDUE" ? [206, 17, 38] : [130, 130, 130];
+        }
+      },
     });
 
     yPos = (doc as jsPDF & { lastAutoTable?: { finalY: number } }).lastAutoTable?.finalY || yPos + 50;
@@ -594,10 +600,10 @@ export function exportVaccineHistory(
 
   // Summary stats
   yPos += 15;
-  const completed = child.vaccines.filter(v => v.status === "completed").length;
-  const pending = child.vaccines.filter(v => v.status === "pending").length;
-  const overdue = child.vaccines.filter(v => v.status === "overdue").length;
-  const total = child.vaccines.length;
+  const completed = givenCount;
+  const pending = historyRows.filter(v => v.status === "pending").length;
+  const overdue = historyRows.filter(v => v.status === "overdue").length;
+  const total = historyRows.length;
   const progress = total > 0 ? Math.round((completed / total) * 100) : 0;
 
   doc.setFontSize(11);
