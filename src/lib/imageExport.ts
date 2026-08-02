@@ -84,29 +84,35 @@ export async function exportImmunizationCardAsImage(
         IMMUNIZATION RECORD
       </div>
       
-      <!-- Vaccine Table -->
+      <!-- Vaccine Table: COMPLETE schedule (birth → 59 months), two columns -->
       <div style="margin: 6px 10px; font-size: 8px;">
         <table style="width: 100%; border-collapse: collapse;">
           <thead>
             <tr style="background: #006400; color: white;">
-              <th style="padding: 3px; text-align: left; border: 1px solid #004d00;">Vaccine</th>
-              <th style="padding: 3px; text-align: center; border: 1px solid #004d00;">Due</th>
-              <th style="padding: 3px; text-align: center; border: 1px solid #004d00;">Given</th>
-              <th style="padding: 3px; text-align: center; border: 1px solid #004d00; width: 25px;">✓</th>
+              <th style="padding: 2px; text-align: left; border: 1px solid #004d00; font-size: 7px;">Vaccine</th>
+              <th style="padding: 2px; text-align: center; border: 1px solid #004d00; font-size: 7px;">Given</th>
+              <th style="padding: 2px; text-align: center; border: 1px solid #004d00; font-size: 7px;">Status</th>
+              <th style="padding: 2px; text-align: left; border: 1px solid #004d00; font-size: 7px;">Vaccine</th>
+              <th style="padding: 2px; text-align: center; border: 1px solid #004d00; font-size: 7px;">Given</th>
+              <th style="padding: 2px; text-align: center; border: 1px solid #004d00; font-size: 7px;">Status</th>
             </tr>
           </thead>
           <tbody>
-            ${child.vaccines.slice(0, 18).map((v, i) => `
+            ${leftCol.map((v, i) => {
+              const r = rightCol[i];
+              return `
               <tr style="background: ${i % 2 === 0 ? '#f5faf5' : '#ffffff'};">
-                <td style="padding: 2px 3px; border: 1px solid #ddd; font-size: 7px;">${escapeHtml(v.name.split(" at")[0].substring(0, 22))}</td>
-                <td style="padding: 2px 3px; border: 1px solid #ddd; text-align: center; font-size: 7px;">${new Date(v.dueDate).toLocaleDateString('en-GB', { day: '2-digit', month: '2-digit', year: '2-digit' })}</td>
-                <td style="padding: 2px 3px; border: 1px solid #ddd; text-align: center; font-size: 7px;">${v.givenDate ? new Date(v.givenDate).toLocaleDateString('en-GB', { day: '2-digit', month: '2-digit', year: '2-digit' }) : '-'}</td>
-                <td style="padding: 2px 3px; border: 1px solid #ddd; text-align: center; font-weight: bold; color: ${v.status === 'completed' ? '#006400' : v.status === 'overdue' ? '#ce1126' : '#999'};">${v.status === 'completed' ? '✓' : v.status === 'overdue' ? '!' : '○'}</td>
-              </tr>
-            `).join('')}
+                ${[v, r].map(item => item ? `
+                <td style="padding: 1px 3px; border: 1px solid #ddd; font-size: 6px;">${escapeHtml(item.name.split(" at")[0].substring(0, 20))}</td>
+                <td style="padding: 1px 3px; border: 1px solid #ddd; text-align: center; font-size: 6px;">${shortDate(item.givenDate)}</td>
+                <td style="padding: 1px 3px; border: 1px solid #ddd; text-align: center; font-size: 6px; font-weight: bold; color: ${item.status === 'completed' ? '#006400' : item.status === 'overdue' ? '#ce1126' : '#999'};">${statusLabel(item.status)}</td>
+                ` : `<td style="border: 1px solid #ddd;"></td><td style="border: 1px solid #ddd;"></td><td style="border: 1px solid #ddd;"></td>`).join('')}
+              </tr>`;
+            }).join('')}
           </tbody>
         </table>
       </div>
+
       
       <!-- Progress Section -->
       <div style="background: #f5faf5; margin: 6px 10px; padding: 6px; border-radius: 3px;">
