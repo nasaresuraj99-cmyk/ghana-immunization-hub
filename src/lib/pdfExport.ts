@@ -461,8 +461,9 @@ export function exportChildrenRegister(
       const birthDate = new Date(child.dateOfBirth);
       const today = new Date();
       const months = (today.getFullYear() - birthDate.getFullYear()) * 12 + (today.getMonth() - birthDate.getMonth());
-      const completed = child.vaccines.filter((v) => v.status === "completed").length;
-      const total = child.vaccines.length;
+      const scheduleRows = buildCompleteScheduleRows(child);
+      const completed = scheduleRows.filter((v) => v.status === "completed").length;
+      const total = scheduleRows.length;
       
       return [
         child.regNo,
