@@ -382,21 +382,22 @@ export async function generateImmunizationCertificate(
   const col2X = margin + 4 + colWidth;
   const rowsPerCol = Math.ceil(childDetails.length / 2);
 
+  const labelWidth = 27;
   doc.setFontSize(7);
   childDetails.forEach(([label, value], i) => {
     const col = i < rowsPerCol ? 0 : 1;
     const rowIdx = col === 0 ? i : i - rowsPerCol;
     const x = col === 0 ? col1X : col2X;
-    const y = yPos + 5.5 + rowIdx * 5.6;
+    const y = yPos + 7 + rowIdx * 6.4;
 
     doc.setFont("helvetica", "bold");
     doc.setTextColor(110, 110, 110);
     doc.text(label, x, y);
     doc.setFont("helvetica", "normal");
     doc.setTextColor(...GHS_DARK);
-    const maxValueWidth = colWidth - 4;
-    const lines = doc.splitTextToSize(String(value), maxValueWidth) as string[];
-    doc.text(lines[0] || "-", x, y + 3.4);
+    const lines = doc.splitTextToSize(String(value), colWidth - labelWidth - 3) as string[];
+    doc.text(lines[0] || "-", x + labelWidth, y);
+    if (lines[1]) doc.text(lines[1], x + labelWidth, y + 3);
   });
 
   // ============== IMMUNIZATION RECORD ==============
