@@ -18,7 +18,7 @@ const child: any = {
 // capture pdf instead of browser save
 const jsPDFmod: any = (await import("jspdf")).default;
 console.log("proto save?", typeof jsPDFmod.prototype.save);
-jsPDFmod.prototype.save = function (name: string) {
+jsPDFmod.API.save = function (name: string) {
   console.log("save called", name);
   fs.writeFileSync("/tmp/certqa/out.pdf", Buffer.from(this.output("arraybuffer")));
   return this;
