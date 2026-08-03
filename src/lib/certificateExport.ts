@@ -340,7 +340,7 @@ export async function generateImmunizationCertificate(
 
   yPos += 7;
   const qrSize = 30;
-  const detailsBoxHeight = 42;
+  const detailsBoxHeight = 44;
   doc.setFillColor(255, 255, 255);
   doc.rect(margin, yPos, contentWidth, detailsBoxHeight, "F");
   doc.setDrawColor(...GHS_GREEN);
@@ -387,7 +387,7 @@ export async function generateImmunizationCertificate(
     const col = i < rowsPerCol ? 0 : 1;
     const rowIdx = col === 0 ? i : i - rowsPerCol;
     const x = col === 0 ? col1X : col2X;
-    const y = yPos + 6 + rowIdx * 6;
+    const y = yPos + 5.5 + rowIdx * 5.6;
 
     doc.setFont("helvetica", "bold");
     doc.setTextColor(110, 110, 110);
@@ -409,10 +409,18 @@ export async function generateImmunizationCertificate(
   doc.text("COMPLETE IMMUNIZATION SCHEDULE (BIRTH - 59 MONTHS)", margin + 3, yPos + 4.9);
   yPos += 9;
 
+  const labelCounts = new Map<string, number>();
+  fullSchedule.forEach(v => {
+    const { vaccine } = splitVaccineLabel(v.name);
+    labelCounts.set(vaccine, (labelCounts.get(vaccine) || 0) + 1);
+  });
+
   const vaccineTableData = fullSchedule.map(v => {
     const { vaccine, dueAge } = splitVaccineLabel(v.name);
+    const label =
+      (labelCounts.get(vaccine) || 0) > 1 && dueAge !== "-" ? `${vaccine} (${dueAge})` : vaccine;
     return [
-      vaccine,
+      label,
       dueAge,
       v.givenDate ? formatDateDDMMYYYY(v.givenDate) : "-",
       v.status === "completed" ? "GIVEN" : "PENDING",
@@ -444,7 +452,7 @@ export async function generateImmunizationCertificate(
       2: { cellWidth: 38, halign: "center" },
       3: { cellWidth: contentWidth - 146, halign: "center", fontStyle: "bold" },
     },
-    margin: { left: margin, right: margin, top: 18, bottom: 28 },
+    margin: { left: margin, right: margin, top: 18, bottom: 30 },
     tableWidth: contentWidth,
     didDrawPage: data => {
       if (data.pageNumber > 1) drawPageFrame();
@@ -548,7 +556,7 @@ export async function generateImmunizationCertificate(
     doc.text(
       "This is an official Ghana Health Service document.",
       pageWidth / 2,
-      pageHeight - 24,
+      pageHeight - 26,
       { align: "center" }
     );
     doc.setFont("helvetica", "italic");
@@ -556,11 +564,11 @@ export async function generateImmunizationCertificate(
     doc.text(
       "Scan the QR code on this certificate to verify its authenticity. Please present it at every clinic visit.",
       pageWidth / 2,
-      pageHeight - 20.5,
+      pageHeight - 22.5,
       { align: "center" }
     );
 
-    const flagBarY = pageHeight - 17;
+    const flagBarY = pageHeight - 19;
     doc.setFillColor(...GHS_RED);
     doc.rect(8, flagBarY, (pageWidth - 16) / 3, 3.5, "F");
     doc.setFillColor(...GHS_GOLD);
@@ -574,7 +582,7 @@ export async function generateImmunizationCertificate(
     doc.text(
       `Certificate ID: ${certificateId}  |  Verification Code: ${verificationCode}  |  Version ${CERTIFICATE_VERSION}`,
       pageWidth / 2,
-      pageHeight - 11,
+      pageHeight - 13,
       { align: "center" }
     );
     doc.text(
@@ -583,7 +591,7 @@ export async function generateImmunizationCertificate(
         minute: "2-digit",
       })}  |  Page ${p} of ${totalPages}  |  Ghana Health Service - EPI Programme`,
       pageWidth / 2,
-      pageHeight - 7.5,
+      pageHeight - 9.5,
       { align: "center" }
     );
   }
