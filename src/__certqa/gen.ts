@@ -1,3 +1,4 @@
+(globalThis as any).Image = class { set src(_v: any) { (this as any).onerror?.(); } };
 import { generateImmunizationCertificate } from "@/lib/certificateExport";
 import { GHANA_EPI_VACCINES } from "@/lib/ghanaEpiSchedule";
 import fs from "fs";
