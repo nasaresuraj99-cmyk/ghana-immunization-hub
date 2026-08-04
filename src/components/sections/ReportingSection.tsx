@@ -1284,6 +1284,10 @@ export function ReportingSection({ stats, children, facilityName }: ReportingSec
                 <FileStack className="w-4 h-4 mr-2" />
                 Export All Reports (PDF)
               </Button>
+              <Button variant="outline" onClick={handleExportMonthlyReturn}>
+                <CalendarDays className="w-4 h-4 mr-2" />
+                Monthly EPI Return
+              </Button>
               {periodType === 'compare' && comparisonData && (
                 <Button variant="outline" onClick={handleExportComparisonPDF} className="border-primary text-primary">
                   <GitCompare className="w-4 h-4 mr-2" />
