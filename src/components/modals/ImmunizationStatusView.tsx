@@ -210,6 +210,31 @@ export function ImmunizationStatusView({
     toast.success("Vaccine history PDF downloaded!");
   };
 
+  const handleAppointmentSlip = async () => {
+    try {
+      exportAppointmentSlip(child);
+      if (user) {
+        await logDocumentGeneration({
+          userId: user.uid,
+          userName: user.name || user.email || 'Unknown',
+          documentType: 'report',
+          documentName: `Appointment Slip - ${child.name}`,
+          childId: child.id,
+          childRegNo: child.regNo,
+          childName: child.name,
+          reportType: 'Appointment Slip',
+          format: 'pdf',
+        });
+      }
+      toast.success("Appointment slip downloaded!");
+    } catch (e) {
+      console.error(e);
+      toast.error("Failed to generate appointment slip");
+    }
+  };
+
+
+
   const handleSaveVaccine = (updatedVaccine: VaccineRecord) => {
     onUpdateVaccine(child.id, updatedVaccine);
     setEditingVaccine(null);
