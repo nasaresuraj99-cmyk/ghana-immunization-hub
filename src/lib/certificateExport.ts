@@ -462,7 +462,7 @@ export async function generateImmunizationCertificate(
       if (data.pageNumber > 1) drawPageFrame();
     },
     didParseCell: data => {
-      if (data.section === "body" && data.column.index === 3) {
+      if (data.section === "body" && data.column.index === 4) {
         const value = String(data.cell.raw);
         data.cell.styles.textColor = value === "GIVEN" ? [0, 120, 0] : [140, 140, 140];
       }
