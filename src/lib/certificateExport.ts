@@ -423,6 +423,7 @@ export async function generateImmunizationCertificate(
     return [
       label,
       dueAge,
+      v.dueDate ? formatDateDDMMYYYY(v.dueDate) : "-",
       v.givenDate ? formatDateDDMMYYYY(v.givenDate) : "-",
       v.status === "completed" ? "GIVEN" : "PENDING",
     ];
@@ -430,7 +431,7 @@ export async function generateImmunizationCertificate(
 
   autoTable(doc, {
     startY: yPos,
-    head: [["Vaccine / Service", "Due Age", "Date Given", "Status"]],
+    head: [["Vaccine / Service", "Due Age", "Due Date", "Date Given", "Status"]],
     body: vaccineTableData,
     pageBreak: "auto",
     rowPageBreak: "avoid",
@@ -448,18 +449,20 @@ export async function generateImmunizationCertificate(
     bodyStyles: { fontSize: 7.5, cellPadding: 1.7, textColor: GHS_DARK },
     alternateRowStyles: { fillColor: [246, 251, 246] },
     columnStyles: {
-      0: { cellWidth: 72, halign: "left", fontStyle: "bold" },
-      1: { cellWidth: 36, halign: "center" },
-      2: { cellWidth: 38, halign: "center" },
-      3: { cellWidth: contentWidth - 146, halign: "center", fontStyle: "bold" },
+      0: { cellWidth: 58, halign: "left", fontStyle: "bold" },
+      1: { cellWidth: 30, halign: "center" },
+      2: { cellWidth: 30, halign: "center" },
+      3: { cellWidth: 30, halign: "center" },
+      4: { cellWidth: contentWidth - 148, halign: "center", fontStyle: "bold" },
     },
+
     margin: { left: margin, right: margin, top: 18, bottom: 30 },
     tableWidth: contentWidth,
     didDrawPage: data => {
       if (data.pageNumber > 1) drawPageFrame();
     },
     didParseCell: data => {
-      if (data.section === "body" && data.column.index === 3) {
+      if (data.section === "body" && data.column.index === 4) {
         const value = String(data.cell.raw);
         data.cell.styles.textColor = value === "GIVEN" ? [0, 120, 0] : [140, 140, 140];
       }
