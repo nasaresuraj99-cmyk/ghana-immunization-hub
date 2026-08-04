@@ -28,6 +28,7 @@ import {
   exportVaccineCoverageExcel,
   exportDefaultersExcel,
 } from "@/lib/excelExport";
+import { exportMonthlyEpiReturn, EPI_RETURN_MONTHS } from "@/lib/epiReports";
 import { useDocumentActivityLog } from "@/hooks/useDocumentActivityLog";
 import { useAuth } from "@/hooks/useAuth";
 
