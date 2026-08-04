@@ -25,10 +25,12 @@ import {
   ChevronRight,
   Eye,
   Download,
+  CalendarClock,
 } from "lucide-react";
 import { Child, VaccineRecord } from "@/types/child";
 import { VaccineEditModal } from "./VaccineEditModal";
 import { exportImmunizationCard, exportVaccineHistory } from "@/lib/pdfExport";
+import { exportAppointmentSlip } from "@/lib/epiReports";
 import { toast } from "sonner";
 import { calculateExactAge } from "@/lib/ageCalculator";
 import { cn, formatDate } from "@/lib/utils";
