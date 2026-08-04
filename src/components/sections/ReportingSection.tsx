@@ -758,6 +758,29 @@ export function ReportingSection({ stats, children, facilityName }: ReportingSec
     }
   };
 
+  const handleExportMonthlyReturn = async () => {
+    try {
+      const now = new Date();
+      exportMonthlyEpiReturn(children, now.getFullYear(), now.getMonth());
+      if (user) {
+        await logDocumentGeneration({
+          userId: user.uid,
+          userName: user.name || user.email || 'Unknown',
+          documentType: 'report',
+          documentName: `Monthly EPI Return - ${EPI_RETURN_MONTHS[now.getMonth()]} ${now.getFullYear()}`,
+          reportType: 'monthly_epi_return',
+          format: 'pdf',
+        });
+      }
+      toast.success("Monthly EPI Return exported!");
+    } catch (error) {
+      console.error("Export error:", error);
+      toast.error("Failed to export Monthly EPI Return");
+    }
+  };
+
+
+
   const handleExportComparisonPDF = async () => {
     if (!comparisonData) {
       toast.error("Please select two months to compare");
