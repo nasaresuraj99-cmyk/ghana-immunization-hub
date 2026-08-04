@@ -100,6 +100,10 @@ export function DefaultersSection({ children, onRefresh, canExport = true, onVie
                   <FileText className="w-4 h-4 mr-2" />
                   PDF
                 </Button>
+                <Button size="sm" variant="outline" onClick={handleExportTracing}>
+                  <ClipboardList className="w-4 h-4 mr-2" />
+                  Tracing Worksheet
+                </Button>
               </>
             )}
           </div>
