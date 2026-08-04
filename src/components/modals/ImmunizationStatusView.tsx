@@ -25,10 +25,12 @@ import {
   ChevronRight,
   Eye,
   Download,
+  CalendarClock,
 } from "lucide-react";
 import { Child, VaccineRecord } from "@/types/child";
 import { VaccineEditModal } from "./VaccineEditModal";
 import { exportImmunizationCard, exportVaccineHistory } from "@/lib/pdfExport";
+import { exportAppointmentSlip } from "@/lib/epiReports";
 import { toast } from "sonner";
 import { calculateExactAge } from "@/lib/ageCalculator";
 import { cn, formatDate } from "@/lib/utils";
@@ -207,6 +209,31 @@ export function ImmunizationStatusView({
     toast.dismiss();
     toast.success("Vaccine history PDF downloaded!");
   };
+
+  const handleAppointmentSlip = async () => {
+    try {
+      exportAppointmentSlip(child);
+      if (user) {
+        await logDocumentGeneration({
+          userId: user.uid,
+          userName: user.name || user.email || 'Unknown',
+          documentType: 'report',
+          documentName: `Appointment Slip - ${child.name}`,
+          childId: child.id,
+          childRegNo: child.regNo,
+          childName: child.name,
+          reportType: 'Appointment Slip',
+          format: 'pdf',
+        });
+      }
+      toast.success("Appointment slip downloaded!");
+    } catch (e) {
+      console.error(e);
+      toast.error("Failed to generate appointment slip");
+    }
+  };
+
+
 
   const handleSaveVaccine = (updatedVaccine: VaccineRecord) => {
     onUpdateVaccine(child.id, updatedVaccine);
@@ -438,6 +465,10 @@ export function ImmunizationStatusView({
               <Button variant="secondary" onClick={handlePrintCard}>
                 <FileText className="w-4 h-4 mr-2" />
                 Print Card
+              </Button>
+              <Button variant="outline" onClick={handleAppointmentSlip}>
+                <CalendarClock className="w-4 h-4 mr-2" />
+                Appointment Slip
               </Button>
             </div>
           </div>

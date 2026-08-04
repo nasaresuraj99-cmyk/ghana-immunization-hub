@@ -1,5 +1,5 @@
 import { useState, useMemo } from "react";
-import { RefreshCw, Download, FileText, Phone, AlertTriangle, CheckCircle, Info, Eye, X } from "lucide-react";
+import { RefreshCw, Download, FileText, Phone, AlertTriangle, CheckCircle, Info, Eye, X, ClipboardList } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Label } from "@/components/ui/label";
@@ -8,6 +8,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { Defaulter, Child } from "@/types/child";
 import { exportDefaultersExcel } from "@/lib/excelExport";
 import { exportDefaultersReport } from "@/lib/pdfExport";
+import { exportDefaulterTracingWorksheet } from "@/lib/epiReports";
 import { calculateExactAge } from "@/lib/ageCalculator";
 import { formatDate } from "@/lib/utils";
 
@@ -76,6 +77,11 @@ export function DefaultersSection({ children, onRefresh, canExport = true, onVie
     exportDefaultersReport(defaulters);
   };
 
+  const handleExportTracing = () => {
+    exportDefaulterTracingWorksheet(defaulters);
+  };
+
+
   return (
     <div className="animate-fade-in">
       <div className="bg-card rounded-lg p-6 shadow-elevation-1">
@@ -99,6 +105,10 @@ export function DefaultersSection({ children, onRefresh, canExport = true, onVie
                 <Button size="sm" onClick={handleExportPDF}>
                   <FileText className="w-4 h-4 mr-2" />
                   PDF
+                </Button>
+                <Button size="sm" variant="outline" onClick={handleExportTracing}>
+                  <ClipboardList className="w-4 h-4 mr-2" />
+                  Tracing Worksheet
                 </Button>
               </>
             )}
