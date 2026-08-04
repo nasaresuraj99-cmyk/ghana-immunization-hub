@@ -439,6 +439,10 @@ export function ImmunizationStatusView({
                 <FileText className="w-4 h-4 mr-2" />
                 Print Card
               </Button>
+              <Button variant="outline" onClick={handleAppointmentSlip}>
+                <CalendarClock className="w-4 h-4 mr-2" />
+                Appointment Slip
+              </Button>
             </div>
           </div>
         </DialogContent>
