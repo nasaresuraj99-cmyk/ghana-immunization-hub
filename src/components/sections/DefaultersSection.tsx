@@ -76,6 +76,11 @@ export function DefaultersSection({ children, onRefresh, canExport = true, onVie
     exportDefaultersReport(defaulters);
   };
 
+  const handleExportTracing = () => {
+    exportDefaulterTracingWorksheet(defaulters);
+  };
+
+
   return (
     <div className="animate-fade-in">
       <div className="bg-card rounded-lg p-6 shadow-elevation-1">
