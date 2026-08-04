@@ -92,7 +92,7 @@ export function exportDefaulterTracingWorksheet(defaulters: Defaulter[]) {
       "Contact",
       "Community",
       "Missed Vaccine(s)",
-      "Days Overdue",
+      "Overdue (days)",
       "Date Traced",
       "Outcome",
     ]],
@@ -126,8 +126,8 @@ export function exportDefaulterTracingWorksheet(defaulters: Defaulter[]) {
       4: { cellWidth: 32 },
       5: { cellWidth: 24 },
       6: { cellWidth: 24 },
-      7: { cellWidth: 46 },
-      8: { cellWidth: 14, halign: "center" },
+      7: { cellWidth: 42 },
+      8: { cellWidth: 20, halign: "center" },
       9: { cellWidth: 20 },
       10: { cellWidth: 24 },
     },
@@ -209,7 +209,7 @@ export function exportAppointmentSlip(child: Child) {
       : [["Schedule complete - no pending vaccines", "-", "-"]],
     styles: { fontSize: 7, cellPadding: 1.6 },
     headStyles: { fillColor: GHS_GREEN, textColor: [255, 255, 255], fontSize: 7, fontStyle: "bold" },
-    columnStyles: { 0: { cellWidth: 60 }, 1: { cellWidth: 22 }, 2: { cellWidth: 20, halign: "center" } },
+    columnStyles: { 0: { cellWidth: 76 }, 1: { cellWidth: 26 }, 2: { cellWidth: 24, halign: "center" } },
     margin: { left: 10, right: 10 },
     didParseCell: hook => {
       if (hook.section === "body" && hook.column.index === 2 && hook.cell.raw === "OVERDUE") {
