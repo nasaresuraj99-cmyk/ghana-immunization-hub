@@ -153,10 +153,14 @@ export function exportDefaulterTracingWorksheet(defaulters: Defaulter[]) {
 /* 2. Next appointment slip                                                   */
 /* -------------------------------------------------------------------------- */
 
+// Optional vaccines never flagged as overdue (matches the defaulters logic)
+const OPTIONAL_VACCINES = ["Hepatitis B at Birth"];
+
 export function getNextAppointments(child: Child, limit = 4) {
   const rows = buildCompleteScheduleRows(child);
   return rows
     .filter(r => r.status !== "completed")
+    .map(r => (OPTIONAL_VACCINES.includes(r.name) ? { ...r, status: "pending" } : r))
     .sort((a, b) => new Date(a.dueDate || 0).getTime() - new Date(b.dueDate || 0).getTime())
     .slice(0, limit);
 }
