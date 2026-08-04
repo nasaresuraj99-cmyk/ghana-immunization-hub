@@ -8,6 +8,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { Defaulter, Child } from "@/types/child";
 import { exportDefaultersExcel } from "@/lib/excelExport";
 import { exportDefaultersReport } from "@/lib/pdfExport";
+import { exportDefaulterTracingWorksheet } from "@/lib/epiReports";
 import { calculateExactAge } from "@/lib/ageCalculator";
 import { formatDate } from "@/lib/utils";
 
