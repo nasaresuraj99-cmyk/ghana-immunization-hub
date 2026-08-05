@@ -21,7 +21,7 @@ interface HeaderProps {
   isSyncing?: boolean;
 }
 
-const getNavItems = (userRole?: AppRole) => {
+export const getNavItems = (userRole?: AppRole) => {
   const permissions = userRole ? ROLE_PERMISSIONS[userRole] : ROLE_PERMISSIONS.read_only;
   
   const items = [
