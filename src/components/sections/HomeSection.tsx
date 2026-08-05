@@ -75,16 +75,16 @@ export function HomeSection({ stats, onNavigate }: HomeSectionProps) {
 
 
       {/* Quick Actions */}
-      <div className="bg-card rounded-2xl p-6 shadow-elevation-1 border border-border/50">
+      <div className="bg-card rounded-2xl p-4 sm:p-6 shadow-elevation-1 border border-border/50">
         <h3 className="text-lg font-semibold text-foreground mb-4 flex items-center gap-2">
           <span className="w-1.5 h-6 bg-primary rounded-full" />
           Quick Actions
         </h3>
         
-        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
+        <div className="grid grid-cols-3 sm:grid-cols-3 lg:grid-cols-6 gap-2 sm:gap-3">
           <Button 
             onClick={() => onNavigate('registration')} 
-            className="flex flex-col h-auto py-5 gap-3 rounded-xl shadow-sm hover:shadow-md transition-all"
+            className="flex flex-col h-auto py-4 sm:py-5 gap-2 sm:gap-3 rounded-xl shadow-sm hover:shadow-md transition-all"
           >
             <UserPlus className="w-6 h-6" />
             <span className="text-xs font-medium">Register Child</span>
@@ -92,7 +92,7 @@ export function HomeSection({ stats, onNavigate }: HomeSectionProps) {
           <Button 
             onClick={() => onNavigate('register')} 
             variant="secondary" 
-            className="flex flex-col h-auto py-5 gap-3 rounded-xl hover:bg-secondary/80 transition-all"
+            className="flex flex-col h-auto py-4 sm:py-5 gap-2 sm:gap-3 rounded-xl hover:bg-secondary/80 transition-all"
           >
             <List className="w-6 h-6" />
             <span className="text-xs font-medium">View Register</span>
@@ -100,7 +100,7 @@ export function HomeSection({ stats, onNavigate }: HomeSectionProps) {
           <Button 
             onClick={() => onNavigate('defaulters')} 
             variant="secondary"
-            className="flex flex-col h-auto py-5 gap-3 rounded-xl hover:bg-secondary/80 transition-all"
+            className="flex flex-col h-auto py-4 sm:py-5 gap-2 sm:gap-3 rounded-xl hover:bg-secondary/80 transition-all"
           >
             <AlertTriangle className="w-6 h-6" />
             <span className="text-xs font-medium">View Defaulters</span>
@@ -108,7 +108,7 @@ export function HomeSection({ stats, onNavigate }: HomeSectionProps) {
           <Button 
             onClick={() => onNavigate('schedule')}
             variant="secondary" 
-            className="flex flex-col h-auto py-5 gap-3 rounded-xl hover:bg-secondary/80 transition-all"
+            className="flex flex-col h-auto py-4 sm:py-5 gap-2 sm:gap-3 rounded-xl hover:bg-secondary/80 transition-all"
           >
             <CalendarDays className="w-6 h-6" />
             <span className="text-xs font-medium">EPI Schedule</span>
@@ -116,7 +116,7 @@ export function HomeSection({ stats, onNavigate }: HomeSectionProps) {
           <Button 
             onClick={() => onNavigate('dashboard')}
             variant="secondary" 
-            className="flex flex-col h-auto py-5 gap-3 rounded-xl hover:bg-secondary/80 transition-all"
+            className="flex flex-col h-auto py-4 sm:py-5 gap-2 sm:gap-3 rounded-xl hover:bg-secondary/80 transition-all"
           >
             <Calendar className="w-6 h-6" />
             <span className="text-xs font-medium">Dashboard</span>
@@ -124,7 +124,7 @@ export function HomeSection({ stats, onNavigate }: HomeSectionProps) {
           <Button 
             onClick={() => onNavigate('reporting')}
             variant="secondary"
-            className="flex flex-col h-auto py-5 gap-3 rounded-xl hover:bg-secondary/80 transition-all"
+            className="flex flex-col h-auto py-4 sm:py-5 gap-2 sm:gap-3 rounded-xl hover:bg-secondary/80 transition-all"
           >
             <BarChart3 className="w-6 h-6" />
             <span className="text-xs font-medium">Reports</span>
