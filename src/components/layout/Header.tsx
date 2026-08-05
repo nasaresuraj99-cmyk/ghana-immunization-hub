@@ -205,7 +205,7 @@ export function Header({ facilityName, userName, userEmail, emailVerified, curre
               <Button
                 variant="ghost"
                 size="icon"
-                className="lg:hidden text-primary-foreground hover:bg-primary-foreground/10"
+                className="hidden md:inline-flex lg:hidden text-primary-foreground hover:bg-primary-foreground/10"
                 onClick={() => setMobileMenuOpen(true)}
               >
                 <Menu className="w-6 h-6" />
