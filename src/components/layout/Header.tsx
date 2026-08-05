@@ -21,7 +21,7 @@ interface HeaderProps {
   isSyncing?: boolean;
 }
 
-const getNavItems = (userRole?: AppRole) => {
+export const getNavItems = (userRole?: AppRole) => {
   const permissions = userRole ? ROLE_PERMISSIONS[userRole] : ROLE_PERMISSIONS.read_only;
   
   const items = [
@@ -127,16 +127,18 @@ export function Header({ facilityName, userName, userEmail, emailVerified, curre
       )}
       
       <header className="gradient-ghs text-primary-foreground sticky top-0 z-50 shadow-elevation-3">
-        <div className="max-w-7xl mx-auto px-4 py-4">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <div className="text-3xl animate-float">🏥</div>
-              <div>
-                <h1 className="text-lg md:text-xl font-bold tracking-tight">Immunization Tracker</h1>
-                <div className="flex items-center gap-2">
-                  <span className="text-xs md:text-sm opacity-90 bg-primary-foreground/10 px-2 py-0.5 rounded-full">
+        <div className="max-w-7xl mx-auto px-3 sm:px-4 py-2.5 sm:py-4">
+          <div className="flex items-center justify-between gap-2">
+            <div className="flex items-center gap-2 sm:gap-3 min-w-0">
+              <div className="text-2xl sm:text-3xl animate-float shrink-0">🏥</div>
+              <div className="min-w-0">
+                <h1 className="text-base sm:text-lg md:text-xl font-bold tracking-tight truncate">Immunization Tracker</h1>
+
+                <div className="flex items-center gap-1.5 sm:gap-2 flex-wrap">
+                  <span className="text-[10px] sm:text-sm opacity-90 bg-primary-foreground/10 px-2 py-0.5 rounded-full truncate max-w-[140px] sm:max-w-none">
                     {facilityName}
                   </span>
+
                   <span className={cn(
                     "flex items-center gap-1 text-xs px-2 py-0.5 rounded-full",
                     isOnline ? "bg-success/20" : "bg-warning/20"
@@ -203,7 +205,7 @@ export function Header({ facilityName, userName, userEmail, emailVerified, curre
               <Button
                 variant="ghost"
                 size="icon"
-                className="lg:hidden text-primary-foreground hover:bg-primary-foreground/10"
+                className="hidden md:inline-flex lg:hidden text-primary-foreground hover:bg-primary-foreground/10"
                 onClick={() => setMobileMenuOpen(true)}
               >
                 <Menu className="w-6 h-6" />
