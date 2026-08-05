@@ -10,41 +10,41 @@ interface HomeSectionProps {
 
 export function HomeSection({ stats, onNavigate }: HomeSectionProps) {
   return (
-    <div className="space-y-8 animate-fade-in">
+    <div className="space-y-5 sm:space-y-8 animate-fade-in">
       {/* Hero Section */}
-      <div className="relative bg-card rounded-2xl p-8 shadow-elevation-2 overflow-hidden border border-border/50">
+      <div className="relative bg-card rounded-2xl p-5 sm:p-8 shadow-elevation-2 overflow-hidden border border-border/50">
         <div className="absolute top-0 right-0 w-64 h-64 bg-primary/5 rounded-full -translate-y-1/2 translate-x-1/2" />
         <div className="absolute bottom-0 left-0 w-32 h-32 bg-accent/10 rounded-full translate-y-1/2 -translate-x-1/2" />
         
         <div className="relative">
-          <div className="flex items-start gap-4 mb-6">
-            <div className="p-3 rounded-2xl bg-primary/10">
-              <Sparkles className="w-8 h-8 text-primary" />
+          <div className="flex items-start gap-3 sm:gap-4 mb-5 sm:mb-6">
+            <div className="p-2.5 sm:p-3 rounded-2xl bg-primary/10 shrink-0">
+              <Sparkles className="w-6 h-6 sm:w-8 sm:h-8 text-primary" />
             </div>
-            <div>
-              <h2 className="text-2xl md:text-3xl font-bold text-foreground">
+            <div className="min-w-0">
+              <h2 className="text-xl sm:text-2xl md:text-3xl font-bold text-foreground leading-tight">
                 Welcome to Immunization Tracker
               </h2>
-              <p className="text-muted-foreground mt-1 font-medium">2030 EPI Agenda - No Child Left Behind</p>
+              <p className="text-xs sm:text-base text-muted-foreground mt-1 font-medium">2030 EPI Agenda - No Child Left Behind</p>
             </div>
           </div>
 
           {/* Coverage Banner */}
-          <div className="bg-primary/5 rounded-xl p-4 mb-6 flex items-center gap-4">
-            <div className="p-2 rounded-lg bg-primary/10">
+          <div className="bg-primary/5 rounded-xl p-3 sm:p-4 mb-5 sm:mb-6 flex items-center gap-3 sm:gap-4">
+            <div className="p-2 rounded-lg bg-primary/10 shrink-0">
               <TrendingUp className="w-5 h-5 text-primary" />
             </div>
-            <div className="flex-1">
-              <p className="text-sm text-muted-foreground">Overall Coverage Rate</p>
-              <div className="flex items-baseline gap-2">
+            <div className="flex-1 min-w-0">
+              <p className="text-xs sm:text-sm text-muted-foreground">Overall Coverage Rate</p>
+              <div className="flex items-baseline gap-2 flex-wrap">
                 <span className="text-2xl font-bold text-primary">{stats.coverageRate}%</span>
-                <span className="text-xs text-muted-foreground">of scheduled vaccinations completed</span>
+                <span className="text-[11px] sm:text-xs text-muted-foreground">of scheduled vaccinations completed</span>
               </div>
             </div>
           </div>
 
           {/* Stats Grid */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
             <StatCard
               title="Total Children"
               value={stats.totalChildren}
@@ -72,6 +72,7 @@ export function HomeSection({ stats, onNavigate }: HomeSectionProps) {
           </div>
         </div>
       </div>
+
 
       {/* Quick Actions */}
       <div className="bg-card rounded-2xl p-6 shadow-elevation-1 border border-border/50">

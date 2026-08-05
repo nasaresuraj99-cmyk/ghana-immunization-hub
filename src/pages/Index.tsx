@@ -488,8 +488,8 @@ export default function Index() {
         isSyncing={isSyncing}
       />
 
-      <div className="bg-card border-b px-4 py-3 shadow-elevation-1">
-        <div className="max-w-7xl mx-auto flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+      <div className="bg-card border-b px-3 sm:px-4 py-2.5 sm:py-3 shadow-elevation-1">
+        <div className="max-w-7xl mx-auto flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-2 sm:gap-3">
           <SyncProgressBar 
             syncProgress={syncProgress} 
             conflictCount={conflicts.length}
@@ -514,7 +514,8 @@ export default function Index() {
         </div>
       )}
 
-      <main className="max-w-7xl mx-auto px-4 py-6">
+      <main className="max-w-7xl mx-auto px-3 sm:px-4 py-4 sm:py-6">
+
         {currentSection === 'home' && (
           <HomeSection
             stats={stats}
@@ -680,7 +681,7 @@ export default function Index() {
 
       <DeveloperCredits />
       
-      <footer className="text-center py-4 text-xs text-muted-foreground border-t bg-card pb-20 md:pb-4">
+      <footer className="text-center py-4 text-xs text-muted-foreground border-t bg-card pb-24 md:pb-4">
         © {new Date().getFullYear()} Ghana Health Service - Immunization Tracker
       </footer>
 
@@ -689,7 +690,9 @@ export default function Index() {
         currentSection={currentSection}
         onSectionChange={(section) => setCurrentSection(section as Section)}
         onOpenQRScanner={() => setShowQRScanner(true)}
+        userRole={userRole}
       />
+
 
       <VaccineAdministrationModal
         child={vaccineModalChild}
