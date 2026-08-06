@@ -843,11 +843,11 @@ export async function exportImmunizationCard(
       fillColor: [248, 252, 248],
     },
     columnStyles: {
-      0: { cellWidth: 32, halign: "left" },
+      0: { cellWidth: 40, halign: "left" },
       1: { cellWidth: 17, halign: "center" },
       2: { cellWidth: 17, halign: "center" },
       3: { cellWidth: 21, halign: "center", fontStyle: "bold" },
-      4: { cellWidth: 32, halign: "left" },
+      4: { cellWidth: 40, halign: "left" },
       5: { cellWidth: 17, halign: "center" },
       6: { cellWidth: 17, halign: "center" },
       7: { cellWidth: 21, halign: "center", fontStyle: "bold" },
