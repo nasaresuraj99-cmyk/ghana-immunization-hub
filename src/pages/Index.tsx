@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { AuthScreen } from "@/components/auth/AuthScreen";
+import type { FacilitySignupInput } from "@/hooks/useAuth";
 import { Header } from "@/components/layout/Header";
 import { HomeSection } from "@/components/sections/HomeSection";
 import { RegistrationSection } from "@/components/sections/RegistrationSection";
@@ -112,9 +113,9 @@ export default function Index() {
     }
   };
 
-  const handleSignup = async (name: string, facility: string, email: string, password: string) => {
+  const handleSignup = async (name: string, email: string, password: string, facility: FacilitySignupInput) => {
     try {
-      await signup(name, facility, email, password);
+      await signup(name, email, password, facility);
       toast({
         title: "Account Created",
         description: "Your facility account has been created successfully.",
@@ -436,6 +437,7 @@ export default function Index() {
     return (
       <AuthScreen
         onLogin={handleLogin}
+        onSignup={handleSignup}
         onForgotPassword={handleForgotPassword}
       />
     );

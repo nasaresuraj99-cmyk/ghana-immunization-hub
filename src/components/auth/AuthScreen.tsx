@@ -1,17 +1,19 @@
 import { useState, forwardRef } from "react";
 import { LoginForm } from "./LoginForm";
+import { SignupForm } from "./SignupForm";
+import type { FacilitySignupInput } from "@/hooks/useAuth";
 import { ForgotPasswordForm } from "./ForgotPasswordForm";
 import { Wifi, WifiOff, Sparkles, Building, Lock } from "lucide-react";
-import { FACILITY_CONFIG } from "@/lib/facilityConfig";
 
 interface AuthScreenProps {
   onLogin: (email: string, password: string) => void;
+  onSignup: (name: string, email: string, password: string, facility: FacilitySignupInput) => void;
   onForgotPassword: (email: string) => void;
 }
 
-type AuthMode = 'login' | 'forgot';
+type AuthMode = 'login' | 'signup' | 'forgot';
 
-export const AuthScreen = forwardRef<HTMLDivElement, AuthScreenProps>(({ onLogin, onForgotPassword }, ref) => {
+export const AuthScreen = forwardRef<HTMLDivElement, AuthScreenProps>(({ onLogin, onSignup, onForgotPassword }, ref) => {
   const [mode, setMode] = useState<AuthMode>('login');
   const isOnline = navigator.onLine;
 
@@ -55,10 +57,10 @@ export const AuthScreen = forwardRef<HTMLDivElement, AuthScreenProps>(({ onLogin
             </div>
             <h1 className="text-2xl font-bold text-primary">Immunization Tracker</h1>
             
-            {/* Facility Name Badge */}
+            {/* Facility Badge */}
             <div className="mt-3 inline-flex items-center gap-2 bg-primary/10 text-primary px-3 py-1.5 rounded-full">
               <Building className="w-4 h-4" />
-              <span className="text-sm font-semibold">{FACILITY_CONFIG.name}</span>
+              <span className="text-sm font-semibold">For every health facility in Ghana</span>
             </div>
             
             <p className="text-muted-foreground text-sm mt-3 font-medium">
@@ -76,10 +78,22 @@ export const AuthScreen = forwardRef<HTMLDivElement, AuthScreenProps>(({ onLogin
           </div>
 
           {mode === 'login' && (
-            <LoginForm
-              onLogin={onLogin}
-              onForgotPassword={() => setMode('forgot')}
-            />
+            <>
+              <LoginForm
+                onLogin={onLogin}
+                onForgotPassword={() => setMode('forgot')}
+              />
+              <p className="text-center text-sm text-muted-foreground mt-4">
+                New facility?{' '}
+                <button type="button" onClick={() => setMode('signup')} className="text-primary font-medium hover:underline">
+                  Create an account
+                </button>
+              </p>
+            </>
+          )}
+
+          {mode === 'signup' && (
+            <SignupForm onSignup={onSignup} onSwitchToLogin={() => setMode('login')} />
           )}
 
           {mode === 'forgot' && (
@@ -91,7 +105,7 @@ export const AuthScreen = forwardRef<HTMLDivElement, AuthScreenProps>(({ onLogin
         </div>
 
         <p className="text-center text-primary-foreground/60 text-xs mt-6">
-          © {new Date().getFullYear()} Ghana Health Service - {FACILITY_CONFIG.name}
+          © {new Date().getFullYear()} Ghana Health Service
         </p>
       </div>
     </div>
