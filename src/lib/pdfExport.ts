@@ -650,9 +650,9 @@ export async function exportImmunizationCard(
   const doc = new jsPDF({
     orientation: "portrait",
     unit: "mm",
-    format: [148, 210], // A5 size for card
+    format: "a4", // Single A4 sheet
   });
-  
+
   const pageWidth = doc.internal.pageSize.getWidth();
   const pageHeight = doc.internal.pageSize.getHeight();
   // Always use FIAN URBAN CHPS (never user-editable)
@@ -660,6 +660,11 @@ export async function exportImmunizationCard(
 
   // Load GHS logo
   const ghsLogoBase64 = await loadGHSLogoBase64();
+
+  const scheduleRows = buildCompleteScheduleRows(child);
+  const completed = scheduleRows.filter(v => v.status === "completed").length;
+  const total = scheduleRows.length;
+  const progress = total > 0 ? Math.round((completed / total) * 100) : 0;
 
   // Generate QR code with verification data
   const verificationData = {
@@ -669,11 +674,11 @@ export async function exportImmunizationCard(
     dob: child.dateOfBirth,
     sex: child.sex,
     facility: facilityName,
-    vaccinesCompleted: buildCompleteScheduleRows(child).filter(v => v.status === "completed").length,
-    totalVaccines: buildCompleteScheduleRows(child).length,
+    vaccinesCompleted: completed,
+    totalVaccines: total,
     generatedAt: new Date().toISOString(),
   };
-  
+
   const qrCodeDataUrl = await QRCode.toDataURL(JSON.stringify(verificationData), {
     width: 300,
     margin: 1,
@@ -687,92 +692,79 @@ export async function exportImmunizationCard(
   // Outer decorative border
   doc.setDrawColor(...GHS_GREEN);
   doc.setLineWidth(2);
-  doc.rect(3, 3, pageWidth - 6, pageHeight - 6, "S");
-  
+  doc.rect(4, 4, pageWidth - 8, pageHeight - 8, "S");
+
   // Inner border
   doc.setLineWidth(0.5);
-  doc.rect(5, 5, pageWidth - 10, pageHeight - 10, "S");
+  doc.rect(6.5, 6.5, pageWidth - 13, pageHeight - 13, "S");
 
-  // Header background with gradient effect
+  // Header block
   doc.setFillColor(...GHS_GREEN);
-  doc.rect(5, 5, pageWidth - 10, 32, "F");
-  
+  doc.rect(6.5, 6.5, pageWidth - 13, 42, "F");
+
   // Gold accent stripe
   doc.setFillColor(...GHS_GOLD);
-  doc.rect(5, 37, pageWidth - 10, 3, "F");
+  doc.rect(6.5, 48.5, pageWidth - 13, 3, "F");
 
-  // Add GHS Logo in header
+  // GHS Logo
+  doc.setFillColor(255, 255, 255);
+  doc.circle(pageWidth / 2, 20, 12, "F");
+  doc.setDrawColor(...GHS_GOLD);
+  doc.setLineWidth(0.8);
+  doc.circle(pageWidth / 2, 20, 12, "S");
   if (ghsLogoBase64) {
-    // White circle background for logo
-    doc.setFillColor(255, 255, 255);
-    doc.circle(pageWidth / 2, 16, 10, "F");
-    doc.setDrawColor(...GHS_GOLD);
-    doc.setLineWidth(0.8);
-    doc.circle(pageWidth / 2, 16, 10, "S");
-    // Add the logo image
-    doc.addImage(ghsLogoBase64, "PNG", pageWidth / 2 - 8, 8, 16, 16);
+    doc.addImage(ghsLogoBase64, "PNG", pageWidth / 2 - 10, 10, 20, 20);
   } else {
-    // Fallback: Ghana coat of arms placeholder area
-    doc.setFillColor(255, 255, 255);
-    doc.circle(pageWidth / 2, 16, 8, "F");
-    doc.setDrawColor(...GHS_GOLD);
-    doc.setLineWidth(0.8);
-    doc.circle(pageWidth / 2, 16, 8, "S");
     doc.setTextColor(...GHS_GREEN);
-    doc.setFontSize(6);
-    doc.text("GHS", pageWidth / 2, 17, { align: "center" });
+    doc.setFontSize(10);
+    doc.setFont("helvetica", "bold");
+    doc.text("GHS", pageWidth / 2, 22, { align: "center" });
   }
 
   // Header text
   doc.setTextColor(255, 255, 255);
-  doc.setFontSize(7);
-  doc.setFont("helvetica", "bold");
-  doc.text("REPUBLIC OF GHANA", pageWidth / 2, 28, { align: "center" });
-  
   doc.setFontSize(10);
-  doc.text("CHILD IMMUNIZATION CERTIFICATE", pageWidth / 2, 34, { align: "center" });
+  doc.setFont("helvetica", "bold");
+  doc.text("REPUBLIC OF GHANA", pageWidth / 2, 38, { align: "center" });
+  doc.setFontSize(15);
+  doc.text("CHILD IMMUNIZATION CERTIFICATE", pageWidth / 2, 46, { align: "center" });
 
-  // Facility name bar with district
-  let yPos = 44;
+  // Facility box
+  let yPos = 57;
   doc.setFillColor(245, 250, 245);
-  doc.roundedRect(8, yPos - 3, pageWidth - 16, 16, 2, 2, "F");
+  doc.roundedRect(10, yPos, pageWidth - 20, 20, 2, 2, "F");
   doc.setDrawColor(...GHS_GREEN);
   doc.setLineWidth(0.3);
-  doc.roundedRect(8, yPos - 3, pageWidth - 16, 16, 2, 2, "S");
-  
+  doc.roundedRect(10, yPos, pageWidth - 20, 20, 2, 2, "S");
+
   doc.setTextColor(...GHS_GREEN);
-  doc.setFontSize(9);
+  doc.setFontSize(13);
   doc.setFont("helvetica", "bold");
-  doc.text(facilityName.toUpperCase(), pageWidth / 2, yPos + 3, { align: "center" });
-  
-  // Add district info
-  doc.setFontSize(6);
+  doc.text(facilityName.toUpperCase(), pageWidth / 2, yPos + 9, { align: "center" });
+  doc.setFontSize(8.5);
   doc.setFont("helvetica", "normal");
   doc.setTextColor(80, 80, 80);
-  doc.text(FACILITY_CONFIG.district, pageWidth / 2, yPos + 9, { align: "center" });
+  doc.text(FACILITY_CONFIG.district, pageWidth / 2, yPos + 15, { align: "center" });
 
-  // Child details section - adjusted position
-  yPos = 64;
+  // Child particulars
+  yPos = 83;
+  const particularsHeight = 50;
   doc.setFillColor(250, 252, 250);
-  doc.roundedRect(8, yPos, pageWidth - 16, 38, 2, 2, "F");
+  doc.roundedRect(10, yPos, pageWidth - 20, particularsHeight, 2, 2, "F");
   doc.setDrawColor(...GHS_GREEN);
-  doc.roundedRect(8, yPos, pageWidth - 16, 38, 2, 2, "S");
+  doc.roundedRect(10, yPos, pageWidth - 20, particularsHeight, 2, 2, "S");
 
-  // Section header
   doc.setFillColor(...GHS_GREEN);
-  doc.rect(8, yPos, pageWidth - 16, 6, "F");
+  doc.rect(10, yPos, pageWidth - 20, 8, "F");
   doc.setTextColor(255, 255, 255);
-  doc.setFontSize(7);
+  doc.setFontSize(9);
   doc.setFont("helvetica", "bold");
-  doc.text("CHILD PARTICULARS", pageWidth / 2, yPos + 4, { align: "center" });
-  yPos += 10;
+  doc.text("CHILD PARTICULARS", pageWidth / 2, yPos + 5.5, { align: "center" });
 
-  // QR Code in the corner
-  doc.addImage(qrCodeDataUrl, "PNG", pageWidth - 38, yPos - 4, 28, 28);
-  
-  // Child details grid
-  doc.setFontSize(7);
-  doc.setTextColor(...GHS_DARK);
+  // QR code
+  doc.addImage(qrCodeDataUrl, "PNG", pageWidth - 48, yPos + 11, 32, 32);
+
+  // Details
   const details: [string, string][] = [
     ["Registration No:", child.regNo],
     ["Full Name:", child.name],
@@ -782,86 +774,88 @@ export async function exportImmunizationCard(
     ["Contact:", child.telephoneAddress || "N/A"],
   ];
 
-  let detailY = yPos;
+  let detailY = yPos + 15;
+  doc.setFontSize(9);
   details.forEach(([label, value]) => {
     doc.setFont("helvetica", "bold");
     doc.setTextColor(100, 100, 100);
-    doc.text(label, 12, detailY);
+    doc.text(label, 16, detailY);
     doc.setFont("helvetica", "normal");
     doc.setTextColor(...GHS_DARK);
-    doc.text(String(value).substring(0, 28), 38, detailY);
-    detailY += 4.5;
+    doc.text(String(value).substring(0, 34), 52, detailY);
+    detailY += 6.2;
   });
 
-  // Immunization record section
-  yPos = 102;
+  // Immunization record header bar
+  yPos = 139;
   doc.setFillColor(...GHS_GREEN);
-  doc.rect(8, yPos, pageWidth - 16, 7, "F");
+  doc.rect(10, yPos, pageWidth - 20, 9, "F");
   doc.setTextColor(255, 255, 255);
   doc.setFont("helvetica", "bold");
-  doc.setFontSize(8);
-  doc.text("IMMUNIZATION RECORD", pageWidth / 2, yPos + 5, { align: "center" });
-  yPos += 10;
-
-  // Calculate statistics from the COMPLETE birth → 59 months schedule
-  const scheduleRows = buildCompleteScheduleRows(child);
-  const completed = scheduleRows.filter(v => v.status === "completed").length;
-  const total = scheduleRows.length;
-  const progress = total > 0 ? Math.round((completed / total) * 100) : 0;
+  doc.setFontSize(10);
+  doc.text("IMMUNIZATION RECORD", pageWidth / 2, yPos + 6, { align: "center" });
+  yPos += 12;
 
   const shortDate = (d?: string) =>
-    d ? new Date(d).toLocaleDateString("en-GB", { day: "2-digit", month: "2-digit", year: "2-digit" }) : "—";
+    d ? new Date(d).toLocaleDateString("en-GB", { day: "2-digit", month: "2-digit", year: "2-digit" }) : "-";
   const statusLabel = (s: string) =>
     s === "completed" ? "GIVEN" : s === "overdue" ? "OVERDUE" : "PENDING";
 
-  // Two vaccines per printed row so the full schedule fits the A5 card
+  // Two vaccines per printed row so the full schedule fits one A4 sheet
   const half = Math.ceil(scheduleRows.length / 2);
   const leftCol = scheduleRows.slice(0, half);
   const rightCol = scheduleRows.slice(half);
   const cardBody = leftCol.map((v, i) => {
     const r = rightCol[i];
     return [
-      v.name.split(" at")[0].substring(0, 18),
+      v.name.split(" at")[0].substring(0, 22),
+      shortDate(v.dueDate),
       shortDate(v.givenDate),
       statusLabel(v.status),
-      r ? r.name.split(" at")[0].substring(0, 18) : "",
+      r ? r.name.split(" at")[0].substring(0, 22) : "",
+      r ? shortDate(r.dueDate) : "",
       r ? shortDate(r.givenDate) : "",
       r ? statusLabel(r.status) : "",
     ];
   });
 
-  // Vaccination table - professional styling
   autoTable(doc, {
     startY: yPos,
-    head: [["Vaccine", "Given", "Status", "Vaccine", "Given", "Status"]],
+    head: [["Vaccine", "Due", "Given", "Status", "Vaccine", "Due", "Given", "Status"]],
     body: cardBody,
+    theme: "grid",
     headStyles: {
       fillColor: GHS_GREEN,
       textColor: [255, 255, 255],
-      fontSize: 5.5,
-      cellPadding: 1,
+      fontSize: 7,
+      cellPadding: 1.2,
       fontStyle: "bold",
       halign: "center",
+      lineColor: [230, 230, 230],
     },
     bodyStyles: {
-      fontSize: 4.8,
-      cellPadding: 0.8,
+      fontSize: 6.4,
+      cellPadding: 1,
+      lineColor: [230, 230, 230],
+      lineWidth: 0.1,
     },
     alternateRowStyles: {
       fillColor: [248, 252, 248],
     },
     columnStyles: {
-      0: { cellWidth: 28, halign: "left" },
-      1: { cellWidth: 16, halign: "center" },
-      2: { cellWidth: 22, halign: "center", fontStyle: "bold" },
-      3: { cellWidth: 28, halign: "left" },
-      4: { cellWidth: 16, halign: "center" },
-      5: { cellWidth: 22, halign: "center", fontStyle: "bold" },
+      0: { cellWidth: 32, halign: "left" },
+      1: { cellWidth: 17, halign: "center" },
+      2: { cellWidth: 17, halign: "center" },
+      3: { cellWidth: 21, halign: "center", fontStyle: "bold" },
+      4: { cellWidth: 32, halign: "left" },
+      5: { cellWidth: 17, halign: "center" },
+      6: { cellWidth: 17, halign: "center" },
+      7: { cellWidth: 21, halign: "center", fontStyle: "bold" },
     },
-    margin: { left: 8, right: 8 },
-    tableWidth: pageWidth - 16,
+    margin: { left: 10, right: 10 },
+    tableWidth: pageWidth - 20,
     didParseCell: (data) => {
-      if (data.section === "body" && (data.column.index === 2 || data.column.index === 5)) {
+      if (data.section === "body" && (data.column.index === 3 || data.column.index === 7)) {
         if (String(data.cell.raw) === "GIVEN") {
           data.cell.styles.textColor = [0, 128, 0];
         } else if (String(data.cell.raw) === "OVERDUE") {
@@ -873,74 +867,78 @@ export async function exportImmunizationCard(
     },
   });
 
-  yPos = (doc as jsPDF & { lastAutoTable?: { finalY: number } }).lastAutoTable?.finalY || yPos + 80;
-  yPos += 3;
+  yPos = (doc as jsPDF & { lastAutoTable?: { finalY: number } }).lastAutoTable?.finalY || yPos + 90;
+  yPos += 5;
 
   // Progress section with visual bar
   doc.setFillColor(248, 252, 248);
-  doc.roundedRect(8, yPos, pageWidth - 16, 14, 2, 2, "F");
+  doc.roundedRect(10, yPos, pageWidth - 20, 18, 2, 2, "F");
   doc.setDrawColor(...GHS_GREEN);
   doc.setLineWidth(0.3);
-  doc.roundedRect(8, yPos, pageWidth - 16, 14, 2, 2, "S");
-  
-  doc.setFontSize(7);
-  doc.setFont("helvetica", "bold");
-  doc.setTextColor(...GHS_DARK);
-  doc.text("VACCINATION PROGRESS", 12, yPos + 5);
-  
-  // Progress bar
-  const barWidth = 60;
-  const barX = 12;
-  const barY = yPos + 8;
-  doc.setFillColor(230, 230, 230);
-  doc.roundedRect(barX, barY, barWidth, 3, 1, 1, "F");
-  
-  if (progress > 0) {
-    doc.setFillColor(progress >= 100 ? 0 : 34, progress >= 100 ? 150 : 139, progress >= 100 ? 0 : 34);
-    doc.roundedRect(barX, barY, (progress / 100) * barWidth, 3, 1, 1, "F");
-  }
-  
+  doc.roundedRect(10, yPos, pageWidth - 20, 18, 2, 2, "S");
+
   doc.setFontSize(9);
   doc.setFont("helvetica", "bold");
+  doc.setTextColor(...GHS_DARK);
+  doc.text("VACCINATION PROGRESS", 16, yPos + 6.5);
+
+  const barWidth = 90;
+  const barX = 16;
+  const barY = yPos + 10.5;
+  doc.setFillColor(230, 230, 230);
+  doc.roundedRect(barX, barY, barWidth, 4, 2, 2, "F");
+
+  if (progress > 0) {
+    doc.setFillColor(progress >= 100 ? 0 : 34, progress >= 100 ? 150 : 139, progress >= 100 ? 0 : 34);
+    doc.roundedRect(barX, barY, (progress / 100) * barWidth, 4, 2, 2, "F");
+  }
+
+  doc.setFontSize(12);
+  doc.setFont("helvetica", "bold");
   doc.setTextColor(progress >= 100 ? 0 : 34, progress >= 100 ? 150 : 139, progress >= 100 ? 0 : 34);
-  doc.text(`${progress}%`, barX + barWidth + 5, barY + 3);
-  
-  doc.setFontSize(6);
+  doc.text(`${progress}%`, barX + barWidth + 6, barY + 4);
+
+  doc.setFontSize(8);
   doc.setFont("helvetica", "normal");
   doc.setTextColor(100, 100, 100);
-  doc.text(`${completed} of ${total} vaccines completed`, pageWidth - 12, barY + 2, { align: "right" });
+  doc.text(`${completed} of ${total} vaccines completed`, pageWidth - 16, barY + 3, { align: "right" });
 
   // Footer section
-  yPos = pageHeight - 22;
-  
-  // Instructions
+  yPos = pageHeight - 26;
   doc.setFillColor(...GHS_GOLD);
-  doc.rect(8, yPos, pageWidth - 16, 0.8, "F");
-  yPos += 3;
-  
-  doc.setFontSize(5);
+  doc.rect(10, yPos, pageWidth - 20, 1, "F");
+  yPos += 5;
+
+  doc.setFontSize(7.5);
   doc.setTextColor(...GHS_DARK);
   doc.setFont("helvetica", "italic");
   doc.text("This is an official health document. Please present at every clinic visit.", pageWidth / 2, yPos, { align: "center" });
-  yPos += 3;
+  yPos += 4;
   doc.text("Keep this card safe. Report loss immediately to your health facility.", pageWidth / 2, yPos, { align: "center" });
-  
-  // Bottom bar with Ghana colors
-  doc.setFillColor(206, 17, 38); // Red
-  doc.rect(5, pageHeight - 8, (pageWidth - 10) / 3, 3, "F");
-  doc.setFillColor(255, 215, 0); // Gold
-  doc.rect(5 + (pageWidth - 10) / 3, pageHeight - 8, (pageWidth - 10) / 3, 3, "F");
-  doc.setFillColor(0, 100, 0); // Green
-  doc.rect(5 + 2 * (pageWidth - 10) / 3, pageHeight - 8, (pageWidth - 10) / 3, 3, "F");
-  
+
+  // Bottom bar with Ghana colours
+  doc.setFillColor(206, 17, 38);
+  doc.rect(6.5, pageHeight - 13, (pageWidth - 13) / 3, 3.5, "F");
+  doc.setFillColor(255, 215, 0);
+  doc.rect(6.5 + (pageWidth - 13) / 3, pageHeight - 13, (pageWidth - 13) / 3, 3.5, "F");
+  doc.setFillColor(0, 100, 0);
+  doc.rect(6.5 + 2 * (pageWidth - 13) / 3, pageHeight - 13, (pageWidth - 13) / 3, 3.5, "F");
+
   // Card ID footer
-  doc.setFontSize(4);
+  doc.setFontSize(6.5);
+  doc.setFont("helvetica", "normal");
   doc.setTextColor(80, 80, 80);
-  doc.text(`Card ID: ${child.regNo} | Issued: ${formatDateDDMMYYYY(new Date())} | Ghana Health Service - EPI Program`, pageWidth / 2, pageHeight - 3, { align: "center" });
+  doc.text(
+    `Card ID: ${child.regNo} | Issued: ${formatDateDDMMYYYY(new Date())} | Ghana Health Service - EPI Program`,
+    pageWidth / 2,
+    pageHeight - 7.5,
+    { align: "center" }
+  );
 
   const facilitySlug = sanitizeFilename(facilityName);
   doc.save(`${facilitySlug}_Immunization_Certificate_${child.regNo}_${child.name.replace(/\s+/g, "_")}.pdf`);
 }
+
 
 // Export outreach session report for bulk vaccination
 export interface OutreachVaccinationRecord {
