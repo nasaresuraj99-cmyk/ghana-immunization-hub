@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { AuthScreen } from "@/components/auth/AuthScreen";
 import type { FacilitySignupInput } from "@/hooks/useAuth";
+import { FacilityOnboarding } from "@/components/FacilityOnboarding";
 import { Header } from "@/components/layout/Header";
 import { HomeSection } from "@/components/sections/HomeSection";
 import { RegistrationSection } from "@/components/sections/RegistrationSection";
@@ -443,7 +444,20 @@ export default function Index() {
     );
   }
 
-  // No onboarding needed - all users auto-assigned to FIAN URBAN CHPS
+  // Users without a facility yet must register or join one
+  if (user && !user.facilityId) {
+    return (
+      <FacilityOnboarding
+        userId={user.uid}
+        userName={user.name}
+        pendingFacilityName={user.pendingFacilityName}
+        onComplete={(facilityId, facilityName, role) => {
+          updateFacility(facilityId, facilityName, role);
+          completeOnboarding();
+        }}
+      />
+    );
+  }
 
   return (
     <div className="min-h-screen bg-background">
