@@ -77,6 +77,31 @@ export const AuthScreen = forwardRef<HTMLDivElement, AuthScreenProps>(({ onLogin
             </div>
           </div>
 
+          {mode !== 'forgot' && (
+            <div className="grid grid-cols-2 gap-1 p-1 mb-5 bg-muted rounded-lg">
+              <button
+                type="button"
+                onClick={() => setMode('login')}
+                className={cn(
+                  "py-2 text-sm font-medium rounded-md transition-colors",
+                  mode === 'login' ? "bg-card text-primary shadow-sm" : "text-muted-foreground"
+                )}
+              >
+                Sign In
+              </button>
+              <button
+                type="button"
+                onClick={() => setMode('signup')}
+                className={cn(
+                  "py-2 text-sm font-medium rounded-md transition-colors",
+                  mode === 'signup' ? "bg-card text-primary shadow-sm" : "text-muted-foreground"
+                )}
+              >
+                Create Account
+              </button>
+            </div>
+          )}
+
           {mode === 'login' && (
             <>
               <LoginForm
@@ -91,6 +116,8 @@ export const AuthScreen = forwardRef<HTMLDivElement, AuthScreenProps>(({ onLogin
               </p>
             </>
           )}
+
+
 
           {mode === 'signup' && (
             <SignupForm onSignup={onSignup} onSwitchToLogin={() => setMode('login')} />
