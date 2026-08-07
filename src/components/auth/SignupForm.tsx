@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, forwardRef } from "react";
 import { Eye, EyeOff, Mail, Lock, User, Building, Hash, MapPin, Plus, LogIn } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -21,7 +21,7 @@ interface SignupFormProps {
   onSwitchToLogin: () => void;
 }
 
-export function SignupForm({ onSignup, onSwitchToLogin }: SignupFormProps) {
+export const SignupForm = forwardRef<HTMLFormElement, SignupFormProps>(function SignupForm({ onSignup, onSwitchToLogin }, ref) {
   const [mode, setMode] = useState<'create' | 'join'>('create');
   const [name, setName] = useState("");
   const [facilityName, setFacilityName] = useState("");
@@ -110,7 +110,7 @@ export function SignupForm({ onSignup, onSwitchToLogin }: SignupFormProps) {
   };
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-4">
+    <form ref={ref} onSubmit={handleSubmit} className="space-y-4">
       <Tabs value={mode} onValueChange={(v) => setMode(v as 'create' | 'join')}>
         <TabsList className="grid w-full grid-cols-2">
           <TabsTrigger value="create" className="text-xs sm:text-sm">
@@ -300,4 +300,6 @@ export function SignupForm({ onSignup, onSwitchToLogin }: SignupFormProps) {
       </p>
     </form>
   );
-}
+});
+
+SignupForm.displayName = "SignupForm";
