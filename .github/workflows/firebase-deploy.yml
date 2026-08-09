@@ -13,17 +13,34 @@ jobs:
       # 1️⃣ Checkout the repo
       - uses: actions/checkout@v3
 
-      # 2️⃣ Check if dist folder exists
-      - name: Check dist folder
+      # 2️⃣ Set up Node.js
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+          cache: 'npm'
+
+      # 3️⃣ Install dependencies
+      - name: Install dependencies
+        run: npm ci
+
+      # 4️⃣ Build the project
+      - name: Build project
+        run: npm run build
+
+      # 5️⃣ Verify dist folder was created
+      - name: Verify dist folder
         run: |
           if [ ! -d "dist" ]; then
-            echo "Error: dist folder is missing. Cannot deploy."
+            echo "Error: dist folder was not created during build."
             exit 1
           fi
+          echo "✅ dist folder successfully created"
+          ls -la dist/
 
-      # 3️⃣ Deploy to Firebase Hosting
+      # 6️⃣ Deploy to Firebase Hosting
       - name: Deploy to Firebase
-        uses: FirebaseExtended/action-hosting-deploy@v1
+        uses: FirebaseExtended/action-hosting-deploy@v0
         with:
           repoToken: ${{ secrets.GITHUB_TOKEN }}
           firebaseServiceAccount: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
