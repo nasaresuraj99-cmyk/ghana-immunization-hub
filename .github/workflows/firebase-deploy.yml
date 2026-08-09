@@ -3,46 +3,90 @@ name: Deploy Prebuilt Dist to Firebase Hosting
 on:
   push:
     branches:
-      - main  # deploys on every push to main
+      - main
 
 jobs:
   deploy:
     runs-on: ubuntu-latest
 
     steps:
-      # 1️⃣ Checkout the repo
       - uses: actions/checkout@v3
 
-      # 2️⃣ Set up Node.js
       - name: Set up Node.js
         uses: actions/setup-node@v4
         with:
           node-version: '18'
           cache: 'npm'
 
-      # 3️⃣ Install dependencies
       - name: Install dependencies
         run: npm ci
 
-      # 4️⃣ Build the project
       - name: Build project
         run: npm run build
 
-      # 5️⃣ Verify dist folder was created
       - name: Verify dist folder
         run: |
           if [ ! -d "dist" ]; then
             echo "Error: dist folder was not created during build."
+            ls -la || true
             exit 1
           fi
           echo "✅ dist folder successfully created"
           ls -la dist/
 
-      # 6️⃣ Deploy to Firebase Hosting
+      - name: Show firebase.json (if present)
+        run: |
+          echo "---- repo root ----"
+          ls -la
+          if [ -f firebase.json ]; then
+            echo "---- firebase.json ----"
+            # prefer jq for pretty printing but fall back to cat
+            jq . firebase.json || cat firebase.json
+          else
+            echo "firebase.json not found at repo root"
+          fi
+
+      - name: Decode / validate FIREBASE_SERVICE_ACCOUNT
+        id: sa
+        env:
+          FIREBASE_SERVICE_ACCOUNT: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
+        run: |
+          set -euo pipefail
+
+          # Try raw JSON secret first
+          if echo "$FIREBASE_SERVICE_ACCOUNT" | jq -r . >/dev/null 2>&1; then
+            echo "secret_type=raw" >> $GITHUB_OUTPUT
+            # store compact single-line JSON in env for next step
+            echo "FIREBASE_SA=$(echo \"$FIREBASE_SERVICE_ACCOUNT\" | jq -c .)" >> $GITHUB_ENV
+            echo "PROJECT_ID=$(echo \"$FIREBASE_SERVICE_ACCOUNT\" | jq -r .project_id)" >> $GITHUB_OUTPUT
+            exit 0
+          fi
+
+          # Try base64-decoded JSON
+          if echo "$FIREBASE_SERVICE_ACCOUNT" | base64 --decode 2>/dev/null | jq -r . >/dev/null 2>&1; then
+            echo "secret_type=base64" >> $GITHUB_OUTPUT
+            DECODED=$(echo "$FIREBASE_SERVICE_ACCOUNT" | base64 --decode)
+            echo "FIREBASE_SA=$(echo \"$DECODED\" | jq -c .)" >> $GITHUB_ENV
+            echo "PROJECT_ID=$(echo \"$DECODED\" | jq -r .project_id)" >> $GITHUB_OUTPUT
+            exit 0
+          fi
+
+          echo "Secret is not valid JSON nor valid base64-encoded JSON" >&2
+          exit 1
+
+      - name: Debug: service account project_id
+        run: |
+          echo "project_id from secret: ${{ steps.sa.outputs.PROJECT_ID || '' }}"
+          if [ -n "${{ steps.sa.outputs.PROJECT_ID || '' }}" ]; then
+            if [ "${{ steps.sa.outputs.PROJECT_ID }}" != "imu-tracker-system" ]; then
+              echo "Warning: service account project_id does not match provided projectId 'imu-tracker-system'"
+            fi
+          fi
+
       - name: Deploy to Firebase
         uses: FirebaseExtended/action-hosting-deploy@v0
         with:
           repoToken: ${{ secrets.GITHUB_TOKEN }}
-          firebaseServiceAccount: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
+          firebaseServiceAccount: ${{ env.FIREBASE_SA }}
           channelId: live
           projectId: imu-tracker-system
