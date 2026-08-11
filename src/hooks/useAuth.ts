@@ -297,12 +297,29 @@ export function useAuth() {
       setError(null);
       setLoading(true);
 
-      // Validate / prepare the facility BEFORE creating the account
-      const resolved = await resolveSignupFacility(facilityInput);
-
+      // Create the Firebase Authentication account first so that
+      // subsequent Firestore writes (creating a facility or profile)
+      // are performed while authenticated. If facility resolution fails
+      // after the auth account is created, delete the auth account to
+      // avoid leaving orphaned users.
       const result = await signupWithEmail(email, password, name);
 
       if (result.user) {
+        let resolved;
+        try {
+          // Resolve/create/join facility as the now-authenticated user
+          resolved = await resolveSignupFacility(facilityInput);
+        } catch (resolveErr) {
+          // Roll back the created Firebase Authentication user to avoid
+          // orphaned accounts when facility creation/validation fails.
+          try {
+            await result.user.delete();
+          } catch (deleteErr) {
+            console.error('Failed to delete auth user after signup failure:', deleteErr);
+          }
+          throw resolveErr;
+        }
+
         const profileRef = doc(db, 'userProfiles', result.user.uid);
         await setDoc(profileRef, {
           uid: result.user.uid,
