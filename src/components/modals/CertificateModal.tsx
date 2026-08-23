@@ -37,9 +37,10 @@ interface CertificateModalProps {
   districtRegion?: string;
 }
 
-// Always use FIAN URBAN CHPS
+// Facility info is derived from the active signed-in user's facility
+// (FACILITY_CONFIG reflects the authenticated user's facility)
 const facilityName = FACILITY_CONFIG.name;
-const districtRegion = "Ashanti Region, Ghana";
+const districtRegion = FACILITY_CONFIG.districtRegion;
 
 export function CertificateModal({
   child,
