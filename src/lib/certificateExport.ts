@@ -321,16 +321,19 @@ export async function generateImmunizationCertificate(
   doc.setFontSize(7.5);
   doc.setFont("helvetica", "normal");
   doc.setTextColor(...GHS_DARK);
-  doc.text(`District: ${district}   |   Region: ${region}`, pageWidth / 2, yPos + 10.8, {
+  doc.text(`District Name: ${district}`, pageWidth / 2, yPos + 10.2, {
+    align: "center",
+  });
+  doc.text(`Region: ${region}`, pageWidth / 2, yPos + 13.2, {
     align: "center",
   });
   doc.setFont("helvetica", "bold");
   doc.setFontSize(7);
   doc.setTextColor(120, 120, 120);
-  doc.text(`Certificate ID: ${certificateId}`, pageWidth / 2, yPos + 15, { align: "center" });
+  doc.text(`Certificate ID: ${certificateId}`, pageWidth / 2, yPos + 16.5, { align: "center" });
 
   // ============== CHILD PARTICULARS ==============
-  yPos += 22;
+  yPos += 25;
   doc.setFillColor(...GHS_GREEN);
   doc.rect(margin, yPos, contentWidth, 7, "F");
   doc.setTextColor(255, 255, 255);
