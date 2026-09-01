@@ -34,11 +34,20 @@ function downloadCSV(filename: string, csvContent: string) {
   URL.revokeObjectURL(url);
 }
 
+function requireDistrict(): void {
+  const district = FACILITY_CONFIG.district?.trim();
+  if (!district) {
+    throw new Error('Facility district is required to export reports. Please set the facility district in Facility Settings or during onboarding.');
+  }
+}
+
 export function exportSummaryExcel(
   stats: DashboardStats,
   ageDistribution: Record<string, number>,
   period: string
 ) {
+  requireDistrict();
+
   const headers = ["Metric", "Value"];
   const rows = [
     ["Facility", FACILITY_CONFIG.name],
@@ -72,6 +81,8 @@ export function exportDetailedExcel(
     status: string;
   }>
 ) {
+  requireDistrict();
+
   const headers = ["Date", "Reg No.", "Child Name", "Vaccine", "Batch No.", "Status"];
   const facilityRow = [`${FACILITY_CONFIG.name} - ${FACILITY_CONFIG.district}`, "", "", "", "", ""];
   const rows = [
@@ -93,6 +104,8 @@ export function exportDetailedExcel(
 export function exportVaccineCoverageExcel(
   vaccineCoverage: Record<string, { given: number; pending: number; overdue: number }>
 ) {
+  requireDistrict();
+
   const headers = ["Vaccine Type", "Given", "Pending", "Overdue", "Total", "Coverage %"];
   const facilityRow = [`${FACILITY_CONFIG.name} - ${FACILITY_CONFIG.district}`, "", "", "", "", ""];
   const rows = [
@@ -116,6 +129,8 @@ export function exportVaccineCoverageExcel(
 }
 
 export function exportDefaultersExcel(defaulters: Defaulter[]) {
+  requireDistrict();
+
   // Comprehensive headers with full child details for tracing
   const headers = [
     "#", 
@@ -178,6 +193,8 @@ export function exportDefaultersExcel(defaulters: Defaulter[]) {
 }
 
 export function exportChildrenRegisterExcel(children: Child[]) {
+  requireDistrict();
+
   const headers = ["Facility", "District", "Reg No.", "Name", "DOB", "Age (months)", "Sex", "Caregiver", "Contact", "Community", "Vaccines Completed", "Total Vaccines"];
   const rows = children.map(child => {
     const birthDate = new Date(child.dateOfBirth);
