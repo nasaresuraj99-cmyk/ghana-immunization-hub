@@ -52,7 +52,11 @@ export function CertificateModal({
 
   // Resolve at render/download time so a newly selected facility is never stale.
   const facilityName = facilityNameOverride || FACILITY_CONFIG.name;
-  const districtRegion = districtRegionOverride || FACILITY_CONFIG.districtRegion;
+  // districtRegionOverride may be a combined value like "District Name, Region";
+  // parse into district and region so we can pass them explicitly to the generator.
+  const parsedParts = (districtRegionOverride || FACILITY_CONFIG.districtRegion).split(",").map(p => p.trim());
+  const districtFromOverride = parsedParts[0] || "";
+  const regionFromOverride = parsedParts[1] || FACILITY_CONFIG.region;
 
   const allVaccines = buildCompleteScheduleRows(child);
   const completedVaccines = allVaccines.filter(v => v.status === "completed").length;
@@ -72,7 +76,9 @@ export function CertificateModal({
     try {
       await generateImmunizationCertificate(child, {
         facilityName,
-        districtRegion,
+        // Prefer explicit override parts; fall back to active facility values.
+        district: districtFromOverride || FACILITY_CONFIG.district,
+        region: regionFromOverride || FACILITY_CONFIG.region,
       });
       
       // Log the document generation for audit trail
@@ -90,9 +96,14 @@ export function CertificateModal({
       }
       
       toast.success("Certificate downloaded successfully!");
-    } catch (error) {
+    } catch (error: any) {
       console.error("Certificate generation error:", error);
-      toast.error("Failed to generate certificate");
+      // If district is missing, show an explicit message with next action
+      if (error?.message?.includes('Facility district is required')) {
+        toast.error("Cannot generate certificate: facility district is not set. Please set the facility district in Facility Settings or during onboarding.");
+      } else {
+        toast.error("Failed to generate certificate");
+      }
     } finally {
       setIsGenerating(false);
     }
@@ -135,7 +146,7 @@ export function CertificateModal({
           {/* Facility Info */}
           <div className="bg-muted/20 p-3 text-center border-b">
             <p className="font-semibold text-primary">{facilityName.toUpperCase()}</p>
-            <p className="text-sm text-muted-foreground">{districtRegion}</p>
+            <p className="text-sm text-muted-foreground">{districtFromOverride || FACILITY_CONFIG.districtRegion}</p>
           </div>
 
           {/* Child Details */}
