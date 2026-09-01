@@ -38,7 +38,7 @@ export const DEFAULT_FACILITY: FacilityProfile = {
   name: 'FIAN URBAN CHPS',
   code: 'FUCHPS',
   address: 'Fian Urban, Ghana',
-  district: 'Daffiama Bussie Issa (DBI)',
+  district: 'DAFFIAMA BUSSIE ISSA',
   region: 'Upper West Region',
 };
 
