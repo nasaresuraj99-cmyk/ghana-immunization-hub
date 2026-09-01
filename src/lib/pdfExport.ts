@@ -28,9 +28,6 @@ async function loadGHSLogoBase64(): Promise<string | null> {
   }
 }
 
-// Default to FIAN URBAN CHPS for all reports
-const DEFAULT_FACILITY_NAME = FACILITY_CONFIG.name;
-
 interface PDFOptions {
   facilityName?: string;
   reportDate?: string;
@@ -53,8 +50,7 @@ function sanitizeFilename(name: string): string {
 
 function addHeader(doc: jsPDF, title: string, options: PDFOptions = {}) {
   const pageWidth = doc.internal.pageSize.getWidth();
-  // Always use FIAN URBAN CHPS as default
-  const facilityName = options.facilityName || DEFAULT_FACILITY_NAME;
+  const facilityName = options.facilityName || FACILITY_CONFIG.name;
   const reportDate = options.reportDate || formatDateDDMMYYYY(new Date());
   const periodLabel = options.periodLabel;
   const district = FACILITY_CONFIG.district;
@@ -655,8 +651,9 @@ export async function exportImmunizationCard(
 
   const pageWidth = doc.internal.pageSize.getWidth();
   const pageHeight = doc.internal.pageSize.getHeight();
-  // Always use FIAN URBAN CHPS (never user-editable)
-  const facilityName = DEFAULT_FACILITY_NAME;
+  const facilityName = options.facilityName || FACILITY_CONFIG.name;
+  const district = FACILITY_CONFIG.district || "District not provided";
+  const region = FACILITY_CONFIG.region || "Region not provided";
 
   // Load GHS logo
   const ghsLogoBase64 = await loadGHSLogoBase64();
@@ -674,6 +671,8 @@ export async function exportImmunizationCard(
     dob: child.dateOfBirth,
     sex: child.sex,
     facility: facilityName,
+    district,
+    region,
     vaccinesCompleted: completed,
     totalVaccines: total,
     generatedAt: new Date().toISOString(),
@@ -744,7 +743,7 @@ export async function exportImmunizationCard(
   doc.setFontSize(8.5);
   doc.setFont("helvetica", "normal");
   doc.setTextColor(80, 80, 80);
-  doc.text(FACILITY_CONFIG.district, pageWidth / 2, yPos + 15, { align: "center" });
+  doc.text(`District: ${district} | Region: ${region}`, pageWidth / 2, yPos + 15, { align: "center" });
 
   // Child particulars
   yPos = 83;
@@ -969,7 +968,7 @@ export function exportOutreachSessionReport(
 ) {
   const doc = new jsPDF();
   // Always use FIAN URBAN CHPS (never user-editable)
-  const facilityName = DEFAULT_FACILITY_NAME;
+  const facilityName = options.facilityName || FACILITY_CONFIG.name;
   let yPos = addHeader(doc, "Outreach Session Report", options);
 
   // Facility Name
@@ -1115,7 +1114,7 @@ export function exportConsolidatedReport(
 ) {
   const doc = new jsPDF();
   // Always use FIAN URBAN CHPS (never user-editable)
-  const facilityName = DEFAULT_FACILITY_NAME;
+  const facilityName = options.facilityName || FACILITY_CONFIG.name;
   const { periodLabel } = options;
   let currentPage = 1;
   
@@ -1272,7 +1271,7 @@ export function exportMonthComparisonReport(
 ) {
   const doc = new jsPDF();
   // Always use FIAN URBAN CHPS (never user-editable)
-  const facilityName = DEFAULT_FACILITY_NAME;
+  const facilityName = options.facilityName || FACILITY_CONFIG.name;
   
   const yPosStart = addHeader(doc, "Month-to-Month Comparison Report", {
     ...options,

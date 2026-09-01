@@ -5,6 +5,8 @@ export interface Facility {
   name: string;
   code: string;
   address?: string;
+  district?: string;
+  region?: string;
   createdAt: string;
   updatedAt: string;
   createdBy?: string;

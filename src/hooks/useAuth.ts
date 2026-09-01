@@ -261,6 +261,8 @@ export function useAuth() {
 
     // Create mode
     if (!input.name?.trim()) throw new Error('Please enter your facility name.');
+    if (!input.district?.trim()) throw new Error('Please enter your facility district.');
+    if (!input.region?.trim()) throw new Error('Please select your facility region.');
     if (!existing.empty) {
       throw new Error('That facility code is already registered. Use "Join a facility" instead.');
     }
@@ -272,8 +274,8 @@ export function useAuth() {
       name: input.name.trim().toUpperCase(),
       code,
       address: input.address?.trim() || '',
-      district: input.district?.trim() || '',
-      region: input.region?.trim() || '',
+      district: input.district.trim(),
+      region: input.region.trim(),
       createdAt: now,
       updatedAt: now,
     };

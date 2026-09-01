@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Building, Plus, UserPlus, Loader2, ArrowRight, Check } from "lucide-react";
+import { Building, Plus, UserPlus, Loader2, ArrowRight, Check, MapPin } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -8,6 +8,14 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useToast } from "@/hooks/use-toast";
 import { useFacility } from "@/hooks/useFacility";
 import { AppRole } from "@/types/facility";
+import { GHANA_REGIONS } from "@/lib/facilityConfig";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 
 interface FacilityOnboardingProps {
   userId: string;
@@ -19,6 +27,8 @@ interface FacilityOnboardingProps {
 export function FacilityOnboarding({ userId, userName, pendingFacilityName, onComplete }: FacilityOnboardingProps) {
   const [facilityName, setFacilityName] = useState(pendingFacilityName || "");
   const [facilityCode, setFacilityCode] = useState("");
+  const [district, setDistrict] = useState("");
+  const [region, setRegion] = useState("");
   const [joinCode, setJoinCode] = useState("");
   const [isCreating, setIsCreating] = useState(false);
   const [isJoining, setIsJoining] = useState(false);
@@ -51,9 +61,18 @@ export function FacilityOnboarding({ userId, userName, pendingFacilityName, onCo
       return;
     }
 
+    if (!district.trim() || !region) {
+      toast({
+        title: "District and region required",
+        description: "Enter the facility district and select its region.",
+        variant: "destructive",
+      });
+      return;
+    }
+
     setIsCreating(true);
     try {
-      const facilityId = await createFacility(facilityName, facilityCode);
+      const facilityId = await createFacility(facilityName, facilityCode, { district, region });
       toast({
         title: "Facility Created!",
         description: `Your facility "${facilityName}" has been created. Share the code ${facilityCode} with your team.`,
@@ -176,6 +195,36 @@ export function FacilityOnboarding({ userId, userName, pendingFacilityName, onCo
                     <p className="text-xs text-muted-foreground">
                       Share this code with team members to let them join
                     </p>
+                  </div>
+
+                  <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                    <div className="space-y-2">
+                      <Label htmlFor="onboarding-district">District</Label>
+                      <div className="relative">
+                        <MapPin className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                        <Input
+                          id="onboarding-district"
+                          placeholder="e.g., Daffiama Bussie Issa"
+                          value={district}
+                          onChange={(e) => setDistrict(e.target.value)}
+                          className="pl-10"
+                          required
+                        />
+                      </div>
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="onboarding-region">Region</Label>
+                      <Select value={region} onValueChange={setRegion} required>
+                        <SelectTrigger id="onboarding-region">
+                          <SelectValue placeholder="Select region" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {GHANA_REGIONS.map((item) => (
+                            <SelectItem key={item} value={item}>{item}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
                   </div>
 
                   <Button 
