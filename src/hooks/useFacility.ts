@@ -11,7 +11,6 @@ import {
 } from '@/lib/firebase';
 import { Facility, AppRole, FacilityUser } from '@/types/facility';
 import {
-  FACILITY_CONFIG,
   getActiveFacility,
   setActiveFacility,
   slugifyFacilityId,
@@ -127,6 +126,8 @@ export function useFacility(userId?: string, userFacilityId?: string) {
     const facilityCode = normalizeFacilityCode(code);
     if (!name.trim()) throw new Error('Facility name is required');
     if (!facilityCode) throw new Error('Facility code is required');
+    if (!extra?.district?.trim()) throw new Error('Facility district is required');
+    if (!extra?.region?.trim()) throw new Error('Facility region is required');
 
     // Ensure the code is not already taken
     const existing = await getDocs(
@@ -143,8 +144,8 @@ export function useFacility(userId?: string, userFacilityId?: string) {
       name: name.trim().toUpperCase(),
       code: facilityCode,
       address: extra?.address || '',
-      district: extra?.district || '',
-      region: extra?.region || '',
+      district: extra.district.trim(),
+      region: extra.region.trim(),
       createdAt: now,
       updatedAt: now,
       createdBy: userId || null,

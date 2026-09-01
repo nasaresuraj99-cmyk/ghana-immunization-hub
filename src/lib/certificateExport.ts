@@ -80,10 +80,6 @@ const GHS_GOLD: [number, number, number] = [255, 215, 0];
 const GHS_RED: [number, number, number] = [206, 17, 38];
 const GHS_DARK: [number, number, number] = [30, 41, 59];
 
-// Always use FIAN URBAN CHPS
-const DEFAULT_FACILITY_NAME = FACILITY_CONFIG.name;
-const DEFAULT_DISTRICT_REGION = FACILITY_CONFIG.districtRegion;
-
 interface CertificateOptions {
   facilityName?: string;
   districtRegion?: string;
@@ -178,9 +174,10 @@ export async function generateImmunizationCertificate(
   child: Child,
   options: CertificateOptions = {}
 ): Promise<void> {
-  const facilityName = options.facilityName || DEFAULT_FACILITY_NAME;
-  const district = FACILITY_CONFIG.district;
-  const region = FACILITY_CONFIG.region;
+  // Read dynamic getters when the certificate is generated, not when this module loads.
+  const facilityName = options.facilityName || FACILITY_CONFIG.name;
+  const district = FACILITY_CONFIG.district || "District not provided";
+  const region = FACILITY_CONFIG.region || "Region not provided";
 
   const logoBase64 = await getLogoBase64();
 

@@ -37,21 +37,22 @@ interface CertificateModalProps {
   districtRegion?: string;
 }
 
-// Facility info is derived from the active signed-in user's facility
-// (FACILITY_CONFIG reflects the authenticated user's facility)
-const facilityName = FACILITY_CONFIG.name;
-const districtRegion = FACILITY_CONFIG.districtRegion;
-
 export function CertificateModal({
   child,
   isOpen,
   onClose,
+  facilityName: facilityNameOverride,
+  districtRegion: districtRegionOverride,
 }: CertificateModalProps) {
   const [isGenerating, setIsGenerating] = useState(false);
   const { logDocumentGeneration } = useDocumentActivityLog();
   const { user } = useAuth();
 
   if (!child) return null;
+
+  // Resolve at render/download time so a newly selected facility is never stale.
+  const facilityName = facilityNameOverride || FACILITY_CONFIG.name;
+  const districtRegion = districtRegionOverride || FACILITY_CONFIG.districtRegion;
 
   const allVaccines = buildCompleteScheduleRows(child);
   const completedVaccines = allVaccines.filter(v => v.status === "completed").length;

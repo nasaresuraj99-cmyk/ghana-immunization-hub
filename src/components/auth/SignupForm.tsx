@@ -69,10 +69,10 @@ export const SignupForm = forwardRef<HTMLFormElement, SignupFormProps>(function 
       return;
     }
 
-    if (mode === 'create' && (!facilityName.trim() || !facilityCode.trim() || !region)) {
+    if (mode === 'create' && (!facilityName.trim() || !facilityCode.trim() || !district.trim() || !region)) {
       toast({
         title: "Facility details required",
-        description: "Enter your facility name, code and region.",
+        description: "Enter your facility name, code, district and region.",
         variant: "destructive",
       });
       return;
@@ -174,6 +174,7 @@ export const SignupForm = forwardRef<HTMLFormElement, SignupFormProps>(function 
                   value={district}
                   onChange={(e) => setDistrict(e.target.value)}
                   className="pl-10"
+                  required
                 />
               </div>
             </div>

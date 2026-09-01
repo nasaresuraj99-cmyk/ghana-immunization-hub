@@ -18,9 +18,9 @@ function escapeHtml(text: string): string {
 export async function exportImmunizationCardAsImage(
   child: Child
 ): Promise<void> {
-  // Always use FIAN URBAN CHPS for cards
   const facilityName = FACILITY_CONFIG.name;
-  const districtInfo = FACILITY_CONFIG.district;
+  const districtInfo = FACILITY_CONFIG.district || "District not provided";
+  const regionInfo = FACILITY_CONFIG.region || "Region not provided";
   
   // Create a temporary container for the certificate
   const container = document.createElement("div");
@@ -70,7 +70,7 @@ export async function exportImmunizationCardAsImage(
       <!-- Facility Name with District -->
       <div style="background: #006400; color: white; text-align: center; padding: 8px; margin: 8px 10px;">
         <div style="font-size: 16px; font-weight: bold;">${facilityName.toUpperCase()}</div>
-        <div style="font-size: 10px; margin-top: 2px;">${districtInfo}</div>
+        <div style="font-size: 10px; margin-top: 2px;">District: ${escapeHtml(districtInfo)} | Region: ${escapeHtml(regionInfo)}</div>
       </div>
       
       <!-- Child Info Section -->
