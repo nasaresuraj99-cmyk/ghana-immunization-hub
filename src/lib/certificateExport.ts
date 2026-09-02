@@ -178,8 +178,12 @@ export async function generateImmunizationCertificate(
 ): Promise<void> {
   // Read dynamic getters when the certificate is generated, not when this module loads.
   const facilityName = options.facilityName || FACILITY_CONFIG.name;
-  const district = FACILITY_CONFIG.district || "District not provided";
-  const region = FACILITY_CONFIG.region || "Region not provided";
+  const district = options.district || FACILITY_CONFIG.district;
+  const region = options.region || FACILITY_CONFIG.region || "Region not provided";
+
+  if (!district) {
+    throw new Error("Facility district is required to generate a certificate");
+  }
 
   const logoBase64 = await getLogoBase64();
 
