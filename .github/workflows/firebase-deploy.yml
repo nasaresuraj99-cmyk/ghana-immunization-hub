@@ -4,35 +4,41 @@ on:
   push:
     branches:
       - main
+  workflow_dispatch:
+
+concurrency:
+  group: firebase-hosting-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
   deploy:
     runs-on: ubuntu-latest
+    timeout-minutes: 20
 
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout repository
+        uses: actions/checkout@v4
 
-      - name: Set up Node.js
-        uses: actions/setup-node@v4
+      - name: Set up Bun
+        uses: oven-sh/setup-bun@v2
         with:
-          node-version: '20'
-          cache: 'npm'
+          bun-version: latest
 
       - name: Install dependencies
-        run: npm ci
+        run: bun install
 
       - name: Build project
-        run: npm run build
+        run: bun run build
 
       - name: Verify dist folder
         run: |
-          if [ ! -d "dist" ]; then
-            echo "Error: dist folder was not created during build."
-            ls -la || true
+          if [ ! -f "dist/index.html" ]; then
+            echo "::error::Build did not produce dist/index.html"
+            ls -la dist || true
             exit 1
           fi
-          echo "✅ dist folder successfully created"
-          ls -la dist/
+          echo "dist/index.html present"
+          ls -la dist
 
       - name: Prepare Firebase credentials
         id: sa
@@ -40,34 +46,58 @@ jobs:
           FIREBASE_SERVICE_ACCOUNT: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
         run: |
           set -euo pipefail
-          if [ -z "$FIREBASE_SERVICE_ACCOUNT" ]; then
-            echo "FIREBASE_SERVICE_ACCOUNT secret is missing" >&2
-            exit 1
+          if [ -z "${FIREBASE_SERVICE_ACCOUNT:-}" ]; then
+            echo "has_sa=false" >> "$GITHUB_OUTPUT"
+            echo "::warning::FIREBASE_SERVICE_ACCOUNT secret is not set; will try FIREBASE_TOKEN instead."
+            exit 0
           fi
           CREDENTIALS_FILE="$RUNNER_TEMP/firebase-service-account.json"
           if printf '%s' "$FIREBASE_SERVICE_ACCOUNT" | jq -e . >/dev/null 2>&1; then
             printf '%s' "$FIREBASE_SERVICE_ACCOUNT" > "$CREDENTIALS_FILE"
-          elif printf '%s' "$FIREBASE_SERVICE_ACCOUNT" | base64 --decode > "$CREDENTIALS_FILE" 2>/dev/null \
+          elif printf '%s' "$FIREBASE_SERVICE_ACCOUNT" | tr -d '[:space:]' | base64 --decode > "$CREDENTIALS_FILE" 2>/dev/null \
             && jq -e . "$CREDENTIALS_FILE" >/dev/null 2>&1; then
             true
           else
             rm -f "$CREDENTIALS_FILE"
-            echo "FIREBASE_SERVICE_ACCOUNT must be raw JSON or base64-encoded JSON" >&2
+            echo "::error::FIREBASE_SERVICE_ACCOUNT must be the raw service-account JSON (or base64 of it)."
             exit 1
           fi
           PROJECT_ID="$(jq -r '.project_id // empty' "$CREDENTIALS_FILE")"
-          if [ "$PROJECT_ID" != "imu-tracker-system" ]; then
-            echo "Service account project_id must be imu-tracker-system" >&2
+          if [ -z "$PROJECT_ID" ]; then
             rm -f "$CREDENTIALS_FILE"
+            echo "::error::Service account JSON has no project_id."
             exit 1
           fi
           echo "credentials_file=$CREDENTIALS_FILE" >> "$GITHUB_OUTPUT"
+          echo "project_id=$PROJECT_ID" >> "$GITHUB_OUTPUT"
+          echo "has_sa=true" >> "$GITHUB_OUTPUT"
 
-      - name: Deploy to Firebase
+      - name: Deploy with service account
+        if: steps.sa.outputs.has_sa == 'true'
         env:
           GOOGLE_APPLICATION_CREDENTIALS: ${{ steps.sa.outputs.credentials_file }}
-        run: npx --yes firebase-tools@latest deploy --only hosting --project imu-tracker-system --non-interactive
+        run: |
+          npx --yes firebase-tools@13 deploy \
+            --only hosting \
+            --project "${{ steps.sa.outputs.project_id }}" \
+            --non-interactive \
+            --force
+
+      - name: Deploy with CI token (fallback)
+        if: steps.sa.outputs.has_sa != 'true'
+        env:
+          FIREBASE_TOKEN: ${{ secrets.FIREBASE_TOKEN }}
+        run: |
+          if [ -z "${FIREBASE_TOKEN:-}" ]; then
+            echo "::error::No deployment credentials found. Add either FIREBASE_SERVICE_ACCOUNT (service-account JSON) or FIREBASE_TOKEN in repository Settings > Secrets and variables > Actions."
+            exit 1
+          fi
+          npx --yes firebase-tools@13 deploy \
+            --only hosting \
+            --project imu-tracker-system \
+            --non-interactive \
+            --force
 
       - name: Remove temporary credentials
         if: always()
-        run: rm -f "${{ steps.sa.outputs.credentials_file }}"
+        run: rm -f "$RUNNER_TEMP/firebase-service-account.json"
