@@ -23,7 +23,7 @@ export function DeveloperCredits() {
           </div>
           <div className="flex items-center gap-1.5">
             <MapPin className="w-3.5 h-3.5" />
-            <span>BBI – Fian, Upper West Region</span>
+            <span>DBI – Daffiama Bussie Issa, Upper West Region</span>
           </div>
         </div>
       </div>
