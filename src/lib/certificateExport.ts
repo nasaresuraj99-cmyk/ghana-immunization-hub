@@ -83,6 +83,8 @@ const GHS_DARK: [number, number, number] = [30, 41, 59];
 interface CertificateOptions {
   facilityName?: string;
   districtRegion?: string;
+  district?: string;
+  region?: string;
   vaccinatorName?: string;
   logoBase64?: string;
 }
