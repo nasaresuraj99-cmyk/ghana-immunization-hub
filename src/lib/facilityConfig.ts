@@ -56,14 +56,26 @@ function readStored(): FacilityProfile | null {
   }
 }
 
+function isDefaultFacility(input: Partial<FacilityProfile>): boolean {
+  const id = (input.id || '').trim().toLowerCase();
+  const name = (input.name || '').trim().toUpperCase();
+  const code = (input.code || '').trim().toUpperCase();
+  return (
+    id === DEFAULT_FACILITY.id ||
+    name === DEFAULT_FACILITY.name ||
+    code === DEFAULT_FACILITY.code
+  );
+}
+
 function normalize(input: Partial<FacilityProfile>): FacilityProfile {
+  const legacy = isDefaultFacility(input);
   return {
     id: input.id || DEFAULT_FACILITY.id,
     name: input.name || DEFAULT_FACILITY.name,
     code: (input.code || '').toUpperCase() || DEFAULT_FACILITY.code,
-    address: input.address || '',
-    district: input.district || '',
-    region: input.region || '',
+    address: input.address || (legacy ? DEFAULT_FACILITY.address : ''),
+    district: input.district || (legacy ? DEFAULT_FACILITY.district : ''),
+    region: input.region || (legacy ? DEFAULT_FACILITY.region : ''),
   };
 }
 
