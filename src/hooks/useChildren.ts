@@ -793,6 +793,7 @@ export function useChildren(options: UseChildrenOptions = {}) {
 
   const stats = useMemo((): DashboardStats => {
     const today = new Date();
+    const todayStart = new Date(today.getFullYear(), today.getMonth(), today.getDate());
     const sevenDaysFromNow = new Date();
     sevenDaysFromNow.setDate(today.getDate() + 7);
 
@@ -808,8 +809,16 @@ export function useChildren(options: UseChildrenOptions = {}) {
     let fullyImmunized = 0;
 
     activeChildren.forEach(child => {
-      const hasOverdue = child.vaccines.some(v => v.status === 'overdue' && !OPTIONAL_VACCINES.includes(v.name));
-      const allCompleted = child.vaccines.every(v => v.status === 'completed' || OPTIONAL_VACCINES.includes(v.name));
+      // Derive overdue from the due date so stats stay accurate even when a
+      // stored status was written before the due date passed.
+      const isGiven = (v: VaccineRecord) => v.status === 'completed' || !!v.givenDate;
+      const isOverdue = (v: VaccineRecord) => {
+        if (isGiven(v) || OPTIONAL_VACCINES.includes(v.name) || !v.dueDate) return false;
+        const due = new Date(v.dueDate);
+        return !isNaN(due.getTime()) && due < todayStart;
+      };
+      const hasOverdue = child.vaccines.some(isOverdue);
+      const allCompleted = child.vaccines.every(v => isGiven(v) || OPTIONAL_VACCINES.includes(v.name));
       
       if (hasOverdue) defaulters++;
       if (allCompleted) fullyImmunized++;
@@ -819,9 +828,9 @@ export function useChildren(options: UseChildrenOptions = {}) {
           vaccinatedToday++;
         }
         
-        if (vaccine.status === 'pending') {
+        if (!isGiven(vaccine) && vaccine.dueDate) {
           const dueDate = new Date(vaccine.dueDate);
-          if (dueDate >= today && dueDate <= sevenDaysFromNow) {
+          if (!isNaN(dueDate.getTime()) && dueDate >= todayStart && dueDate <= sevenDaysFromNow) {
             dueSoon++;
           }
         }
