@@ -1,3 +1,4 @@
+import { differenceInMonths } from "date-fns";
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
 import { Child, Defaulter } from "@/types/child";
@@ -269,9 +270,8 @@ export function buildMonthlyEpiTally(children: Child[], year: number, month: num
       if (child.sex === "Male") entry.male += 1;
       else if (child.sex === "Female") entry.female += 1;
 
-      const ageMonths = isNaN(dob.getTime())
-        ? 0
-        : (given.getFullYear() - dob.getFullYear()) * 12 + (given.getMonth() - dob.getMonth());
+      // Exact age at the time the dose was administered (day-accurate)
+      const ageMonths = isNaN(dob.getTime()) ? 0 : differenceInMonths(given, dob);
       if (ageMonths < 12) entry.under1 += 1;
       else entry.over1 += 1;
 
