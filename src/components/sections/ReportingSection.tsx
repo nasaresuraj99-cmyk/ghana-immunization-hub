@@ -11,7 +11,7 @@ import { Calendar as CalendarComponent } from "@/components/ui/calendar";
 import { Child, DashboardStats, Defaulter } from "@/types/child";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
-import { format } from "date-fns";
+import { format, differenceInMonths } from "date-fns";
 import { FACILITY_CONFIG } from "@/lib/facilityConfig";
 import {
   exportSummaryReport,
@@ -130,6 +130,40 @@ const normalizeVaccineName = (name: string): string => {
     .replace(/\s*\(.*?\)/g, '') // Remove parenthetical like (RTS,S)
     .trim()
     .toLowerCase();
+};
+
+// Vaccines that are never counted as missed/overdue (clinical rule)
+const OPTIONAL_VACCINES = ['Hepatitis B at Birth'];
+
+const isOptionalVaccine = (name: string): boolean =>
+  OPTIONAL_VACCINES.some(o => normalizeVaccineName(o) === normalizeVaccineName(name));
+
+const getStartOfToday = (): Date => {
+  const d = new Date();
+  d.setHours(0, 0, 0, 0);
+  return d;
+};
+
+// A dose counts as given when it is completed or has an administration date
+const isVaccineGiven = (v: { status?: string; givenDate?: string }): boolean =>
+  v.status === 'completed' || !!v.givenDate;
+
+// Overdue is derived from the due date, never trusted from a stale stored status
+const isVaccineOverdue = (v: { name: string; status?: string; givenDate?: string; dueDate?: string }): boolean => {
+  if (isVaccineGiven(v)) return false;
+  if (isOptionalVaccine(v.name)) return false;
+  if (!v.dueDate) return false;
+  const due = new Date(v.dueDate);
+  if (isNaN(due.getTime())) return false;
+  due.setHours(0, 0, 0, 0);
+  return due < getStartOfToday();
+};
+
+// Accurate calendar age in months (no 30-day approximations)
+const getChildAgeInMonths = (dateOfBirth: string): number => {
+  const dob = new Date(dateOfBirth);
+  if (isNaN(dob.getTime())) return -1;
+  return differenceInMonths(new Date(), dob);
 };
 
 // Get schedule group for a vaccine
@@ -266,10 +300,9 @@ export function ReportingSection({ stats, children, facilityName }: ReportingSec
     };
 
     periodFilteredChildren.forEach(child => {
-      const birthDate = new Date(child.dateOfBirth);
-      const today = new Date();
-      const months = (today.getFullYear() - birthDate.getFullYear()) * 12 + 
-                     (today.getMonth() - birthDate.getMonth());
+      const months = getChildAgeInMonths(child.dateOfBirth);
+      // Ignore invalid dates and children outside the 0-59 month EPI window
+      if (months < 0 || months > 59) return;
 
       if (months <= 11) groups['0-11 months']++;
       else if (months <= 23) groups['12-23 months']++;
@@ -293,7 +326,7 @@ export function ReportingSection({ stats, children, facilityName }: ReportingSec
       // Only include vaccines given within the selected period
       const completedVaccines = child.vaccines
         .filter(v => {
-          if (v.status !== 'completed' || !v.givenDate) return false;
+          if (!isVaccineGiven(v) || !v.givenDate) return false;
           const givenDate = new Date(v.givenDate);
           return givenDate >= startDate && givenDate <= endDate;
         })
@@ -334,7 +367,7 @@ export function ReportingSection({ stats, children, facilityName }: ReportingSec
 
     activeChildren.forEach(child => {
       child.vaccines.forEach(vaccine => {
-        if (vaccine.status === 'completed' && vaccine.givenDate) {
+        if (isVaccineGiven(vaccine) && vaccine.givenDate) {
           const givenDate = new Date(vaccine.givenDate);
           // Only include vaccinations given within the selected period
           if (givenDate >= startDate && givenDate <= endDate) {
@@ -363,9 +396,9 @@ export function ReportingSection({ stats, children, facilityName }: ReportingSec
     
     // Count fully immunized (among children registered in period)
     const fullyImmunized = periodFilteredChildren.filter(child => {
-      const totalVaccines = child.vaccines.length;
-      const completedVaccines = child.vaccines.filter(v => v.status === 'completed').length;
-      return totalVaccines > 0 && completedVaccines === totalVaccines;
+      if (child.vaccines.length === 0) return false;
+      const required = child.vaccines.filter(v => !isOptionalVaccine(v.name));
+      return required.length > 0 && required.every(v => isVaccineGiven(v));
     }).length;
     
     // Count vaccinations given today within period
@@ -390,9 +423,9 @@ export function ReportingSection({ stats, children, facilityName }: ReportingSec
     let dueSoon = 0;
     periodFilteredChildren.forEach(child => {
       child.vaccines.forEach(v => {
-        if (v.status === 'pending') {
+        if (!isVaccineGiven(v) && v.dueDate) {
           const dueDate = new Date(v.dueDate);
-          if (dueDate >= today && dueDate <= nextWeek) {
+          if (!isNaN(dueDate.getTime()) && dueDate >= todayStart && dueDate <= nextWeek) {
             dueSoon++;
           }
         }
@@ -401,7 +434,7 @@ export function ReportingSection({ stats, children, facilityName }: ReportingSec
     
     // Defaulters in period
     const defaulters = periodFilteredChildren.filter(child => 
-      child.vaccines.some(v => v.status === 'overdue')
+      child.vaccines.some(v => isVaccineOverdue(v))
     ).length;
     
     // Coverage rate
@@ -409,7 +442,7 @@ export function ReportingSection({ stats, children, facilityName }: ReportingSec
     
     // Dropout rate (children who started but didn't complete)
     const startedVaccination = periodFilteredChildren.filter(child => 
-      child.vaccines.some(v => v.status === 'completed')
+      child.vaccines.some(v => isVaccineGiven(v))
     ).length;
     const dropoutRate = startedVaccination > 0 
       ? Math.round(((startedVaccination - fullyImmunized) / startedVaccination) * 100) 
@@ -452,9 +485,10 @@ export function ReportingSection({ stats, children, facilityName }: ReportingSec
       Object.entries(VACCINE_SCHEDULE).forEach(([schedule, scheduleData]) => {
         // Check if child is eligible based on age
         const birthDate = new Date(child.dateOfBirth);
+        if (isNaN(birthDate.getTime())) return;
         const today = new Date();
         const ageInWeeks = Math.floor((today.getTime() - birthDate.getTime()) / (7 * 24 * 60 * 60 * 1000));
-        const ageInMonths = Math.floor((today.getTime() - birthDate.getTime()) / (30 * 24 * 60 * 60 * 1000));
+        const ageInMonths = differenceInMonths(today, birthDate);
         
         let isEligible = false;
         if (scheduleData.ageInWeeks !== undefined && ageInWeeks >= scheduleData.ageInWeeks) {
@@ -480,13 +514,14 @@ export function ReportingSection({ stats, children, facilityName }: ReportingSec
           );
           
           if (matchingVaccine) {
-            if (matchingVaccine.status !== 'completed') {
+            if (!isVaccineGiven(matchingVaccine)) {
+              if (isOptionalVaccine(matchingVaccine.name)) return; // optional doses never block coverage
               allCompleted = false;
-              if (matchingVaccine.status === 'overdue') {
+              if (isVaccineOverdue(matchingVaccine)) {
                 hasOverdue = true;
               }
             }
-          } else {
+          } else if (!isOptionalVaccine(vaccineInSchedule)) {
             allCompleted = false;
           }
         });
@@ -510,7 +545,7 @@ export function ReportingSection({ stats, children, facilityName }: ReportingSec
     const today = new Date();
 
     activeChildren.forEach(child => {
-      const overdueVaccines = child.vaccines.filter(v => v.status === 'overdue');
+      const overdueVaccines = child.vaccines.filter(v => isVaccineOverdue(v));
       if (overdueVaccines.length > 0) {
         const earliestOverdue = overdueVaccines.reduce((earliest, v) => 
           new Date(v.dueDate) < new Date(earliest.dueDate) ? v : earliest
