@@ -15,11 +15,9 @@ const COLORS = [
 ];
 
 const AGE_GROUPS = [
-  { label: "0-6 months", min: 0, max: 6 },
-  { label: "7-12 months", min: 7, max: 12 },
-  { label: "13-24 months", min: 13, max: 24 },
-  { label: "25-36 months", min: 25, max: 36 },
-  { label: "37-59 months", min: 37, max: 59 },
+  { label: "0-11 months", min: 0, max: 11 },
+  { label: "12-23 months", min: 12, max: 23 },
+  { label: "24-59 months", min: 24, max: 59 },
 ];
 
 export function AgeDistributionChart({ children }: AgeDistributionChartProps) {
