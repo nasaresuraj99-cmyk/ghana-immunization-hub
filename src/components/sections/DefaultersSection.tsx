@@ -33,8 +33,11 @@ export function DefaultersSection({ children, onRefresh, canExport = true, onVie
       // Optional vaccines that should not trigger defaulter status
       const OPTIONAL_VACCINES = ['Hepatitis B at Birth'];
       const overdueVaccines = child.vaccines.filter(v => {
-        if (v.status !== 'overdue') return false;
+        if (v.status === 'completed' || v.givenDate) return false;
         if (OPTIONAL_VACCINES.includes(v.name)) return false;
+        if (!v.dueDate) return false;
+        const dueDate = new Date(v.dueDate);
+        if (isNaN(dueDate.getTime()) || dueDate >= today) return false;
         const dueDate = new Date(v.dueDate);
         const daysOverdue = Math.ceil((today.getTime() - dueDate.getTime()) / (1000 * 60 * 60 * 24));
         
