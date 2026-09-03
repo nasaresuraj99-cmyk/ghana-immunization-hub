@@ -38,7 +38,6 @@ export function DefaultersSection({ children, onRefresh, canExport = true, onVie
         if (!v.dueDate) return false;
         const dueDate = new Date(v.dueDate);
         if (isNaN(dueDate.getTime()) || dueDate >= today) return false;
-        const dueDate = new Date(v.dueDate);
         const daysOverdue = Math.ceil((today.getTime() - dueDate.getTime()) / (1000 * 60 * 60 * 24));
         
         if (periodFilter !== 'all' && daysOverdue < parseInt(periodFilter)) return false;
