@@ -260,12 +260,9 @@ export function ReportingSection({ stats, children, facilityName }: ReportingSec
   // Age distribution calculation - ONLY for children registered in selected period
   const ageDistribution = useMemo(() => {
     const groups = {
-      '0-6 months': 0,
-      '7-12 months': 0,
-      '13-24 months': 0,
-      '25-36 months': 0,
-      '37-48 months': 0,
-      '49-59 months': 0,
+      '0-11 months': 0,
+      '12-23 months': 0,
+      '24-59 months': 0,
     };
 
     periodFilteredChildren.forEach(child => {
@@ -274,12 +271,9 @@ export function ReportingSection({ stats, children, facilityName }: ReportingSec
       const months = (today.getFullYear() - birthDate.getFullYear()) * 12 + 
                      (today.getMonth() - birthDate.getMonth());
 
-      if (months <= 6) groups['0-6 months']++;
-      else if (months <= 12) groups['7-12 months']++;
-      else if (months <= 24) groups['13-24 months']++;
-      else if (months <= 36) groups['25-36 months']++;
-      else if (months <= 48) groups['37-48 months']++;
-      else groups['49-59 months']++;
+      if (months <= 11) groups['0-11 months']++;
+      else if (months <= 23) groups['12-23 months']++;
+      else groups['24-59 months']++;
     });
 
     return groups;
