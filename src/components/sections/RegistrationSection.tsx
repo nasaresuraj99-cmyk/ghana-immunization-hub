@@ -298,12 +298,28 @@ export function RegistrationSection({ editingChild, onSave, onCancel, onBack, ex
             </div>
           </div>
 
-          {checkDuplicate() && (
-            <div className="p-4 bg-warning/10 border border-warning/30 rounded-lg text-warning-foreground">
-              <p className="text-sm font-medium">⚠️ Potential duplicate detected</p>
-              <p className="text-xs mt-1">A child with similar details already exists in the register.</p>
+          {checkDuplicate() ? (
+            <div className="p-4 bg-destructive/10 border border-destructive/30 rounded-lg">
+              <p className="text-sm font-medium text-destructive">⚠️ This child is already registered</p>
+              <p className="text-xs mt-1 text-muted-foreground">
+                Same name, caregiver/parent and date of birth already exist in the register.
+              </p>
             </div>
-          )}
+          ) : similarChildren.length > 0 ? (
+            <div className="p-4 bg-warning/10 border border-warning/30 rounded-lg">
+              <p className="text-sm font-medium">⚠️ Possible duplicate - please check</p>
+              <ul className="text-xs mt-1 space-y-0.5 text-muted-foreground">
+                {similarChildren.map(c => (
+                  <li key={c.id}>
+                    {c.name} - {c.regNo} - caregiver: {c.motherName || "-"}
+                  </li>
+                ))}
+              </ul>
+              <p className="text-xs mt-1 text-muted-foreground">
+                You can still save if this is a different child (for example a twin).
+              </p>
+            </div>
+          ) : null}
 
           <div className="flex flex-wrap gap-3">
             <Button type="submit">
