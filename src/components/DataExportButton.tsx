@@ -17,6 +17,7 @@ import {
 import { toast } from "sonner";
 import { useDocumentActivityLog } from "@/hooks/useDocumentActivityLog";
 import { useAuth } from "@/hooks/useAuth";
+import { recordBackup } from "@/lib/backupReminder";
 
 interface DataExportButtonProps {
   children: Child[];
@@ -33,6 +34,7 @@ export function DataExportButton({ children, stats }: DataExportButtonProps) {
       return;
     }
     exportFullDataJSON(children, stats);
+    recordBackup();
     
     // Log the document generation for audit trail
     if (user) {

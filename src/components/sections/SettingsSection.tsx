@@ -8,6 +8,7 @@ import { NotificationSettings } from "@/components/NotificationSettings";
 import { StockAlertSettings } from "@/components/StockAlertSettings";
 import { DataExportButton } from "@/components/DataExportButton";
 import { DataImportButton } from "@/components/DataImportButton";
+import { BackupReminder } from "@/components/BackupReminder";
 import { SyncHistoryLog } from "@/components/SyncHistoryLog";
 import { Child, DashboardStats } from "@/types/child";
 import { AppRole, ROLE_PERMISSIONS } from "@/types/facility";
@@ -246,6 +247,7 @@ export function SettingsSection({
             <p className="text-sm text-muted-foreground">
               Export your vaccination records for backup or analysis. Your data includes {children.length} registered children.
             </p>
+            <BackupReminder recordCount={children.length} />
             <div className="flex flex-wrap gap-2">
               <DataExportButton 
                 children={children} 

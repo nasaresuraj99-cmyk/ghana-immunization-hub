@@ -435,12 +435,14 @@ export function BulkVaccinationModal({
                 Ghana EPI Compliant
               </Badge>
             </DialogTitle>
-            <OutreachDebugPanel
-              children={children}
-              inventoryStatus={inventoryStatus}
-              selectedVaccine={selectedVaccine}
-              onRefreshInventoryStatus={onRefreshInventoryStatus}
-            />
+            {import.meta.env.DEV && (
+              <OutreachDebugPanel
+                children={children}
+                inventoryStatus={inventoryStatus}
+                selectedVaccine={selectedVaccine}
+                onRefreshInventoryStatus={onRefreshInventoryStatus}
+              />
+            )}
           </div>
           <p className="text-xs text-muted-foreground mt-1">
             Automatically filters children based on age, previous doses, and minimum intervals per Ghana EPI schedule.

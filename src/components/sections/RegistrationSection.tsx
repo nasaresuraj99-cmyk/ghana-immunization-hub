@@ -79,6 +79,20 @@ export function RegistrationSection({ editingChild, onSave, onCancel, onBack, ex
     }
   };
 
+  // Soft warning: a child with the same date of birth and a matching name or caregiver
+  const similarChildren = (() => {
+    if (!formData.dateOfBirth || (!formData.name && !formData.motherName)) return [];
+    const name = formData.name.trim().toLowerCase();
+    const caregiver = formData.motherName.trim().toLowerCase();
+    return existingChildren.filter(child => {
+      if (child.id === editingChild?.id || child.isDeleted) return false;
+      if (child.dateOfBirth !== formData.dateOfBirth) return false;
+      const sameName = !!name && child.name.trim().toLowerCase() === name;
+      const sameCaregiver = !!caregiver && (child.motherName || "").trim().toLowerCase() === caregiver;
+      return sameName || sameCaregiver;
+    }).slice(0, 3);
+  })();
+
   const checkDuplicate = () => {
     if (!formData.name || !formData.motherName || !formData.dateOfBirth) return false;
     
@@ -154,6 +168,7 @@ export function RegistrationSection({ editingChild, onSave, onCancel, onBack, ex
               <Label htmlFor="childName">Child's Name *</Label>
               <Input
                 id="childName"
+                autoCapitalize="words"
                 placeholder="Enter full name"
                 value={formData.name}
                 onChange={(e) => {
@@ -215,6 +230,7 @@ export function RegistrationSection({ editingChild, onSave, onCancel, onBack, ex
               <Label htmlFor="motherName">Caregiver/Parent Name *</Label>
               <Input
                 id="motherName"
+                autoCapitalize="words"
                 placeholder="Enter caregiver/parent name"
                 value={formData.motherName}
                 onChange={(e) => {
@@ -230,6 +246,8 @@ export function RegistrationSection({ editingChild, onSave, onCancel, onBack, ex
               <Label htmlFor="telephone">Telephone No./Address *</Label>
               <Input
                 id="telephone"
+                inputMode="tel"
+                autoComplete="tel"
                 placeholder="024XXXXXXX or House No./Street"
                 value={formData.telephoneAddress}
                 onChange={(e) => {
@@ -284,15 +302,31 @@ export function RegistrationSection({ editingChild, onSave, onCancel, onBack, ex
             </div>
           </div>
 
-          {checkDuplicate() && (
-            <div className="p-4 bg-warning/10 border border-warning/30 rounded-lg text-warning-foreground">
-              <p className="text-sm font-medium">⚠️ Potential duplicate detected</p>
-              <p className="text-xs mt-1">A child with similar details already exists in the register.</p>
+          {checkDuplicate() ? (
+            <div className="p-4 bg-destructive/10 border border-destructive/30 rounded-lg">
+              <p className="text-sm font-medium text-destructive">⚠️ This child is already registered</p>
+              <p className="text-xs mt-1 text-muted-foreground">
+                Same name, caregiver/parent and date of birth already exist in the register.
+              </p>
             </div>
-          )}
+          ) : similarChildren.length > 0 ? (
+            <div className="p-4 bg-warning/10 border border-warning/30 rounded-lg">
+              <p className="text-sm font-medium">⚠️ Possible duplicate - please check</p>
+              <ul className="text-xs mt-1 space-y-0.5 text-muted-foreground">
+                {similarChildren.map(c => (
+                  <li key={c.id}>
+                    {c.name} - {c.regNo} - caregiver: {c.motherName || "-"}
+                  </li>
+                ))}
+              </ul>
+              <p className="text-xs mt-1 text-muted-foreground">
+                You can still save if this is a different child (for example a twin).
+              </p>
+            </div>
+          ) : null}
 
-          <div className="flex flex-wrap gap-3">
-            <Button type="submit">
+          <div className="flex flex-col sm:flex-row flex-wrap gap-3">
+            <Button type="submit" className="w-full sm:w-auto">
               <Save className="w-4 h-4 mr-2" />
               {editingChild ? "Update Child" : "Register Child with Immunization Schedule"}
             </Button>
