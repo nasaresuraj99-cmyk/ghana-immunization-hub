@@ -79,6 +79,20 @@ export function RegistrationSection({ editingChild, onSave, onCancel, onBack, ex
     }
   };
 
+  // Soft warning: a child with the same date of birth and a matching name or caregiver
+  const similarChildren = (() => {
+    if (!formData.dateOfBirth || (!formData.name && !formData.motherName)) return [];
+    const name = formData.name.trim().toLowerCase();
+    const caregiver = formData.motherName.trim().toLowerCase();
+    return existingChildren.filter(child => {
+      if (child.id === editingChild?.id || child.isDeleted) return false;
+      if (child.dateOfBirth !== formData.dateOfBirth) return false;
+      const sameName = !!name && child.name.trim().toLowerCase() === name;
+      const sameCaregiver = !!caregiver && (child.motherName || "").trim().toLowerCase() === caregiver;
+      return sameName || sameCaregiver;
+    }).slice(0, 3);
+  })();
+
   const checkDuplicate = () => {
     if (!formData.name || !formData.motherName || !formData.dateOfBirth) return false;
     
