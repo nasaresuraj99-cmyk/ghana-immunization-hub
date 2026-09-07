@@ -168,6 +168,7 @@ export function RegistrationSection({ editingChild, onSave, onCancel, onBack, ex
               <Label htmlFor="childName">Child's Name *</Label>
               <Input
                 id="childName"
+                autoCapitalize="words"
                 placeholder="Enter full name"
                 value={formData.name}
                 onChange={(e) => {
@@ -229,6 +230,7 @@ export function RegistrationSection({ editingChild, onSave, onCancel, onBack, ex
               <Label htmlFor="motherName">Caregiver/Parent Name *</Label>
               <Input
                 id="motherName"
+                autoCapitalize="words"
                 placeholder="Enter caregiver/parent name"
                 value={formData.motherName}
                 onChange={(e) => {
@@ -244,6 +246,8 @@ export function RegistrationSection({ editingChild, onSave, onCancel, onBack, ex
               <Label htmlFor="telephone">Telephone No./Address *</Label>
               <Input
                 id="telephone"
+                inputMode="tel"
+                autoComplete="tel"
                 placeholder="024XXXXXXX or House No./Street"
                 value={formData.telephoneAddress}
                 onChange={(e) => {
@@ -321,8 +325,8 @@ export function RegistrationSection({ editingChild, onSave, onCancel, onBack, ex
             </div>
           ) : null}
 
-          <div className="flex flex-wrap gap-3">
-            <Button type="submit">
+          <div className="flex flex-col sm:flex-row flex-wrap gap-3">
+            <Button type="submit" className="w-full sm:w-auto">
               <Save className="w-4 h-4 mr-2" />
               {editingChild ? "Update Child" : "Register Child with Immunization Schedule"}
             </Button>
