@@ -4,6 +4,7 @@ import { SignupForm } from "./SignupForm";
 import type { FacilitySignupInput } from "@/hooks/useAuth";
 import { ForgotPasswordForm } from "./ForgotPasswordForm";
 import { Wifi, WifiOff, Sparkles, Building, Lock } from "lucide-react";
+import ghsLogo from "@/assets/ghs-logo.png";
 
 interface AuthScreenProps {
   onLogin: (email: string, password: string) => void;
@@ -52,7 +53,12 @@ export const AuthScreen = forwardRef<HTMLDivElement, AuthScreenProps>(({ onLogin
         <div className="bg-card rounded-2xl shadow-elevation-3 p-8 animate-slide-up backdrop-blur-sm border border-border/50">
           <div className="text-center mb-8">
             <div className="relative inline-block">
-              <div className="text-6xl mb-4 animate-float">🏥</div>
+              <img
+                src={ghsLogo}
+                alt="Ghana Health Service logo"
+                className="w-20 h-20 mx-auto mb-4 object-contain animate-float"
+              />
+
               <Sparkles className="absolute -top-1 -right-1 w-5 h-5 text-accent animate-pulse" />
             </div>
             <h1 className="text-2xl font-bold text-primary">Immunization Tracker</h1>
